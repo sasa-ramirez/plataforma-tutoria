@@ -1,6 +1,7 @@
 -- ============================================================
 -- Plataforma de Tutoría — Esquema inicial
 -- Postgres / Supabase · RLS · soft delete · timestamps
+-- IDEMPOTENTE: se puede ejecutar varias veces sin error.
 -- ============================================================
 
 -- ---------- Extensiones ----------
@@ -9,10 +10,20 @@ create extension if not exists "pgcrypto";
 -- ---------- Enums ----------
 do $$ begin
   create type user_role         as enum ('student', 'teacher');
+exception when duplicate_object then null; end $$;
+do $$ begin
   create type difficulty        as enum ('beginner', 'easy', 'medium', 'hard');
+exception when duplicate_object then null; end $$;
+do $$ begin
   create type prog_language     as enum ('pseint', 'java', 'python', 'logic');
+exception when duplicate_object then null; end $$;
+do $$ begin
   create type assignment_status as enum ('draft', 'open', 'closed');
+exception when duplicate_object then null; end $$;
+do $$ begin
   create type submission_status as enum ('draft', 'submitted', 'grading', 'graded', 'error');
+exception when duplicate_object then null; end $$;
+do $$ begin
   create type exam_event        as enum (
     'tab_blur','tab_focus','window_hidden','window_visible',
     'paste','copy','fullscreen_exit'
@@ -40,6 +51,7 @@ create table if not exists profiles (
   updated_at  timestamptz not null default now(),
   deleted_at  timestamptz
 );
+drop trigger if exists t_profiles_updated on profiles;
 create trigger t_profiles_updated before update on profiles
   for each row execute function set_updated_at();
 
@@ -76,7 +88,8 @@ create table if not exists courses (
   updated_at  timestamptz not null default now(),
   deleted_at  timestamptz
 );
-create index on courses(teacher_id);
+create index if not exists idx_courses_teacher on courses(teacher_id);
+drop trigger if exists t_courses_updated on courses;
 create trigger t_courses_updated before update on courses
   for each row execute function set_updated_at();
 
@@ -90,7 +103,7 @@ create table if not exists enrollments (
   created_at  timestamptz not null default now(),
   unique (course_id, student_id)
 );
-create index on enrollments(student_id);
+create index if not exists idx_enroll_student on enrollments(student_id);
 
 -- ============================================================
 -- assignments  (tareas)
@@ -105,19 +118,19 @@ create table if not exists assignments (
   language      prog_language not null default 'pseint',
   points        int not null default 100,
   status        assignment_status not null default 'draft',
-  is_exam       boolean not null default false,   -- activa modo examen
-  time_limit_min int,                              -- opcional
+  is_exam       boolean not null default false,
+  time_limit_min int,
   opens_at      timestamptz,
   closes_at     timestamptz,
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now(),
   deleted_at    timestamptz
 );
-create index on assignments(course_id);
+create index if not exists idx_assign_course on assignments(course_id);
+drop trigger if exists t_assignments_updated on assignments;
 create trigger t_assignments_updated before update on assignments
   for each row execute function set_updated_at();
 
--- ¿La tarea está abierta ahora? (helper para UI y políticas)
 create or replace function assignment_is_available(a assignments)
 returns boolean language sql stable as $$
   select a.status = 'open'
@@ -130,12 +143,12 @@ $$;
 -- ============================================================
 create table if not exists exercises (
   id             uuid primary key default gen_random_uuid(),
-  assignment_id  uuid references assignments(id) on delete cascade, -- null = práctica
+  assignment_id  uuid references assignments(id) on delete cascade,
   is_practice    boolean not null default false,
   title          text not null,
-  prompt         text not null,            -- enunciado
+  prompt         text not null,
   starter_code   text default '',
-  solution_code  text,                     -- visible tras resolver/cierre
+  solution_code  text,
   language       prog_language not null default 'pseint',
   difficulty     difficulty not null default 'beginner',
   points         int not null default 100,
@@ -145,8 +158,9 @@ create table if not exists exercises (
   updated_at     timestamptz not null default now(),
   deleted_at     timestamptz
 );
-create index on exercises(assignment_id);
-create index on exercises(is_practice);
+create index if not exists idx_ex_assignment on exercises(assignment_id);
+create index if not exists idx_ex_practice on exercises(is_practice);
+drop trigger if exists t_exercises_updated on exercises;
 create trigger t_exercises_updated before update on exercises
   for each row execute function set_updated_at();
 
@@ -160,7 +174,7 @@ create table if not exists submissions (
   code          text not null default '',
   language      prog_language not null default 'pseint',
   status        submission_status not null default 'draft',
-  score         int,                       -- 0..100 (lo pone la IA)
+  score         int,
   attempt       int not null default 1,
   started_at    timestamptz default now(),
   submitted_at  timestamptz,
@@ -168,8 +182,9 @@ create table if not exists submissions (
   updated_at    timestamptz not null default now(),
   deleted_at    timestamptz
 );
-create index on submissions(exercise_id);
-create index on submissions(student_id);
+create index if not exists idx_sub_exercise on submissions(exercise_id);
+create index if not exists idx_sub_student on submissions(student_id);
+drop trigger if exists t_submissions_updated on submissions;
 create trigger t_submissions_updated before update on submissions
   for each row execute function set_updated_at();
 
@@ -179,13 +194,13 @@ create trigger t_submissions_updated before update on submissions
 create table if not exists ai_feedback (
   id            uuid primary key default gen_random_uuid(),
   submission_id uuid not null unique references submissions(id) on delete cascade,
-  score         int not null,              -- 1..100
-  summary       text,                      -- feedback amigable
-  errors        jsonb default '[]'::jsonb, -- [{line, message, severity}]
-  suggestions   jsonb default '[]'::jsonb, -- ["..."]
+  score         int not null,
+  summary       text,
+  errors        jsonb default '[]'::jsonb,
+  suggestions   jsonb default '[]'::jsonb,
   strengths     jsonb default '[]'::jsonb,
-  model         text,                      -- modelo de OpenRouter usado
-  raw           jsonb,                     -- respuesta cruda (debug)
+  model         text,
+  raw           jsonb,
   created_at    timestamptz not null default now()
 );
 
@@ -197,10 +212,10 @@ create table if not exists exam_logs (
   submission_id uuid not null references submissions(id) on delete cascade,
   student_id    uuid not null references profiles(id) on delete cascade,
   event_type    exam_event not null,
-  meta          jsonb default '{}'::jsonb, -- {chars, durationMs, ...}
+  meta          jsonb default '{}'::jsonb,
   created_at    timestamptz not null default now()
 );
-create index on exam_logs(submission_id);
+create index if not exists idx_exam_submission on exam_logs(submission_id);
 
 -- ============================================================
 -- practice_sessions
@@ -216,7 +231,8 @@ create table if not exists practice_sessions (
   created_at   timestamptz not null default now(),
   updated_at   timestamptz not null default now()
 );
-create index on practice_sessions(student_id);
+create index if not exists idx_practice_student on practice_sessions(student_id);
+drop trigger if exists t_practice_updated on practice_sessions;
 create trigger t_practice_updated before update on practice_sessions
   for each row execute function set_updated_at();
 
@@ -240,7 +256,6 @@ returns boolean language sql stable security definer set search_path = public as
   );
 $$;
 
--- course al que pertenece una assignment
 create or replace function course_of_assignment(aid uuid)
 returns uuid language sql stable security definer set search_path = public as $$
   select course_id from assignments where id = aid;
@@ -260,26 +275,35 @@ alter table exam_logs         enable row level security;
 alter table practice_sessions enable row level security;
 
 -- profiles
+drop policy if exists "profiles read all" on profiles;
 create policy "profiles read all"   on profiles for select using (deleted_at is null);
+drop policy if exists "profiles update own" on profiles;
 create policy "profiles update own" on profiles for update using (id = auth.uid());
 
 -- courses
+drop policy if exists "courses teacher all" on courses;
 create policy "courses teacher all" on courses for all
   using (teacher_id = auth.uid()) with check (teacher_id = auth.uid());
+drop policy if exists "courses enrolled read" on courses;
 create policy "courses enrolled read" on courses for select
   using (deleted_at is null and is_enrolled(id));
 
 -- enrollments
+drop policy if exists "enroll self" on enrollments;
 create policy "enroll self" on enrollments for insert
   with check (student_id = auth.uid());
+drop policy if exists "enroll read own" on enrollments;
 create policy "enroll read own" on enrollments for select
   using (student_id = auth.uid() or owns_course(course_id));
+drop policy if exists "enroll delete own" on enrollments;
 create policy "enroll delete own" on enrollments for delete
   using (student_id = auth.uid() or owns_course(course_id));
 
 -- assignments
+drop policy if exists "assign teacher all" on assignments;
 create policy "assign teacher all" on assignments for all
   using (owns_course(course_id)) with check (owns_course(course_id));
+drop policy if exists "assign student read" on assignments;
 create policy "assign student read" on assignments for select
   using (
     deleted_at is null and is_enrolled(course_id)
@@ -287,6 +311,7 @@ create policy "assign student read" on assignments for select
   );
 
 -- exercises
+drop policy if exists "ex teacher all" on exercises;
 create policy "ex teacher all" on exercises for all
   using (
     is_practice = false and owns_course(course_of_assignment(assignment_id))
@@ -294,20 +319,24 @@ create policy "ex teacher all" on exercises for all
   with check (
     is_practice = false and owns_course(course_of_assignment(assignment_id))
   );
+drop policy if exists "ex practice read" on exercises;
 create policy "ex practice read" on exercises for select
   using (is_practice = true and deleted_at is null);
+drop policy if exists "ex student read" on exercises;
 create policy "ex student read" on exercises for select
   using (
     deleted_at is null and assignment_id is not null
     and is_enrolled(course_of_assignment(assignment_id))
   );
--- cualquier autenticado puede crear ejercicios de práctica propios
+drop policy if exists "ex practice create" on exercises;
 create policy "ex practice create" on exercises for insert
   with check (is_practice = true and created_by = auth.uid());
 
 -- submissions
+drop policy if exists "sub student all" on submissions;
 create policy "sub student all" on submissions for all
   using (student_id = auth.uid()) with check (student_id = auth.uid());
+drop policy if exists "sub teacher read" on submissions;
 create policy "sub teacher read" on submissions for select
   using (
     exists (
@@ -318,7 +347,8 @@ create policy "sub teacher read" on submissions for select
     )
   );
 
--- ai_feedback  (escritura solo service-role / Edge Function)
+-- ai_feedback
+drop policy if exists "fb read owner+teacher" on ai_feedback;
 create policy "fb read owner+teacher" on ai_feedback for select
   using (
     exists (
@@ -335,9 +365,11 @@ create policy "fb read owner+teacher" on ai_feedback for select
     )
   );
 
--- exam_logs (append-only del estudiante; profesor lee)
+-- exam_logs
+drop policy if exists "exam insert own" on exam_logs;
 create policy "exam insert own" on exam_logs for insert
   with check (student_id = auth.uid());
+drop policy if exists "exam read owner+teacher" on exam_logs;
 create policy "exam read owner+teacher" on exam_logs for select
   using (
     student_id = auth.uid()
@@ -349,6 +381,7 @@ create policy "exam read owner+teacher" on exam_logs for select
     )
   );
 
--- practice_sessions (solo dueño)
+-- practice_sessions
+drop policy if exists "practice own all" on practice_sessions;
 create policy "practice own all" on practice_sessions for all
   using (student_id = auth.uid()) with check (student_id = auth.uid());
