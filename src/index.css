@@ -1,0 +1,134 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 250 50% 99%;
+    --foreground: 240 20% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 20% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 20% 12%;
+
+    /* Violeta juvenil tipo Linear/Discord */
+    --primary: 256 84% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 250 30% 96%;
+    --secondary-foreground: 240 20% 18%;
+
+    --muted: 250 25% 95%;
+    --muted-foreground: 240 8% 46%;
+
+    --accent: 175 70% 45%;       /* teal energético */
+    --accent-foreground: 0 0% 100%;
+
+    --success: 142 70% 42%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 95% 55%;
+    --warning-foreground: 30 40% 12%;
+    --destructive: 0 80% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 250 20% 90%;
+    --input: 250 20% 90%;
+    --ring: 256 84% 60%;
+    --radius: 1rem;
+  }
+
+  .dark {
+    --background: 250 30% 7%;
+    --foreground: 250 20% 96%;
+
+    --card: 250 25% 10%;
+    --card-foreground: 250 20% 96%;
+    --popover: 250 25% 10%;
+    --popover-foreground: 250 20% 96%;
+
+    --primary: 256 90% 68%;
+    --primary-foreground: 250 30% 7%;
+
+    --secondary: 250 18% 16%;
+    --secondary-foreground: 250 20% 92%;
+
+    --muted: 250 16% 16%;
+    --muted-foreground: 250 12% 62%;
+
+    --accent: 175 70% 50%;
+    --accent-foreground: 250 30% 7%;
+
+    --success: 142 65% 48%;
+    --success-foreground: 250 30% 7%;
+    --warning: 38 92% 58%;
+    --warning-foreground: 30 40% 10%;
+    --destructive: 0 75% 62%;
+    --destructive-foreground: 250 20% 96%;
+
+    --border: 250 14% 20%;
+    --input: 250 14% 20%;
+    --ring: 256 90% 68%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    -webkit-tap-highlight-color: transparent;
+    text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    /* respeta el notch en móviles */
+    padding: env(safe-area-inset-top) env(safe-area-inset-right)
+      env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+}
+
+@layer utilities {
+  /* superficie con halo suave (premium) */
+  .surface-glow {
+    box-shadow:
+      0 1px 2px hsl(var(--foreground) / 0.04),
+      0 8px 24px -12px hsl(var(--primary) / 0.18);
+  }
+  .gradient-brand {
+    background-image: linear-gradient(
+      135deg,
+      hsl(var(--primary)) 0%,
+      hsl(var(--accent)) 100%
+    );
+  }
+  .text-gradient {
+    @apply bg-clip-text text-transparent gradient-brand;
+  }
+  /* skeleton shimmer */
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      hsl(var(--foreground) / 0.06),
+      transparent
+    );
+    animation: shimmer 1.5s infinite;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
