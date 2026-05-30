@@ -36,29 +36,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const loadProfile = useCallback(async (userId: string) => {
-    const { data } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .maybeSingle();
-    setProfile((data as Profile) ?? null);
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .maybeSingle();
+      if (error) console.error("[auth] loadProfile:", error.message);
+      setProfile((data as Profile) ?? null);
+    } catch (e) {
+      console.error("[auth] loadProfile error:", e);
+      setProfile(null);
+    }
   }, []);
 
   useEffect(() => {
     let mounted = true;
 
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (!mounted) return;
-      setSession(data.session);
-      if (data.session?.user) await loadProfile(data.session.user.id);
-      setLoading(false);
-    });
+    // Carga inicial (fuera del callback de auth → sin riesgo de deadlock).
+    (async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (!mounted) return;
+        setSession(data.session);
+        if (data.session?.user) await loadProfile(data.session.user.id);
+      } catch (e) {
+        console.error("[auth] getSession error:", e);
+      } finally {
+        if (mounted) setLoading(false); // garantiza que nunca quede colgado
+      }
+    })();
 
+    // IMPORTANTE: no usar await de consultas a Supabase DENTRO de este
+    // callback (bloquea el lock interno de supabase-js → deadlock).
+    // Diferimos loadProfile con setTimeout(0).
     const { data: sub } = supabase.auth.onAuthStateChange(
-      async (_event, newSession) => {
+      (_event, newSession) => {
+        if (!mounted) return;
         setSession(newSession);
-        if (newSession?.user) await loadProfile(newSession.user.id);
-        else setProfile(null);
+        if (newSession?.user) {
+          const uid = newSession.user.id;
+          setTimeout(() => {
+            if (mounted) loadProfile(uid);
+          }, 0);
+        } else {
+          setProfile(null);
+        }
       },
     );
 
