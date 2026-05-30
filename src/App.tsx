@@ -10,6 +10,7 @@ import { AssignmentDetailPage } from "@/pages/AssignmentDetailPage";
 import { SolvePage } from "@/pages/SolvePage";
 import { PracticePage } from "@/pages/PracticePage";
 import { ProfilePage } from "@/pages/ProfilePage";
+import { AdminPage } from "@/pages/AdminPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 
 export default function App() {
@@ -32,6 +33,14 @@ export default function App() {
         <Route path="assignments/:id" element={<AssignmentDetailPage />} />
         <Route path="practice" element={<PracticePage />} />
         <Route path="profile" element={<ProfilePage />} />
+        <Route
+          path="admin"
+          element={
+            <ProtectedRoute adminOnly>
+              <AdminPage />
+            </ProtectedRoute>
+          }
+        />
       </Route>
 
       {/* Pantalla de resolución (fullscreen, sin layout) */}

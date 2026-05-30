@@ -7,6 +7,7 @@ import {
   User,
   LogOut,
   GraduationCap,
+  ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { cn, initials } from "@/lib/utils";
@@ -20,9 +21,17 @@ const NAV = [
   { to: "/app/profile", label: "Perfil", icon: User, end: false },
 ];
 
+const ADMIN_NAV = {
+  to: "/app/admin",
+  label: "Admin",
+  icon: ShieldCheck,
+  end: false,
+};
+
 export function AppLayout() {
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, isAdmin } = useAuth();
   const navigate = useNavigate();
+  const NAV_ITEMS = isAdmin ? [...NAV, ADMIN_NAV] : NAV;
 
   const handleSignOut = async () => {
     await signOut();
@@ -43,7 +52,7 @@ export function AppLayout() {
         </div>
 
         <nav className="mt-4 flex flex-1 flex-col gap-1">
-          {NAV.map((item) => (
+          {NAV_ITEMS.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -97,8 +106,13 @@ export function AppLayout() {
 
       {/* Bottom nav (mobile) */}
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t bg-card/90 backdrop-blur-lg md:hidden">
-        <div className="mx-auto grid max-w-md grid-cols-4">
-          {NAV.map((item) => (
+        <div
+          className="mx-auto grid max-w-md"
+          style={{
+            gridTemplateColumns: `repeat(${NAV_ITEMS.length}, minmax(0, 1fr))`,
+          }}
+        >
+          {NAV_ITEMS.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}

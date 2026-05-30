@@ -26,11 +26,24 @@ export interface Profile {
   full_name: string | null;
   avatar_url: string | null;
   role: UserRole;
+  is_admin: boolean;
   streak: number;
   xp: number;
   last_active: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export type TeacherRequestStatus = "pending" | "approved" | "rejected";
+
+export interface TeacherRequest {
+  id: string;
+  user_id: string;
+  status: TeacherRequestStatus;
+  note: string | null;
+  reviewed_by: string | null;
+  created_at: string;
+  reviewed_at: string | null;
 }
 
 export interface Course {

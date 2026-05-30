@@ -15,6 +15,7 @@ interface AuthState {
   profile: Profile | null;
   loading: boolean;
   isTeacher: boolean;
+  isAdmin: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (args: {
     email: string;
@@ -102,6 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profile,
         loading,
         isTeacher: profile?.role === "teacher",
+        isAdmin: profile?.is_admin === true,
         signIn,
         signUp,
         signOut,

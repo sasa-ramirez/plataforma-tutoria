@@ -6,9 +6,11 @@ import type { UserRole } from "@/types/database";
 export function ProtectedRoute({
   children,
   role,
+  adminOnly = false,
 }: {
   children: React.ReactNode;
   role?: UserRole;
+  adminOnly?: boolean;
 }) {
   const { session, profile, loading } = useAuth();
   const location = useLocation();
@@ -23,7 +25,11 @@ export function ProtectedRoute({
   if (!profile) return <FullScreenLoader />;
 
   if (role && profile.role !== role) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/app" replace />;
+  }
+
+  if (adminOnly && !profile.is_admin) {
+    return <Navigate to="/app" replace />;
   }
 
   return <>{children}</>;

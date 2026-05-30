@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { GraduationCap, BookUser } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { requestTeacherRole } from "@/services/admin";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,7 +26,17 @@ export function RegisterPage() {
     setError(null);
     setLoading(true);
     try {
+      // El backend siempre crea estudiantes; el rol no lo decide el cliente.
       await signUp({ email, password, fullName, role });
+      // Si pidió ser profesor, registramos una solicitud para que el admin la apruebe.
+      if (role === "teacher") {
+        try {
+          await requestTeacherRole();
+        } catch {
+          /* si no hay sesión aún (confirmación de correo activa),
+             podrá solicitarlo desde su perfil al entrar */
+        }
+      }
       navigate("/app");
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo registrar");
@@ -87,6 +98,14 @@ export function RegisterPage() {
               </button>
             ))}
           </div>
+
+          {role === "teacher" && (
+            <p className="rounded-lg bg-primary/10 px-3 py-2 text-xs text-primary">
+              ℹ️ Tu cuenta se crea como estudiante y se envía una{" "}
+              <strong>solicitud de profesor</strong>. Un administrador debe
+              aprobarla antes de darte acceso de profesor.
+            </p>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="fullName">Nombre completo</Label>
