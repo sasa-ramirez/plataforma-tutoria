@@ -22,7 +22,8 @@ interface AuthState {
     password: string;
     fullName: string;
     role: UserRole;
-  }) => Promise<void>;
+  }) => Promise<{ needsConfirmation: boolean }>;
+  resendConfirmation: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -77,15 +78,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = useCallback<AuthState["signUp"]>(
     async ({ email, password, fullName, role }) => {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { full_name: fullName, role } },
+        options: {
+          data: { full_name: fullName, role },
+          emailRedirectTo: `${window.location.origin}/login`,
+        },
       });
       if (error) throw error;
+      // Si no hay sesión, Supabase requiere confirmar el correo.
+      return { needsConfirmation: !data.session };
     },
     [],
   );
+
+  const resendConfirmation = useCallback(async (email: string) => {
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: { emailRedirectTo: `${window.location.origin}/login` },
+    });
+    if (error) throw error;
+  }, []);
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
@@ -106,6 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAdmin: profile?.is_admin === true,
         signIn,
         signUp,
+        resendConfirmation,
         signOut,
         refreshProfile,
       }}

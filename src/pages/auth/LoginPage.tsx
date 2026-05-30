@@ -3,32 +3,51 @@ import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { GraduationCap } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/common/Spinner";
 
 export function LoginPage() {
-  const { signIn } = useAuth();
+  const { signIn, resendConfirmation } = useAuth();
+  const { toast } = useToast();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [needsConfirm, setNeedsConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setNeedsConfirm(false);
     setLoading(true);
     try {
       await signIn(email, password);
       navigate("/app");
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "No se pudo iniciar sesión",
-      );
+      const msg = err instanceof Error ? err.message : "No se pudo iniciar sesión";
+      // Mensaje claro + opción de reenviar si falta confirmar el correo
+      if (/not confirmed|confirm/i.test(msg)) {
+        setNeedsConfirm(true);
+        setError("Tu correo aún no está confirmado. Revisa tu bandeja o reenvía el enlace.");
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (!email) return;
+    try {
+      await resendConfirmation(email);
+      toast("Correo de confirmación reenviado 📨", "success");
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "No se pudo reenviar", "error");
     }
   };
 
@@ -81,9 +100,18 @@ export function LoginPage() {
           </div>
 
           {error && (
-            <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {error}
-            </p>
+            <div className="space-y-2 rounded-lg bg-destructive/10 px-3 py-2">
+              <p className="text-sm text-destructive">{error}</p>
+              {needsConfirm && (
+                <button
+                  type="button"
+                  onClick={handleResend}
+                  className="text-sm font-semibold text-primary underline-offset-2 hover:underline"
+                >
+                  Reenviar correo de confirmación
+                </button>
+              )}
+            </div>
           )}
 
           <Button

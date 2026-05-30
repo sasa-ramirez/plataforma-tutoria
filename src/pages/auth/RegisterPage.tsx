@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { GraduationCap, BookUser } from "lucide-react";
+import { GraduationCap, BookUser, MailCheck } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { requestTeacherRole } from "@/services/admin";
+import { useToast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +13,8 @@ import { cn } from "@/lib/utils";
 import type { UserRole } from "@/types/database";
 
 export function RegisterPage() {
-  const { signUp } = useAuth();
+  const { signUp, resendConfirmation } = useAuth();
+  const { toast } = useToast();
   const navigate = useNavigate();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -20,6 +22,7 @@ export function RegisterPage() {
   const [role, setRole] = useState<UserRole>("student");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [sentTo, setSentTo] = useState<string | null>(null);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,14 +30,25 @@ export function RegisterPage() {
     setLoading(true);
     try {
       // El backend siempre crea estudiantes; el rol no lo decide el cliente.
-      await signUp({ email, password, fullName, role });
-      // Si pidió ser profesor, registramos una solicitud para que el admin la apruebe.
+      const { needsConfirmation } = await signUp({
+        email,
+        password,
+        fullName,
+        role,
+      });
+
+      if (needsConfirmation) {
+        // No hay sesión: hay que confirmar el correo antes de entrar.
+        setSentTo(email);
+        return;
+      }
+
+      // Sesión activa (confirmación desactivada): si pidió profesor, crea la solicitud.
       if (role === "teacher") {
         try {
           await requestTeacherRole();
         } catch {
-          /* si no hay sesión aún (confirmación de correo activa),
-             podrá solicitarlo desde su perfil al entrar */
+          /* podrá solicitarlo desde su perfil */
         }
       }
       navigate("/app");
@@ -44,6 +58,62 @@ export function RegisterPage() {
       setLoading(false);
     }
   };
+
+  const handleResend = async () => {
+    if (!sentTo) return;
+    try {
+      await resendConfirmation(sentTo);
+      toast("Correo reenviado 📨", "success");
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "No se pudo reenviar", "error");
+    }
+  };
+
+  // Pantalla "revisa tu correo"
+  if (sentTo) {
+    return (
+      <div className="flex min-h-screen items-center justify-center px-4">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-sm text-center"
+        >
+          <div className="mx-auto mb-4 grid size-16 place-items-center rounded-2xl gradient-brand text-white surface-glow">
+            <MailCheck className="size-8" />
+          </div>
+          <h1 className="text-2xl font-extrabold tracking-tight">
+            Revisa tu correo
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Enviamos un enlace de confirmación a{" "}
+            <strong className="text-foreground">{sentTo}</strong>. Ábrelo para
+            activar tu cuenta y poder iniciar sesión.
+          </p>
+          {role === "teacher" && (
+            <p className="mt-3 rounded-lg bg-primary/10 px-3 py-2 text-xs text-primary">
+              ℹ️ Tras confirmar e iniciar sesión, solicita ser profesor desde tu
+              perfil.
+            </p>
+          )}
+          <div className="mt-6 space-y-3">
+            <Button variant="brand" className="w-full" onClick={handleResend}>
+              Reenviar correo
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => navigate("/login")}
+            >
+              Ir a iniciar sesión
+            </Button>
+          </div>
+          <p className="mt-4 text-xs text-muted-foreground/70">
+            ¿No llega? Revisa spam o vuelve a intentar en unos minutos.
+          </p>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
