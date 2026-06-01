@@ -50,10 +50,11 @@ Entrega por módulos. Cada hito deja la app en estado ejecutable.
 - [x] Resolver con feedback IA + ver solución
 - [ ] Progreso persistente en `practice_sessions` (pendiente)
 
-## 🔜 Fase 8 — Dashboards (datos reales)
-- [ ] Estudiante: progreso, streak, pendientes, notas reales
-- [ ] Profesor: KPIs, actividad reciente, entregas + timeline de examen
-- [ ] Gráficas (recharts) + realtime
+## ✅ Fase 8 — Dashboards (datos reales)
+- [x] Estudiante: completados, pendientes (reales), mis cursos, tareas pendientes
+- [x] Profesor: estudiantes, cursos, por calificar, entregas, actividad reciente
+- [x] `services/dashboard` + hooks con TanStack Query + skeletons
+- [ ] Gráficas (recharts) + realtime (mejora futura)
 
 ## Fase 9 — Pulido y PWA
 - [ ] Code-splitting (lazy Monaco), PWA instalable
