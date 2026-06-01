@@ -76,7 +76,7 @@ export function StudentDashboard() {
           <div className="grid gap-3 sm:grid-cols-2">
             {data.courses.slice(0, 4).map((c) => (
               <Link key={c.id} to={`/app/courses/${c.id}`}>
-                <Card className="flex items-center gap-3 p-4 transition-transform active:scale-[0.99]">
+                <Card className="card-interactive flex items-center gap-3 p-4 active:scale-[0.99]">
                   <div className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary">
                     <BookOpen className="size-5" />
                   </div>
@@ -117,7 +117,7 @@ export function StudentDashboard() {
                   transition={{ delay: 0.1 + i * 0.05 }}
                 >
                   <Link to={`/app/assignments/${t.id}`}>
-                    <Card className="flex items-center justify-between gap-3 p-4 transition-transform active:scale-[0.99]">
+                    <Card className="card-interactive flex items-center justify-between gap-3 p-4 active:scale-[0.99]">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <p className="truncate font-semibold">{t.title}</p>

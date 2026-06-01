@@ -30,7 +30,7 @@ export function AssignmentCard({
       <Link to={`/app/assignments/${assignment.id}`}>
         <Card
           className={cn(
-            "p-4 transition-transform active:scale-[0.99]",
+            "card-interactive p-4 active:scale-[0.99]",
             isClosed && "opacity-70",
           )}
         >

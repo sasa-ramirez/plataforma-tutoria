@@ -4,71 +4,65 @@
 
 @layer base {
   :root {
-    --background: 250 50% 99%;
+    /* Modo claro (secundario — la app brilla en oscuro) */
+    --background: 240 30% 99%;
     --foreground: 240 20% 12%;
-
     --card: 0 0% 100%;
     --card-foreground: 240 20% 12%;
     --popover: 0 0% 100%;
     --popover-foreground: 240 20% 12%;
-
-    /* Violeta juvenil tipo Linear/Discord */
-    --primary: 256 84% 60%;
+    --primary: 235 86% 62%;
     --primary-foreground: 0 0% 100%;
-
-    --secondary: 250 30% 96%;
+    --secondary: 240 30% 96%;
     --secondary-foreground: 240 20% 18%;
-
-    --muted: 250 25% 95%;
+    --muted: 240 25% 95%;
     --muted-foreground: 240 8% 46%;
-
-    --accent: 175 70% 45%;       /* teal energético */
+    --accent: 190 95% 45%;
     --accent-foreground: 0 0% 100%;
-
-    --success: 142 70% 42%;
+    --success: 145 70% 42%;
     --success-foreground: 0 0% 100%;
     --warning: 38 95% 55%;
     --warning-foreground: 30 40% 12%;
-    --destructive: 0 80% 60%;
+    --destructive: 348 83% 58%;
     --destructive-foreground: 0 0% 100%;
-
-    --border: 250 20% 90%;
-    --input: 250 20% 90%;
-    --ring: 256 84% 60%;
+    --border: 240 20% 90%;
+    --input: 240 20% 90%;
+    --ring: 235 86% 62%;
     --radius: 1rem;
   }
 
+  /* ===== MODO OSCURO — Discord × Spotify (estrella) ===== */
   .dark {
-    --background: 250 30% 7%;
-    --foreground: 250 20% 96%;
+    --background: 240 24% 6%;       /* casi negro azulado, elegante */
+    --foreground: 240 20% 96%;
 
-    --card: 250 25% 10%;
-    --card-foreground: 250 20% 96%;
-    --popover: 250 25% 10%;
-    --popover-foreground: 250 20% 96%;
+    --card: 240 20% 10%;            /* superficie elevada tipo Discord */
+    --card-foreground: 240 20% 96%;
+    --popover: 240 22% 9%;
+    --popover-foreground: 240 20% 96%;
 
-    --primary: 256 90% 68%;
-    --primary-foreground: 250 30% 7%;
+    --primary: 235 89% 66%;         /* blurple (#5865F2) */
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 250 18% 16%;
-    --secondary-foreground: 250 20% 92%;
+    --secondary: 240 16% 15%;
+    --secondary-foreground: 240 20% 92%;
 
-    --muted: 250 16% 16%;
-    --muted-foreground: 250 12% 62%;
+    --muted: 240 14% 15%;
+    --muted-foreground: 240 12% 64%;
 
-    --accent: 175 70% 50%;
-    --accent-foreground: 250 30% 7%;
+    --accent: 190 95% 55%;          /* cyan eléctrico */
+    --accent-foreground: 240 30% 7%;
 
-    --success: 142 65% 48%;
-    --success-foreground: 250 30% 7%;
+    --success: 145 65% 50%;
+    --success-foreground: 240 30% 7%;
     --warning: 38 92% 58%;
     --warning-foreground: 30 40% 10%;
-    --destructive: 0 75% 62%;
-    --destructive-foreground: 250 20% 96%;
+    --destructive: 348 90% 64%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 250 14% 20%;
-    --input: 250 14% 20%;
-    --ring: 256 90% 68%;
+    --border: 240 14% 17%;
+    --input: 240 14% 17%;
+    --ring: 235 89% 66%;
   }
 }
 
@@ -79,34 +73,70 @@
   html {
     -webkit-tap-highlight-color: transparent;
     text-size-adjust: 100%;
+    scroll-behavior: smooth;
   }
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-    /* respeta el notch en móviles */
     padding: env(safe-area-inset-top) env(safe-area-inset-right)
       env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  /* Fondo elegante con halos de color (azul/morado/cyan) en oscuro */
+  .dark body {
+    background-image:
+      radial-gradient(60rem 60rem at 110% -10%, hsl(235 89% 66% / 0.14), transparent 60%),
+      radial-gradient(50rem 50rem at -10% 10%, hsl(270 90% 65% / 0.12), transparent 55%),
+      radial-gradient(40rem 40rem at 50% 120%, hsl(190 95% 55% / 0.10), transparent 60%);
+    background-attachment: fixed;
   }
 }
 
 @layer utilities {
-  /* superficie con halo suave (premium) */
-  .surface-glow {
-    box-shadow:
-      0 1px 2px hsl(var(--foreground) / 0.04),
-      0 8px 24px -12px hsl(var(--primary) / 0.18);
-  }
+  /* Gradiente de marca tricolor: azul → morado → cyan */
   .gradient-brand {
     background-image: linear-gradient(
       135deg,
-      hsl(var(--primary)) 0%,
-      hsl(var(--accent)) 100%
+      hsl(235 89% 66%) 0%,
+      hsl(270 90% 66%) 50%,
+      hsl(190 95% 58%) 100%
     );
   }
   .text-gradient {
     @apply bg-clip-text text-transparent gradient-brand;
   }
-  /* skeleton shimmer */
+
+  /* Superficie con profundidad (tarjeta tipo Discord) */
+  .surface-glow {
+    box-shadow:
+      0 1px 0 hsl(0 0% 100% / 0.03) inset,
+      0 1px 2px hsl(240 30% 2% / 0.4),
+      0 12px 32px -16px hsl(240 30% 2% / 0.6);
+  }
+
+  /* Tarjeta interactiva: se eleva y brilla al pasar el mouse */
+  .card-interactive {
+    @apply transition-all duration-300 ease-out;
+  }
+  .card-interactive:hover {
+    transform: translateY(-3px);
+    border-color: hsl(var(--primary) / 0.5);
+    box-shadow:
+      0 1px 0 hsl(0 0% 100% / 0.05) inset,
+      0 18px 40px -18px hsl(235 89% 66% / 0.45);
+  }
+
+  /* Vidrio (glassmorphism) para barras/nav */
+  .glass {
+    background: hsl(var(--card) / 0.7);
+    backdrop-filter: blur(16px) saturate(140%);
+  }
+
+  /* Anillo con gradiente (para avatares/CTAs destacados) */
+  .ring-brand {
+    box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(235 89% 66% / 0.6);
+  }
+
+  /* Skeleton shimmer */
   .shimmer {
     position: relative;
     overflow: hidden;
@@ -124,11 +154,21 @@
     );
     animation: shimmer 1.5s infinite;
   }
-  .no-scrollbar::-webkit-scrollbar {
-    display: none;
+  @keyframes shimmer {
+    100% {
+      transform: translateX(100%);
+    }
   }
-  .no-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+
+  /* Brillo pulsante suave para CTAs/logros */
+  @keyframes glow-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 hsl(235 89% 66% / 0.5); }
+    50% { box-shadow: 0 0 24px 4px hsl(235 89% 66% / 0.35); }
   }
+  .glow-pulse {
+    animation: glow-pulse 2.4s ease-in-out infinite;
+  }
+
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 }

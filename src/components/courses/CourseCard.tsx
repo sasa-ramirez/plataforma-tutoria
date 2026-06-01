@@ -35,7 +35,7 @@ export function CourseCard({
       transition={{ delay: index * 0.05 }}
     >
       <Link to={`/app/courses/${course.id}`}>
-        <Card className="overflow-hidden transition-transform active:scale-[0.99]">
+        <Card className="card-interactive overflow-hidden active:scale-[0.99]">
           <div
             className={cn(
               "flex h-20 items-end bg-gradient-to-br p-4",

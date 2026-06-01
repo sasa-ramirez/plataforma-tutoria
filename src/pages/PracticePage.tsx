@@ -48,7 +48,7 @@ export function PracticePage() {
                 transition={{ delay: i * 0.04 }}
               >
                 <Link to={`/app/solve/${ex.id}`}>
-                  <Card className="flex items-center gap-3 p-4 transition-transform active:scale-[0.99]">
+                  <Card className="card-interactive flex items-center gap-3 p-4 active:scale-[0.99]">
                     <div className="grid size-11 place-items-center rounded-xl bg-muted text-xl">
                       {lang.emoji}
                     </div>
