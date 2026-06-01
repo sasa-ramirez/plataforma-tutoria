@@ -82,10 +82,36 @@ Deno.serve(async (req) => {
     // Trae submission + ejercicio
     const { data: sub, error: subErr } = await admin
       .from("submissions")
-      .select("id, code, language, exercise_id, exercises(prompt, solution_code)")
+      .select(
+        "id, code, language, exercise_id, student_id, exercises(prompt, solution_code)",
+      )
       .eq("id", submission_id)
       .single();
     if (subErr || !sub) throw new Error("Submission no encontrada");
+
+    // ---- Rate limit por estudiante (protege tu costo de IA) ----
+    const sid = sub.student_id as string;
+    const now = Date.now();
+    const { count: perMin } = await admin
+      .from("ai_usage")
+      .select("id", { count: "exact", head: true })
+      .eq("student_id", sid)
+      .gte("created_at", new Date(now - 60_000).toISOString());
+    if ((perMin ?? 0) >= 5) {
+      throw new Error("Vas muy rápido. Espera unos segundos antes de reenviar.");
+    }
+    const { count: perHour } = await admin
+      .from("ai_usage")
+      .select("id", { count: "exact", head: true })
+      .eq("student_id", sid)
+      .gte("created_at", new Date(now - 3_600_000).toISOString());
+    if ((perHour ?? 0) >= 30) {
+      throw new Error(
+        "Alcanzaste el límite de revisiones por hora. Intenta más tarde.",
+      );
+    }
+    await admin.from("ai_usage").insert({ student_id: sid });
+    // ------------------------------------------------------------
 
     await admin
       .from("submissions")
