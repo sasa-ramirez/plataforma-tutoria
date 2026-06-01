@@ -90,13 +90,31 @@ export async function submitForReview(
       .from("submissions")
       .update({ status: "error" })
       .eq("id", submissionId);
-    return {
-      ok: false,
-      error:
-        "No se pudo contactar a la IA. ¿Desplegaste la Edge Function 'ai-review'? (ver docs/SETUP_SUPABASE.md)",
-    };
+
+    // Intenta extraer el mensaje REAL que devolvió la Edge Function.
+    let detail = error.message;
+    try {
+      const ctx = (error as { context?: Response }).context;
+      if (ctx && typeof ctx.json === "function") {
+        const body = await ctx.json();
+        if (body?.error) detail = body.error;
+      }
+    } catch {
+      /* si no se puede leer el cuerpo, queda error.message */
+    }
+    return { ok: false, error: `IA: ${detail}` };
   }
-  return data as ReviewResult;
+
+  // La función pudo responder 200 pero con ok:false (error controlado).
+  const result = data as ReviewResult;
+  if (!result?.ok) {
+    await supabase
+      .from("submissions")
+      .update({ status: "error" })
+      .eq("id", submissionId);
+    return { ok: false, error: result?.error ?? "La IA no pudo revisar." };
+  }
+  return result;
 }
 
 export async function fetchFeedback(
