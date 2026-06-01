@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { Spinner } from "@/components/common/Spinner";
 import { fetchMyTeacherRequest, requestTeacherRole } from "@/services/admin";
+import { Achievements } from "@/components/game/Achievements";
 import { initials } from "@/lib/utils";
 
 export function ProfilePage() {
@@ -135,6 +136,12 @@ export function ProfilePage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Logros */}
+      <div className="mt-6">
+        <h2 className="mb-3 text-lg font-extrabold tracking-tight">Logros</h2>
+        <Achievements />
+      </div>
     </div>
   );
 }

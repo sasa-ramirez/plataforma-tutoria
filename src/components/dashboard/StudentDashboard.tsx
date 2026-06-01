@@ -3,6 +3,10 @@ import { motion } from "framer-motion";
 import { Flame, Trophy, CheckCircle2, Clock, ArrowRight, BookOpen } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useStudentStats } from "@/hooks/useDashboard";
+import { useGameStats } from "@/hooks/useGamification";
+import { ContinueLearning } from "@/components/game/ContinueLearning";
+import { WeeklyChallenge } from "@/components/game/WeeklyChallenge";
+import { Leaderboard } from "@/components/game/Leaderboard";
 import { StatCard } from "@/components/common/StatCard";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +19,7 @@ import { timeLeft } from "@/lib/utils";
 export function StudentDashboard() {
   const { profile } = useAuth();
   const { data, isLoading } = useStudentStats();
+  const { data: game } = useGameStats();
   const firstName = profile?.full_name?.split(" ")[0] ?? "👋";
 
   return (
@@ -26,6 +31,12 @@ export function StudentDashboard() {
           <span className="text-gradient">listo para programar</span>
         </h1>
       </motion.div>
+
+      {/* Continuar aprendiendo */}
+      <ContinueLearning />
+
+      {/* Reto semanal */}
+      <WeeklyChallenge weekCount={game?.weekCount ?? 0} />
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -151,6 +162,9 @@ export function StudentDashboard() {
           />
         )}
       </div>
+
+      {/* Ranking */}
+      <Leaderboard limit={10} />
     </div>
   );
 }
