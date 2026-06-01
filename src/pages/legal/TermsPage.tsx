@@ -20,8 +20,8 @@ export function TermsPage() {
         Términos y Condiciones
       </h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Última actualización: [FECHA] · Plataforma: Kódea · Responsable:
-        [TU NOMBRE/EMPRESA]
+        Última actualización: 1 de junio de 2026 · Plataforma: Kódea · Responsable:
+        Kódea
       </p>
 
       <div className="prose-sm mt-8 space-y-6 text-sm leading-relaxed text-foreground/90">
@@ -80,7 +80,7 @@ export function TermsPage() {
           <h2 className="text-base font-bold">6. Propiedad intelectual</h2>
           <p>
             El código que escribes te pertenece. El software, marca y diseño de
-            la Plataforma pertenecen a [TU NOMBRE/EMPRESA].
+            la Plataforma pertenecen a Kódea.
           </p>
         </section>
 
@@ -88,7 +88,7 @@ export function TermsPage() {
           <h2 className="text-base font-bold">7. Limitación de responsabilidad</h2>
           <p>
             La Plataforma se ofrece “tal cual”. En la máxima medida permitida
-            por la ley, [TU NOMBRE/EMPRESA] no será responsable por daños
+            por la ley, Kódea no será responsable por daños
             indirectos, pérdida de datos o interrupciones del servicio.
           </p>
         </section>
@@ -105,7 +105,7 @@ export function TermsPage() {
           <h2 className="text-base font-bold">9. Ley aplicable y contacto</h2>
           <p>
             Estos Términos se rigen por las leyes de [PAÍS]. Para dudas:{" "}
-            <strong>[CORREO DE CONTACTO]</strong>.
+            <strong>soykodea@gmail.com</strong>.
           </p>
         </section>
       </div>

@@ -21,8 +21,8 @@ export function PrivacyPage() {
         Política de Privacidad
       </h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Última actualización: [FECHA] · Responsable del tratamiento:
-        [TU NOMBRE/EMPRESA] · Contacto: [CORREO]
+        Última actualización: 1 de junio de 2026 · Responsable del tratamiento:
+        Kódea · Contacto: soykodea@gmail.com
       </p>
 
       <div className="mt-8 space-y-6 text-sm leading-relaxed text-foreground/90">
@@ -85,7 +85,7 @@ export function PrivacyPage() {
           <p>
             Puedes acceder, rectificar, actualizar o solicitar la eliminación de
             tus datos, y revocar tu consentimiento, escribiendo a{" "}
-            <strong>[CORREO]</strong>.
+            <strong>soykodea@gmail.com</strong>.
           </p>
         </section>
 
