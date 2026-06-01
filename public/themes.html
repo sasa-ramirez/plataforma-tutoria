@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Tutoría · Temas de diseño</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  body{font-family:Inter,system-ui,sans-serif}
+  .serif{font-family:Fraunces,Georgia,serif}
+  .mono{font-family:'JetBrains Mono',monospace}
+  .round{font-family:Nunito,system-ui,sans-serif}
+  .chip{position:sticky;top:0;z-index:20}
+</style>
+</head>
+<body class="bg-neutral-100 text-neutral-900">
+
+  <!-- Nav -->
+  <div class="chip bg-white/90 backdrop-blur border-b">
+    <div class="max-w-3xl mx-auto flex items-center gap-2 px-4 py-3">
+      <span class="font-extrabold">Tutoría · Temas</span>
+      <span class="text-sm text-neutral-500">— elige A, B o C y avísame</span>
+    </div>
+  </div>
+
+  <!-- ============ TEMA A: CUADERNO ACADÉMICO ============ -->
+  <section class="bg-[#FAF6EF] text-[#2B2620]">
+    <div class="max-w-3xl mx-auto px-5 py-10">
+      <div class="flex items-center gap-2 mb-1">
+        <span class="text-xs font-bold tracking-widest text-[#C2410C]">TEMA A</span>
+      </div>
+      <h2 class="serif text-3xl font-bold mb-1">Cuaderno académico</h2>
+      <p class="text-[#6b6358] mb-6">Cálido, editorial, confiable. Serif de libro + acento terracota.</p>
+
+      <!-- login card -->
+      <div class="rounded-2xl bg-white border border-[#e9e1d4] p-6 shadow-sm mb-5 max-w-sm">
+        <div class="size-12 rounded-xl bg-[#C2410C] grid place-items-center text-white mb-3 serif text-2xl font-bold">T</div>
+        <h3 class="serif text-2xl font-bold">Bienvenido de vuelta</h3>
+        <p class="text-sm text-[#6b6358] mb-4">Continúa aprendiendo a programar</p>
+        <div class="space-y-2">
+          <div class="h-11 rounded-lg border border-[#e0d7c8] bg-[#fdfbf7] px-3 flex items-center text-sm text-[#9a9080]">tucorreo@uni.edu</div>
+          <div class="h-11 rounded-lg border border-[#e0d7c8] bg-[#fdfbf7] px-3 flex items-center text-sm text-[#9a9080]">••••••••</div>
+          <button class="h-11 w-full rounded-lg bg-[#C2410C] text-white font-semibold">Iniciar sesión</button>
+        </div>
+      </div>
+
+      <!-- stats -->
+      <div class="grid grid-cols-3 gap-3 mb-5">
+        <div class="rounded-xl bg-white border border-[#e9e1d4] p-4"><div class="text-2xl font-bold serif">7</div><div class="text-xs text-[#6b6358]">Racha</div></div>
+        <div class="rounded-xl bg-white border border-[#e9e1d4] p-4"><div class="text-2xl font-bold serif">320</div><div class="text-xs text-[#6b6358]">XP</div></div>
+        <div class="rounded-xl bg-white border border-[#e9e1d4] p-4"><div class="text-2xl font-bold serif text-[#15803D]">12</div><div class="text-xs text-[#6b6358]">Completados</div></div>
+      </div>
+
+      <!-- task -->
+      <div class="rounded-xl bg-white border border-[#e9e1d4] p-4 flex items-center justify-between max-w-md">
+        <div><div class="font-semibold">Arrays en Java</div><div class="text-sm text-[#6b6358]">Java Básico</div></div>
+        <span class="text-xs font-semibold px-2 py-1 rounded-full bg-[#C2410C]/10 text-[#C2410C]">5h 12m</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TEMA B: TERMINAL DEV ============ -->
+  <section class="bg-[#0A0E14] text-[#C9D1D9]">
+    <div class="max-w-3xl mx-auto px-5 py-10">
+      <span class="text-xs font-bold tracking-widest text-[#39D353] mono">TEMA B</span>
+      <h2 class="text-3xl font-bold mb-1 mono">~/terminal-dev</h2>
+      <p class="text-[#8b949e] mb-6">Oscuro estilo editor. Mono + verde/ámbar terminal. Auténtico de código.</p>
+
+      <div class="rounded-2xl bg-[#0d1117] border border-[#1f2630] p-6 shadow-lg mb-5 max-w-sm">
+        <div class="size-12 rounded-lg bg-[#39D353] grid place-items-center text-[#0A0E14] mb-3 mono text-2xl font-bold">&gt;_</div>
+        <h3 class="text-2xl font-bold">Bienvenido de vuelta</h3>
+        <p class="text-sm text-[#8b949e] mb-4 mono">// continúa programando</p>
+        <div class="space-y-2">
+          <div class="h-11 rounded-lg border border-[#1f2630] bg-[#0A0E14] px-3 flex items-center text-sm text-[#586069] mono">tucorreo@uni.edu</div>
+          <div class="h-11 rounded-lg border border-[#1f2630] bg-[#0A0E14] px-3 flex items-center text-sm text-[#586069] mono">••••••••</div>
+          <button class="h-11 w-full rounded-lg bg-[#39D353] text-[#0A0E14] font-bold mono">$ login</button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-3 gap-3 mb-5">
+        <div class="rounded-xl bg-[#0d1117] border border-[#1f2630] p-4"><div class="text-2xl font-bold mono text-[#F0B429]">7</div><div class="text-xs text-[#8b949e]">streak</div></div>
+        <div class="rounded-xl bg-[#0d1117] border border-[#1f2630] p-4"><div class="text-2xl font-bold mono">320</div><div class="text-xs text-[#8b949e]">xp</div></div>
+        <div class="rounded-xl bg-[#0d1117] border border-[#1f2630] p-4"><div class="text-2xl font-bold mono text-[#39D353]">12</div><div class="text-xs text-[#8b949e]">done</div></div>
+      </div>
+
+      <div class="rounded-xl bg-[#0d1117] border border-[#1f2630] p-4 flex items-center justify-between max-w-md">
+        <div><div class="font-semibold mono">arrays_java.java</div><div class="text-sm text-[#8b949e] mono">// Java Básico</div></div>
+        <span class="text-xs font-bold px-2 py-1 rounded bg-[#F0B429]/15 text-[#F0B429] mono">5h12m</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TEMA C: JUVENIL VIBRANTE ============ -->
+  <section class="bg-white text-[#1a1a2e]">
+    <div class="max-w-3xl mx-auto px-5 py-10">
+      <span class="text-xs font-extrabold tracking-widest text-[#84CC16] round">TEMA C</span>
+      <h2 class="round text-3xl font-extrabold mb-1">¡Juvenil vibrante!</h2>
+      <p class="text-neutral-500 mb-6 round font-semibold">Estilo Duolingo. Lima audaz, botones gruesos, esquinas XL, mascota.</p>
+
+      <div class="rounded-[28px] bg-white border-2 border-neutral-100 p-6 shadow-[0_10px_30px_-10px_rgba(132,204,22,0.4)] mb-5 max-w-sm round">
+        <div class="size-14 rounded-2xl bg-[#84CC16] grid place-items-center text-white mb-3 text-3xl">🦉</div>
+        <h3 class="text-2xl font-extrabold">¡Hola de nuevo!</h3>
+        <p class="text-sm text-neutral-500 font-semibold mb-4">Sigue tu racha 🔥</p>
+        <div class="space-y-2.5">
+          <div class="h-12 rounded-2xl border-2 border-neutral-200 px-4 flex items-center text-sm text-neutral-400 font-semibold">tucorreo@uni.edu</div>
+          <div class="h-12 rounded-2xl border-2 border-neutral-200 px-4 flex items-center text-sm text-neutral-400 font-semibold">••••••••</div>
+          <button class="h-12 w-full rounded-2xl bg-[#84CC16] text-white font-extrabold shadow-[0_4px_0_#65a30d] active:translate-y-0.5">¡ENTRAR!</button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-3 gap-3 mb-5 round">
+        <div class="rounded-2xl bg-[#FB7185]/10 p-4 text-center"><div class="text-2xl font-extrabold text-[#FB7185]">7</div><div class="text-xs font-bold text-neutral-500">Racha</div></div>
+        <div class="rounded-2xl bg-[#84CC16]/10 p-4 text-center"><div class="text-2xl font-extrabold text-[#65a30d]">320</div><div class="text-xs font-bold text-neutral-500">XP</div></div>
+        <div class="rounded-2xl bg-[#2563EB]/10 p-4 text-center"><div class="text-2xl font-extrabold text-[#2563EB]">12</div><div class="text-xs font-bold text-neutral-500">Listos</div></div>
+      </div>
+
+      <div class="rounded-2xl bg-white border-2 border-neutral-100 p-4 flex items-center justify-between max-w-md round shadow-sm">
+        <div><div class="font-extrabold">Arrays en Java</div><div class="text-sm text-neutral-500 font-semibold">Java Básico</div></div>
+        <span class="text-xs font-extrabold px-3 py-1.5 rounded-full bg-[#FB7185] text-white">5h 12m</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="bg-neutral-900 text-neutral-300 text-center py-8 px-4 text-sm">
+    ¿Cuál te gusta? Dime <b class="text-white">A</b>, <b class="text-white">B</b> o <b class="text-white">C</b> (o una mezcla) y lo aplico a toda la app.
+  </div>
+
+</body>
+</html>
