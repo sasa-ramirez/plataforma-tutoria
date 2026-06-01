@@ -20,6 +20,7 @@ export function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<UserRole>("student");
+  const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
@@ -27,6 +28,10 @@ export function RegisterPage() {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (!accepted) {
+      setError("Debes aceptar los Términos y la Política de Privacidad.");
+      return;
+    }
     setLoading(true);
     try {
       // El backend siempre crea estudiantes; el rol no lo decide el cliente.
@@ -212,6 +217,35 @@ export function RegisterPage() {
             />
           </div>
 
+          {/* Aceptación de términos y privacidad */}
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-card/40 p-3">
+            <input
+              type="checkbox"
+              checked={accepted}
+              onChange={(e) => setAccepted(e.target.checked)}
+              className="mt-0.5 size-5 shrink-0 accent-primary"
+            />
+            <span className="text-xs leading-relaxed text-muted-foreground">
+              Acepto los{" "}
+              <Link
+                to="/terms"
+                target="_blank"
+                className="font-semibold text-primary underline"
+              >
+                Términos y Condiciones
+              </Link>{" "}
+              y la{" "}
+              <Link
+                to="/privacy"
+                target="_blank"
+                className="font-semibold text-primary underline"
+              >
+                Política de Privacidad
+              </Link>
+              . Si soy menor de edad, cuento con autorización de mi tutor.
+            </span>
+          </label>
+
           {error && (
             <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
               {error}
@@ -223,7 +257,7 @@ export function RegisterPage() {
             variant="brand"
             size="lg"
             className="w-full"
-            disabled={loading}
+            disabled={loading || !accepted}
           >
             {loading ? <Spinner className="size-4" /> : "Crear cuenta"}
           </Button>
