@@ -104,7 +104,8 @@ export function TermsPage() {
         <section>
           <h2 className="text-base font-bold">9. Ley aplicable y contacto</h2>
           <p>
-            Estos Términos se rigen por las leyes de [PAÍS]. Para dudas:{" "}
+            Estos Términos se rigen por las leyes de la República de Colombia.
+            Para dudas:{" "}
             <strong>soykodea@gmail.com</strong>.
           </p>
         </section>

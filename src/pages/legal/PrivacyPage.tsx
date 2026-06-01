@@ -87,6 +87,12 @@ export function PrivacyPage() {
             tus datos, y revocar tu consentimiento, escribiendo a{" "}
             <strong>soykodea@gmail.com</strong>.
           </p>
+          <p>
+            Esta política se rige por la <strong>Ley 1581 de 2012</strong> y el
+            Decreto 1377 de 2013 de Colombia (Protección de Datos / Habeas
+            Data). Si consideras vulnerados tus derechos, puedes acudir a la{" "}
+            <strong>Superintendencia de Industria y Comercio (SIC)</strong>.
+          </p>
         </section>
 
         <section>
