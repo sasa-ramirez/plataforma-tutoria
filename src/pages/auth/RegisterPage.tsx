@@ -130,10 +130,13 @@ export function RegisterPage() {
         className="w-full max-w-sm"
       >
         <div className="mb-8 flex flex-col items-center text-center">
-          <div className="mb-4 grid size-14 place-items-center rounded-2xl gradient-brand text-white surface-glow">
+          <div className="mb-3 grid size-14 place-items-center rounded-2xl gradient-brand text-white surface-glow">
             <GraduationCap className="size-7" />
           </div>
-          <h1 className="text-2xl font-extrabold tracking-tight">
+          <span className="mb-2 text-2xl font-extrabold tracking-tight text-gradient">
+            Kódea
+          </span>
+          <h1 className="text-xl font-bold tracking-tight">
             Crea tu cuenta
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">

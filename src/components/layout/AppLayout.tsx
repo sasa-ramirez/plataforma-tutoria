@@ -48,7 +48,7 @@ export function AppLayout() {
             <GraduationCap className="size-5" />
           </div>
           <span className="text-lg font-extrabold tracking-tight">
-            Tutoría
+            Kódea
           </span>
         </div>
 

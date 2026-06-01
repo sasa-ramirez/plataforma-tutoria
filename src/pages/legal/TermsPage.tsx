@@ -20,7 +20,7 @@ export function TermsPage() {
         Términos y Condiciones
       </h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Última actualización: [FECHA] · Plataforma: [NOMBRE] · Responsable:
+        Última actualización: [FECHA] · Plataforma: Kódea · Responsable:
         [TU NOMBRE/EMPRESA]
       </p>
 
@@ -28,7 +28,7 @@ export function TermsPage() {
         <section>
           <h2 className="text-base font-bold">1. Aceptación</h2>
           <p>
-            Al registrarte y usar [NOMBRE] (la “Plataforma”) aceptas estos
+            Al registrarte y usar Kódea (la “Plataforma”) aceptas estos
             Términos y nuestra{" "}
             <Link to="/privacy" className="text-primary underline">
               Política de Privacidad
