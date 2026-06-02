@@ -121,41 +121,64 @@ Deno.serve(async (req) => {
     // deno-lint-ignore no-explicit-any
     const exercise = (sub as any).exercises;
 
-    const aiRes = await fetch(
-      "https://openrouter.ai/api/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: OPENROUTER_MODEL,
-          temperature: 0.2,
-          response_format: { type: "json_object" },
-          messages: [
-            {
-              role: "user",
-              content: buildPrompt({
-                language: sub.language,
-                prompt: exercise?.prompt ?? "",
-                code: sub.code,
-                solution: exercise?.solution_code,
-              }),
-            },
-          ],
-        }),
-      },
-    );
+    const prompt = buildPrompt({
+      language: sub.language,
+      prompt: exercise?.prompt ?? "",
+      code: sub.code,
+      solution: exercise?.solution_code,
+    });
 
-    if (!aiRes.ok) {
-      throw new Error(`OpenRouter ${aiRes.status}: ${await aiRes.text()}`);
+    // Una llamada al modelo. Lanza si la respuesta viene vacía o no parsea.
+    async function callModel() {
+      const aiRes = await fetch(
+        "https://openrouter.ai/api/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+            "Content-Type": "application/json",
+            // Recomendado por OpenRouter (mejora acceso a algunos modelos)
+            "HTTP-Referer": "https://plataforma-tutoria.vercel.app",
+            "X-Title": "Kodea",
+          },
+          body: JSON.stringify({
+            model: OPENROUTER_MODEL,
+            temperature: 0.2,
+            messages: [{ role: "user", content: prompt }],
+          }),
+        },
+      );
+      if (!aiRes.ok) {
+        throw new Error(`OpenRouter ${aiRes.status}: ${await aiRes.text()}`);
+      }
+      const completion = await aiRes.json();
+      const content: string =
+        completion.choices?.[0]?.message?.content ?? "";
+      if (!content.trim()) throw new Error("respuesta vacía del modelo");
+      // deno-lint-ignore no-explicit-any
+      return { completion, parsed: extractJson(content) as any };
     }
 
-    const completion = await aiRes.json();
-    const content: string = completion.choices?.[0]?.message?.content ?? "";
+    // Reintento: los modelos gratis a veces devuelven vacío.
+    let completion: unknown;
     // deno-lint-ignore no-explicit-any
-    const parsed = extractJson(content) as any;
+    let parsed: any;
+    let lastErr = "";
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const r = await callModel();
+        completion = r.completion;
+        parsed = r.parsed;
+        break;
+      } catch (e) {
+        lastErr = e instanceof Error ? e.message : String(e);
+        if (attempt === 3) {
+          throw new Error(
+            `La IA no devolvió una respuesta válida (el modelo gratis puede estar saturado). Reintenta en unos segundos. Detalle: ${lastErr}`,
+          );
+        }
+      }
+    }
 
     const score = Math.max(1, Math.min(100, Math.round(parsed.score ?? 0)));
 
