@@ -56,33 +56,21 @@ export async function createCourse(input: {
   return data as Course;
 }
 
-/** El estudiante se une a un curso por su join_code. */
-export async function joinCourseByCode(code: string): Promise<Course> {
-  const normalized = code.trim().toUpperCase();
-  const { data: course, error } = await supabase
-    .from("courses")
-    .select("*")
-    .eq("join_code", normalized)
-    .is("deleted_at", null)
-    .maybeSingle();
-  if (error) throw error;
-  if (!course) throw new Error("No existe un curso con ese código.");
-
-  const { data: userData } = await supabase.auth.getUser();
-  const studentId = userData.user?.id;
-  if (!studentId) throw new Error("Sesión no válida.");
-
-  const { error: enrollErr } = await supabase
-    .from("enrollments")
-    .insert({ course_id: (course as Course).id, student_id: studentId });
-
-  if (enrollErr) {
-    if (enrollErr.code === "23505") {
-      throw new Error("Ya estás inscrito en este curso.");
-    }
-    throw enrollErr;
-  }
-  return course as Course;
+/**
+ * El estudiante se une a un curso por su join_code.
+ * Usa la función segura join_course_by_code (SECURITY DEFINER), porque
+ * por RLS un estudiante no puede leer un curso al que aún no pertenece.
+ */
+export async function joinCourseByCode(
+  code: string,
+): Promise<{ id: string; title: string }> {
+  const { data, error } = await supabase.rpc("join_course_by_code", {
+    p_code: code,
+  });
+  if (error) throw new Error(error.message);
+  const row = (data as { id: string; title: string }[] | null)?.[0];
+  if (!row) throw new Error("No existe un curso con ese código.");
+  return row;
 }
 
 export async function fetchCourse(courseId: string): Promise<Course> {

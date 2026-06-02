@@ -96,8 +96,8 @@ export function RegisterPage() {
           </p>
           {role === "teacher" && (
             <p className="mt-3 rounded-lg bg-primary/10 px-3 py-2 text-xs text-primary">
-              ℹ️ Tras confirmar e iniciar sesión, solicita ser profesor desde tu
-              perfil.
+              ℹ️ Tu solicitud de profesor ya quedó registrada. Un administrador
+              la revisará. Confirma tu correo para poder entrar.
             </p>
           )}
           <div className="mt-6 space-y-3">
