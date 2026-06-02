@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, BookOpen, Eye, Sparkles } from "lucide-react";
+import { ArrowLeft, BookOpen, Eye, Sparkles, Timer, Lock } from "lucide-react";
 import { useExercise, useAssignment } from "@/hooks/useAssignments";
 import { useExamGuard } from "@/hooks/useExamGuard";
 import { useToast } from "@/components/ui/toast";
@@ -13,6 +13,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { FullScreenLoader, Spinner } from "@/components/common/Spinner";
 import { LANGUAGE_META, DIFFICULTY_META } from "@/lib/constants";
+import { isAssignmentOpen } from "@/lib/utils";
 import {
   getOrCreateDraft,
   saveDraft,
@@ -108,6 +109,49 @@ export function SolvePage() {
     if (exercise) setCode(exercise.starter_code);
   }, [exercise]);
 
+  // ----- Cronómetro: límite de tiempo y/o fecha de cierre -----
+  const deadlineMs = useMemo(() => {
+    if (!assignment) return null;
+    const c: number[] = [];
+    if (assignment.closes_at) c.push(new Date(assignment.closes_at).getTime());
+    if (assignment.time_limit_min && submission?.started_at) {
+      c.push(
+        new Date(submission.started_at).getTime() +
+          assignment.time_limit_min * 60_000,
+      );
+    }
+    return c.length ? Math.min(...c) : null;
+  }, [assignment, submission?.started_at]);
+
+  const [clockNow, setClockNow] = useState(Date.now());
+  useEffect(() => {
+    if (!deadlineMs) return;
+    const t = setInterval(() => setClockNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [deadlineMs]);
+
+  const remainingMs = deadlineMs ? deadlineMs - clockNow : null;
+  const timeUp = remainingMs !== null && remainingMs <= 0;
+  const closedByDate =
+    !!assignment && !isAssignmentOpen(assignment);
+  const locked = timeUp || closedByDate;
+
+  // Auto-envío al agotarse el tiempo (una sola vez)
+  const autoSent = useRef(false);
+  useEffect(() => {
+    if (
+      timeUp &&
+      !autoSent.current &&
+      submission &&
+      submission.status !== "graded" &&
+      !submitting
+    ) {
+      autoSent.current = true;
+      toast("⏰ ¡Tiempo agotado! Enviando tu trabajo…", "info");
+      handleSubmit();
+    }
+  }, [timeUp, submission, submitting, handleSubmit, toast]);
+
   if (isLoading) return <FullScreenLoader />;
   if (!exercise)
     return (
@@ -136,6 +180,18 @@ export function SolvePage() {
           <p className="truncate font-bold">{exercise.title}</p>
           <p className="text-xs text-muted-foreground">{lang.label}</p>
         </div>
+        {remainingMs !== null && (
+          <Badge
+            variant={remainingMs < 60_000 ? "destructive" : "warning"}
+            className={remainingMs < 60_000 ? "glow-pulse" : ""}
+          >
+            <Timer className="mr-1 size-3" />
+            {(() => {
+              const s = Math.max(0, Math.floor(remainingMs / 1000));
+              return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+            })()}
+          </Badge>
+        )}
         <Badge className={diff.className}>{diff.label}</Badge>
       </header>
 
@@ -156,14 +212,25 @@ export function SolvePage() {
           </CardContent>
         </Card>
 
+        {/* Aviso de bloqueo */}
+        {locked && (
+          <div className="flex items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm font-medium text-destructive">
+            <Lock className="size-5 shrink-0" />
+            {timeUp
+              ? "Se acabó el tiempo. Tu trabajo se envió automáticamente."
+              : "Esta tarea está cerrada. Ya no puedes enviar."}
+          </div>
+        )}
+
         {/* Editor */}
         <CodeEditor
           value={code}
           onChange={handleChange}
           language={exercise.language}
           submitting={submitting}
-          onSubmit={handleSubmit}
-          onReset={handleReset}
+          readOnly={locked}
+          onSubmit={locked ? undefined : handleSubmit}
+          onReset={locked ? undefined : handleReset}
         />
 
         {/* Estado de revisión */}
