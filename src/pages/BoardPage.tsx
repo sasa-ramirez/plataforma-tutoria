@@ -39,6 +39,8 @@ export function BoardPage() {
   const [allowWrite, setAllowWrite] = useState(false); // permiso (profe)
   const [canWrite, setCanWrite] = useState(false); // permiso recibido (alumno)
   const [personalText, setPersonalText] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [view, setView] = useState<"pizarra" | "codigo">("pizarra");
 
   const wbRef = useRef<WhiteboardHandle>(null);
   const personalWbRef = useRef<WhiteboardHandle>(null);
@@ -54,6 +56,7 @@ export function BoardPage() {
           setText(b?.text_content ?? "");
         }
       })
+      .catch((e) => active && setError(e instanceof Error ? e.message : "Error"))
       .finally(() => active && setLoading(false));
     return () => {
       active = false;
@@ -141,11 +144,28 @@ export function BoardPage() {
         >
           <ArrowLeft className="size-4" /> Volver al curso
         </Link>
-        <EmptyState
-          icon={Radio}
-          title="El tablero aún no está activo"
-          description="Tu profesor todavía no ha abierto el tablero de esta clase. Vuelve cuando inicie."
-        />
+        {error || isTeacher ? (
+          <EmptyState
+            icon={Radio}
+            title="No se pudo abrir el tablero"
+            description={
+              isTeacher
+                ? "Solo el profesor que CREÓ este curso puede abrir su tablero. Verifica que sea tu curso."
+                : "Hubo un problema al abrir el tablero. Inténtalo de nuevo."
+            }
+          />
+        ) : (
+          <EmptyState
+            icon={Radio}
+            title="El tablero aún no está activo"
+            description="Tu profesor todavía no ha abierto el tablero de esta clase. Vuelve cuando inicie."
+          />
+        )}
+        {error && (
+          <p className="mt-3 rounded-lg bg-destructive/10 px-3 py-2 text-center text-xs text-destructive">
+            {error}
+          </p>
+        )}
       </div>
     );
   }
@@ -169,6 +189,35 @@ export function BoardPage() {
           </p>
         </div>
       </div>
+
+      {/* Interruptor: Pizarra / Código */}
+      <div className="grid grid-cols-2 gap-2 rounded-xl bg-muted/50 p-1">
+        <button
+          onClick={() => setView("pizarra")}
+          className={cn(
+            "flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-semibold transition-colors",
+            view === "pizarra"
+              ? "bg-card text-foreground shadow"
+              : "text-muted-foreground",
+          )}
+        >
+          <Pen className="size-4" /> Pizarra
+        </button>
+        <button
+          onClick={() => setView("codigo")}
+          className={cn(
+            "flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-semibold transition-colors",
+            view === "codigo"
+              ? "bg-card text-foreground shadow"
+              : "text-muted-foreground",
+          )}
+        >
+          <Code2 className="size-4" /> Código
+        </button>
+      </div>
+
+      {/* ===== VISTA PIZARRA (se oculta pero NO se desmonta) ===== */}
+      <div className={cn("space-y-4", view !== "pizarra" && "hidden")}>
 
       {/* Toolbar (solo profesor) */}
       {isTeacher && (
@@ -261,8 +310,11 @@ export function BoardPage() {
           onStrokeDone={onStrokeDone}
         />
       </div>
+      </div>
+      {/* ===== fin VISTA PIZARRA ===== */}
 
-      {/* Panel de texto / código en vivo */}
+      {/* ===== VISTA CÓDIGO (oculta pero montada) ===== */}
+      <div className={cn(view !== "codigo" && "hidden")}>
       <Card>
         <CardContent className="p-4">
           <div className="mb-2 flex items-center gap-1.5 text-sm font-bold">
@@ -303,6 +355,8 @@ export function BoardPage() {
           </div>
         </CardContent>
       </Card>
+      </div>
+      {/* ===== fin VISTA CÓDIGO ===== */}
 
       {/* Mi espacio (práctica privada de cada quien) */}
       <Card className="border-accent/30">
