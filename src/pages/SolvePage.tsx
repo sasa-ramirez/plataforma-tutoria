@@ -6,6 +6,7 @@ import { useExercise, useAssignment } from "@/hooks/useAssignments";
 import { useExamGuard } from "@/hooks/useExamGuard";
 import { useToast } from "@/components/ui/toast";
 import { CodeEditor } from "@/components/editor/CodeEditor";
+import { CodeRunner } from "@/components/editor/CodeRunner";
 import { AIFeedbackPanel } from "@/components/ai/AIFeedbackPanel";
 import { ExamModeBanner } from "@/components/exam/ExamModeBanner";
 import { Button } from "@/components/ui/button";
@@ -232,6 +233,9 @@ export function SolvePage() {
           onSubmit={locked ? undefined : handleSubmit}
           onReset={locked ? undefined : handleReset}
         />
+
+        {/* Ejecutar (Python/Java) — pruébalo antes de enviar */}
+        <CodeRunner language={exercise.language} code={code} />
 
         {/* Estado de revisión */}
         <AnimatePresence mode="wait">

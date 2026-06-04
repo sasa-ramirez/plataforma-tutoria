@@ -13,8 +13,10 @@ import {
   type Board,
 } from "@/services/board";
 import { Whiteboard, type WhiteboardHandle, type Segment } from "@/components/board/Whiteboard";
+import { CodeRunner } from "@/components/editor/CodeRunner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import type { ProgLanguage } from "@/types/database";
 import { Card, CardContent } from "@/components/ui/card";
 import { FullScreenLoader } from "@/components/common/Spinner";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -33,6 +35,7 @@ export function BoardPage() {
   const [color, setColor] = useState("#22d3ee");
   const [size, setSize] = useState(6);
   const [mode, setMode] = useState<"pen" | "erase">("pen");
+  const [runLang, setRunLang] = useState<ProgLanguage>("python");
 
   const wbRef = useRef<WhiteboardHandle>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
@@ -247,6 +250,28 @@ export function BoardPage() {
             }
             className="min-h-[160px] font-mono text-sm"
           />
+
+          {/* Ejecutar el código del tablero */}
+          <div className="mt-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Ejecutar como:</span>
+              {(["python", "java"] as ProgLanguage[]).map((l) => (
+                <button
+                  key={l}
+                  onClick={() => setRunLang(l)}
+                  className={cn(
+                    "rounded-lg px-2.5 py-1 text-xs font-semibold",
+                    runLang === l
+                      ? "bg-primary/15 text-primary"
+                      : "bg-muted text-muted-foreground",
+                  )}
+                >
+                  {l === "python" ? "🐍 Python" : "☕ Java"}
+                </button>
+              ))}
+            </div>
+            <CodeRunner language={runLang} code={text} />
+          </div>
         </CardContent>
       </Card>
     </div>
