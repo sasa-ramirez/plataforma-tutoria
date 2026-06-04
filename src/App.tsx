@@ -9,6 +9,7 @@ import { DashboardPage } from "@/pages/DashboardPage";
 import { CoursesPage } from "@/pages/CoursesPage";
 import { CourseDetailPage } from "@/pages/CourseDetailPage";
 import { AssignmentDetailPage } from "@/pages/AssignmentDetailPage";
+import { BoardPage } from "@/pages/BoardPage";
 import { SolvePage } from "@/pages/SolvePage";
 import { PracticePage } from "@/pages/PracticePage";
 import { ProfilePage } from "@/pages/ProfilePage";
@@ -34,6 +35,7 @@ export default function App() {
         <Route index element={<DashboardPage />} />
         <Route path="courses" element={<CoursesPage />} />
         <Route path="courses/:id" element={<CourseDetailPage />} />
+        <Route path="courses/:id/board" element={<BoardPage />} />
         <Route path="assignments/:id" element={<AssignmentDetailPage />} />
         <Route path="practice" element={<PracticePage />} />
         <Route path="profile" element={<ProfilePage />} />

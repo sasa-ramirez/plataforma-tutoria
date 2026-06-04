@@ -1,6 +1,6 @@
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Users, Copy, ClipboardList } from "lucide-react";
+import { ArrowLeft, Users, Copy, ClipboardList, Radio } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useCourse, useCourseMembers } from "@/hooks/useCourses";
 import { useAssignments } from "@/hooks/useAssignments";
@@ -82,6 +82,14 @@ export function CourseDetailPage() {
           </button>
         )}
       </motion.div>
+
+      {/* Tablero en vivo */}
+      <Button asChild variant="outline" className="w-full justify-start">
+        <Link to={`/app/courses/${id}/board`}>
+          <Radio className="size-4 text-success" />
+          {isTeacher ? "Abrir tablero en vivo" : "Entrar al tablero en vivo"}
+        </Link>
+      </Button>
 
       {/* Tareas */}
       <Card>

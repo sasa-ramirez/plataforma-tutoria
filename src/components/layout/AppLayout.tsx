@@ -13,6 +13,7 @@ import { useAuth } from "@/context/AuthContext";
 import { cn, initials } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 const NAV = [
   { to: "/app", label: "Inicio", icon: LayoutDashboard, end: true },
@@ -100,6 +101,11 @@ export function AppLayout() {
 
       {/* Contenido */}
       <main className="flex-1 pb-24 md:pb-0">
+        {/* Barra superior con la campanita */}
+        <div className="sticky top-0 z-30 flex items-center justify-between glass px-4 py-2 md:justify-end md:px-8">
+          <span className="font-extrabold tracking-tight md:hidden">Kódea</span>
+          <NotificationBell />
+        </div>
         <div className="mx-auto w-full max-w-5xl px-4 py-5 md:px-8 md:py-8">
           <AnimatePresence mode="wait">
             <motion.div
