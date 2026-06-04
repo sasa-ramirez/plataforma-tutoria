@@ -367,7 +367,13 @@ export function BoardPage() {
               (privado — practica aquí mientras sigues la clase)
             </span>
           </div>
-          <div className="my-3 overflow-hidden rounded-2xl border bg-[#0e0d1a] p-2">
+          {/* Mi pizarra privada (solo en vista Pizarra) */}
+          <div
+            className={cn(
+              "my-3 overflow-hidden rounded-2xl border bg-[#0e0d1a] p-2",
+              view !== "pizarra" && "hidden",
+            )}
+          >
             <Whiteboard
               ref={personalWbRef}
               color={color}
@@ -375,31 +381,37 @@ export function BoardPage() {
               mode={mode}
             />
           </div>
-          <Textarea
-            value={personalText}
-            onChange={(e) => setPersonalText(e.target.value)}
-            placeholder="Tu código de práctica… (privado)"
-            className="min-h-[120px] font-mono text-sm"
-          />
-          <div className="mt-3 space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Ejecutar como:</span>
-              {(["python", "java"] as ProgLanguage[]).map((l) => (
-                <button
-                  key={l}
-                  onClick={() => setRunLang(l)}
-                  className={cn(
-                    "rounded-lg px-2.5 py-1 text-xs font-semibold",
-                    runLang === l
-                      ? "bg-primary/15 text-primary"
-                      : "bg-muted text-muted-foreground",
-                  )}
-                >
-                  {l === "python" ? "🐍 Python" : "☕ Java"}
-                </button>
-              ))}
+
+          {/* Mi código privado (solo en vista Código) */}
+          <div className={cn("mt-3", view !== "codigo" && "hidden")}>
+            <Textarea
+              value={personalText}
+              onChange={(e) => setPersonalText(e.target.value)}
+              placeholder="Tu código de práctica… (privado)"
+              className="min-h-[120px] font-mono text-sm"
+            />
+            <div className="mt-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">
+                  Ejecutar como:
+                </span>
+                {(["python", "java"] as ProgLanguage[]).map((l) => (
+                  <button
+                    key={l}
+                    onClick={() => setRunLang(l)}
+                    className={cn(
+                      "rounded-lg px-2.5 py-1 text-xs font-semibold",
+                      runLang === l
+                        ? "bg-primary/15 text-primary"
+                        : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    {l === "python" ? "🐍 Python" : "☕ Java"}
+                  </button>
+                ))}
+              </div>
+              <CodeRunner language={runLang} code={personalText} />
             </div>
-            <CodeRunner language={runLang} code={personalText} />
           </div>
         </CardContent>
       </Card>
