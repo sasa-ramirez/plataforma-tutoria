@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { ArrowLeft, Eraser, Pen, Trash2, Radio, Code2 } from "lucide-react";
+import { ArrowLeft, Eraser, Pen, Trash2, Radio, Code2, Hand } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -36,8 +36,12 @@ export function BoardPage() {
   const [size, setSize] = useState(6);
   const [mode, setMode] = useState<"pen" | "erase">("pen");
   const [runLang, setRunLang] = useState<ProgLanguage>("python");
+  const [allowWrite, setAllowWrite] = useState(false); // permiso (profe)
+  const [canWrite, setCanWrite] = useState(false); // permiso recibido (alumno)
+  const [personalText, setPersonalText] = useState("");
 
   const wbRef = useRef<WhiteboardHandle>(null);
+  const personalWbRef = useRef<WhiteboardHandle>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -75,6 +79,9 @@ export function BoardPage() {
       .on("broadcast", { event: "text" }, ({ payload }) =>
         setText((payload as { text: string }).text),
       )
+      .on("broadcast", { event: "allow" }, ({ payload }) =>
+        setCanWrite((payload as { allowed: boolean }).allowed),
+      )
       .subscribe();
     channelRef.current = channel;
 
@@ -88,7 +95,18 @@ export function BoardPage() {
     channelRef.current?.send({ type: "broadcast", event: "seg", payload: seg });
 
   const onStrokeDone = (s: Parameters<NonNullable<typeof saveStroke>>[1]) => {
-    if (board) saveStroke(board.id, s);
+    // Solo el profesor persiste (los trazos de alumnos son en vivo, RLS lo limita)
+    if (board && isTeacher) saveStroke(board.id, s);
+  };
+
+  const toggleAllowWrite = () => {
+    const next = !allowWrite;
+    setAllowWrite(next);
+    channelRef.current?.send({
+      type: "broadcast",
+      event: "allow",
+      payload: { allowed: next },
+    });
   };
 
   const clearBoard = () => {
@@ -209,22 +227,33 @@ export function BoardPage() {
               <Eraser className="size-4" /> Borrador
             </Button>
             <Button
-              variant="outline"
+              variant={allowWrite ? "brand" : "outline"}
               size="sm"
               className="ml-auto"
-              onClick={clearBoard}
+              onClick={toggleAllowWrite}
             >
+              <Hand className="size-4" />
+              {allowWrite ? "Quitar permiso" : "Permitir que escriban"}
+            </Button>
+            <Button variant="outline" size="sm" onClick={clearBoard}>
               <Trash2 className="size-4" /> Limpiar
             </Button>
           </CardContent>
         </Card>
       )}
 
+      {/* Aviso al estudiante con permiso */}
+      {!isTeacher && canWrite && (
+        <div className="rounded-xl border border-success/30 bg-success/5 px-3 py-2 text-sm font-medium text-success">
+          ✏️ El profe te dio permiso de escribir en el tablero
+        </div>
+      )}
+
       {/* Pizarra */}
       <div className="overflow-hidden rounded-2xl border bg-[#0e0d1a] p-2 surface-glow">
         <Whiteboard
           ref={wbRef}
-          readOnly={!isTeacher}
+          readOnly={isTeacher ? false : !canWrite}
           color={color}
           size={mode === "erase" ? 40 : size}
           mode={mode}
@@ -271,6 +300,52 @@ export function BoardPage() {
               ))}
             </div>
             <CodeRunner language={runLang} code={text} />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Mi espacio (práctica privada de cada quien) */}
+      <Card className="border-accent/30">
+        <CardContent className="p-4">
+          <div className="mb-1 flex items-center gap-1.5 text-sm font-bold">
+            <Pen className="size-4 text-accent" /> Mi espacio
+            <span className="text-xs font-normal text-muted-foreground">
+              (privado — practica aquí mientras sigues la clase)
+            </span>
+          </div>
+          <div className="my-3 overflow-hidden rounded-2xl border bg-[#0e0d1a] p-2">
+            <Whiteboard
+              ref={personalWbRef}
+              color={color}
+              size={mode === "erase" ? 40 : size}
+              mode={mode}
+            />
+          </div>
+          <Textarea
+            value={personalText}
+            onChange={(e) => setPersonalText(e.target.value)}
+            placeholder="Tu código de práctica… (privado)"
+            className="min-h-[120px] font-mono text-sm"
+          />
+          <div className="mt-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Ejecutar como:</span>
+              {(["python", "java"] as ProgLanguage[]).map((l) => (
+                <button
+                  key={l}
+                  onClick={() => setRunLang(l)}
+                  className={cn(
+                    "rounded-lg px-2.5 py-1 text-xs font-semibold",
+                    runLang === l
+                      ? "bg-primary/15 text-primary"
+                      : "bg-muted text-muted-foreground",
+                  )}
+                >
+                  {l === "python" ? "🐍 Python" : "☕ Java"}
+                </button>
+              ))}
+            </div>
+            <CodeRunner language={runLang} code={personalText} />
           </div>
         </CardContent>
       </Card>
