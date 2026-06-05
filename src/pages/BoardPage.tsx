@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { ArrowLeft, Eraser, Pen, Trash2, Radio, Code2, Hand } from "lucide-react";
+import { ArrowLeft, Eraser, Pen, Trash2, Radio, Code2, Hand, Share2, Square } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/components/ui/toast";
 import {
   getOrCreateBoard,
   fetchStrokes,
   saveStroke,
   clearStrokes,
   saveBoardText,
+  setBoardLive,
   type Board,
 } from "@/services/board";
 import { Whiteboard, type WhiteboardHandle, type Segment } from "@/components/board/Whiteboard";
@@ -28,8 +30,10 @@ const SIZES = [3, 6, 12];
 export function BoardPage() {
   const { id: courseId = "" } = useParams();
   const { isTeacher } = useAuth();
+  const { toast } = useToast();
 
   const [board, setBoard] = useState<Board | null>(null);
+  const [isLive, setIsLive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState("");
   const [color, setColor] = useState("#22d3ee");
@@ -54,6 +58,7 @@ export function BoardPage() {
         if (active) {
           setBoard(b);
           setText(b?.text_content ?? "");
+          setIsLive(b?.is_live ?? false);
         }
       })
       .catch((e) => active && setError(e instanceof Error ? e.message : "Error"))
@@ -85,6 +90,9 @@ export function BoardPage() {
       .on("broadcast", { event: "allow" }, ({ payload }) =>
         setCanWrite((payload as { allowed: boolean }).allowed),
       )
+      .on("broadcast", { event: "live" }, ({ payload }) =>
+        setIsLive((payload as { live: boolean }).live),
+      )
       .subscribe();
     channelRef.current = channel;
 
@@ -100,6 +108,40 @@ export function BoardPage() {
   const onStrokeDone = (s: Parameters<NonNullable<typeof saveStroke>>[1]) => {
     // Solo el profesor persiste (los trazos de alumnos son en vivo, RLS lo limita)
     if (board && isTeacher) saveStroke(board.id, s);
+  };
+
+  const toggleLive = () => {
+    if (!board) return;
+    const next = !isLive;
+    setIsLive(next);
+    setBoardLive(board.id, next).catch(() =>
+      toast("No se pudo cambiar la transmisión", "error"),
+    );
+    channelRef.current?.send({
+      type: "broadcast",
+      event: "live",
+      payload: { live: next },
+    });
+    if (next) toast("¡Estás en vivo! Se avisó a tus estudiantes 🔴", "success");
+  };
+
+  const shareClass = async () => {
+    if (!board) return;
+    const link = `${window.location.origin}/j/${board.join_code}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: "Entra a la clase en vivo",
+          text: `Únete con el código ${board.join_code}`,
+          url: link,
+        });
+      } else {
+        await navigator.clipboard.writeText(link);
+        toast(`Enlace copiado · código ${board.join_code}`, "success");
+      }
+    } catch {
+      /* el usuario canceló el menú de compartir */
+    }
   };
 
   const toggleAllowWrite = () => {
@@ -180,14 +222,45 @@ export function BoardPage() {
         </Button>
         <div className="flex-1">
           <h1 className="text-xl font-extrabold tracking-tight">Tablero en vivo</h1>
-          <p className="flex items-center gap-1.5 text-xs text-success">
-            <span className="relative flex size-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
-              <span className="relative inline-flex size-2 rounded-full bg-success" />
-            </span>
-            {isTeacher ? "Estás transmitiendo" : "En vivo"}
-          </p>
+          {isLive ? (
+            <p className="flex items-center gap-1.5 text-xs font-semibold text-destructive">
+              <span className="relative flex size-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive opacity-75" />
+                <span className="relative inline-flex size-2 rounded-full bg-destructive" />
+              </span>
+              EN VIVO
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              {isTeacher
+                ? "Sin transmitir todavía"
+                : "El profe aún no está transmitiendo"}
+            </p>
+          )}
         </div>
+
+        {isTeacher && (
+          <div className="flex items-center gap-2">
+            <Button
+              variant={isLive ? "destructive" : "brand"}
+              size="sm"
+              onClick={toggleLive}
+            >
+              {isLive ? (
+                <>
+                  <Square className="size-4" /> Detener
+                </>
+              ) : (
+                <>
+                  <Radio className="size-4" /> Transmitir
+                </>
+              )}
+            </Button>
+            <Button variant="outline" size="sm" onClick={shareClass}>
+              <Share2 className="size-4" /> Compartir
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Interruptor: Pizarra / Código */}

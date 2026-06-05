@@ -10,6 +10,7 @@ import { CoursesPage } from "@/pages/CoursesPage";
 import { CourseDetailPage } from "@/pages/CourseDetailPage";
 import { AssignmentDetailPage } from "@/pages/AssignmentDetailPage";
 import { BoardPage } from "@/pages/BoardPage";
+import { JoinClassPage } from "@/pages/JoinClassPage";
 import { SolvePage } from "@/pages/SolvePage";
 import { PracticePage } from "@/pages/PracticePage";
 import { ProfilePage } from "@/pages/ProfilePage";
@@ -23,6 +24,9 @@ export default function App() {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
+
+      {/* Entrar a una clase por enlace compartido */}
+      <Route path="/j/:code" element={<JoinClassPage />} />
 
       <Route
         path="/app"

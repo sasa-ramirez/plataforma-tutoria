@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { GraduationCap } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -13,6 +13,11 @@ export function LoginPage() {
   const { signIn, resendConfirmation } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Si llegamos aquí desde una ruta protegida (p. ej. /j/:code), volvemos a ella.
+  const from =
+    (location.state as { from?: { pathname: string } } | null)?.from?.pathname ??
+    "/app";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +31,7 @@ export function LoginPage() {
     setLoading(true);
     try {
       await signIn(email, password);
-      navigate("/app");
+      navigate(from, { replace: true });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "No se pudo iniciar sesión";
       // Mensaje claro + opción de reenviar si falta confirmar el correo

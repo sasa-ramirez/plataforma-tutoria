@@ -11,6 +11,7 @@ const TYPE_EMOJI: Record<string, string> = {
   graded: "✅",
   assignment: "📝",
   teacher_approved: "🎉",
+  live: "🔴",
 };
 
 export function NotificationBell() {
