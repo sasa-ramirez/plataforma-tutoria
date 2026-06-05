@@ -5,6 +5,7 @@ import { Bell, CheckCheck } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNotifications } from "@/hooks/useNotifications";
 import { markAllRead, markRead } from "@/services/notifications";
+import { ensureNotifyPermission } from "@/lib/notify";
 import { cn } from "@/lib/utils";
 
 const TYPE_EMOJI: Record<string, string> = {
@@ -26,6 +27,8 @@ export function NotificationBell() {
   const toggle = async () => {
     const next = !open;
     setOpen(next);
+    // Al abrir, aprovechamos el gesto para pedir permiso de avisos del sistema.
+    if (next) ensureNotifyPermission();
     if (next && unread > 0) {
       await markAllRead();
       qc.invalidateQueries({ queryKey: ["notifications"] });
