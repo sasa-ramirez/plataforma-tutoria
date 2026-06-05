@@ -1,29 +1,18 @@
 import type { ProgLanguage } from "@/types/database";
 
-// Piston: motor de ejecución de código gratis y abierto (con CORS).
-const PISTON = "https://emkc.org/api/v2/piston";
+// Motor de ejecución de código: Wandbox (gratis, sin API key, con CORS).
+// Reemplazó a Piston (emkc.org), que pasó a ser "whitelist only" en 2026 y
+// devolvía 401 a todos.
+const WANDBOX = "https://wandbox.org/api/compile.json";
 
 // Solo lenguajes reales son ejecutables. PSeInt no tiene runtime.
-const RUNNABLE: Partial<Record<ProgLanguage, { lang: string; file: string }>> = {
-  python: { lang: "python", file: "main.py" },
-  java: { lang: "java", file: "Main.java" },
+const COMPILER: Partial<Record<ProgLanguage, string>> = {
+  python: "cpython-3.13.8",
+  java: "openjdk-jdk-21+35",
 };
 
 export function isRunnable(language: ProgLanguage): boolean {
-  return language in RUNNABLE;
-}
-
-let runtimesCache: { language: string; version: string; aliases?: string[] }[] | null =
-  null;
-
-async function getVersion(lang: string): Promise<string> {
-  if (!runtimesCache) {
-    runtimesCache = await fetch(`${PISTON}/runtimes`).then((r) => r.json());
-  }
-  const rt = runtimesCache!.find(
-    (r) => r.language === lang || r.aliases?.includes(lang),
-  );
-  return rt?.version ?? "*";
+  return language in COMPILER;
 }
 
 export interface RunResult {
@@ -32,35 +21,56 @@ export interface RunResult {
   stderr: string;
 }
 
+/**
+ * Wandbox guarda el código en `prog.java`, así que una clase `public class X`
+ * no compila (Java exige X.java). Para principiantes con una sola clase,
+ * quitar el modificador `public` de la clase es seguro y la deja ejecutable.
+ */
+function prepareJava(code: string): string {
+  return code.replace(/\bpublic\s+class\b/g, "class");
+}
+
 export async function runCode(
   language: ProgLanguage,
   code: string,
 ): Promise<RunResult> {
-  const meta = RUNNABLE[language];
-  if (!meta) {
+  const compiler = COMPILER[language];
+  if (!compiler) {
     return { ok: false, stdout: "", stderr: "Este lenguaje no se puede ejecutar." };
   }
-  const version = await getVersion(meta.lang);
-  const res = await fetch(`${PISTON}/execute`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      language: meta.lang,
-      version,
-      files: [{ name: meta.file, content: code }],
-    }),
-  });
+
+  const source = language === "java" ? prepareJava(code) : code;
+
+  let res: Response;
+  try {
+    res = await fetch(WANDBOX, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ compiler, code: source }),
+    });
+  } catch {
+    return {
+      ok: false,
+      stdout: "",
+      stderr: "No se pudo conectar con el motor de ejecución. Revisa tu conexión.",
+    };
+  }
+
   if (!res.ok) {
     return { ok: false, stdout: "", stderr: `Error del motor (${res.status}).` };
   }
-  // deno/ts: respuesta de Piston
+
   const data = (await res.json()) as {
-    run?: { stdout?: string; stderr?: string; output?: string };
-    compile?: { stderr?: string };
-    message?: string;
+    status?: string;
+    compiler_error?: string;
+    program_output?: string;
+    program_error?: string;
   };
-  const compileErr = data.compile?.stderr ?? "";
-  const stderr = (compileErr || data.run?.stderr || "").trim();
-  const stdout = (data.run?.stdout ?? "").trim();
-  return { ok: !stderr, stdout, stderr: stderr || data.message || "" };
+
+  const compileErr = (data.compiler_error ?? "").trim();
+  const runErr = (data.program_error ?? "").trim();
+  const stderr = [compileErr, runErr].filter(Boolean).join("\n").trim();
+  const stdout = (data.program_output ?? "").trim();
+
+  return { ok: data.status === "0" && !stderr, stdout, stderr };
 }
