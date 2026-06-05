@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNotifications } from "@/hooks/useNotifications";
 import { markAllRead, markRead } from "@/services/notifications";
 import { ensureNotifyPermission } from "@/lib/notify";
+import { enablePush } from "@/lib/push";
 import { cn } from "@/lib/utils";
 
 const TYPE_EMOJI: Record<string, string> = {
@@ -27,8 +28,12 @@ export function NotificationBell() {
   const toggle = async () => {
     const next = !open;
     setOpen(next);
-    // Al abrir, aprovechamos el gesto para pedir permiso de avisos del sistema.
-    if (next) ensureNotifyPermission();
+    // Al abrir, aprovechamos el gesto para pedir permiso y suscribir push.
+    if (next) {
+      ensureNotifyPermission().then((ok) => {
+        if (ok) enablePush();
+      });
+    }
     if (next && unread > 0) {
       await markAllRead();
       qc.invalidateQueries({ queryKey: ["notifications"] });
