@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Dumbbell, ChevronRight } from "lucide-react";
+import { Dumbbell, ChevronRight, Code2, Sparkles } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Card } from "@/components/ui/card";
@@ -22,6 +22,25 @@ export function PracticePage() {
         title="Practicar"
         subtitle="Ejercicios libres con feedback de IA. Repite las veces que quieras."
       />
+
+      {/* Editor libre: elige lenguaje y empieza desde el código base */}
+      <Link to="/app/sandbox">
+        <Card className="card-interactive mb-5 flex items-center gap-3 bg-gradient-to-br from-primary/10 to-accent/10 p-4 active:scale-[0.99]">
+          <div className="grid size-11 place-items-center rounded-xl bg-primary/15 text-primary">
+            <Code2 className="size-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="flex items-center gap-1.5 font-semibold">
+              Editor libre
+              <Sparkles className="size-3.5 text-accent" />
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Elige lenguaje y empieza con el código base listo.
+            </p>
+          </div>
+          <ChevronRight className="size-4 text-muted-foreground" />
+        </Card>
+      </Link>
 
       {isLoading ? (
         <div className="grid gap-3 sm:grid-cols-2">

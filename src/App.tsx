@@ -13,6 +13,7 @@ import { BoardPage } from "@/pages/BoardPage";
 import { JoinClassPage } from "@/pages/JoinClassPage";
 import { SolvePage } from "@/pages/SolvePage";
 import { PracticePage } from "@/pages/PracticePage";
+import { SandboxPage } from "@/pages/SandboxPage";
 import { ProfilePage } from "@/pages/ProfilePage";
 import { AdminPage } from "@/pages/AdminPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
@@ -42,6 +43,7 @@ export default function App() {
         <Route path="courses/:id/board" element={<BoardPage />} />
         <Route path="assignments/:id" element={<AssignmentDetailPage />} />
         <Route path="practice" element={<PracticePage />} />
+        <Route path="sandbox" element={<SandboxPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route
           path="admin"

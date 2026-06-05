@@ -15,6 +15,7 @@ import {
   type Board,
 } from "@/services/board";
 import { detectLanguage } from "@/services/runner";
+import { STARTER_CODE } from "@/lib/constants";
 import { Whiteboard, type WhiteboardHandle, type Segment } from "@/components/board/Whiteboard";
 import { CodeRunner } from "@/components/editor/CodeRunner";
 import { Button } from "@/components/ui/button";
@@ -150,6 +151,24 @@ export function BoardPage() {
     } catch {
       /* el usuario canceló el menú de compartir */
     }
+  };
+
+  // Elige lenguaje y, si el área está vacía, carga su código base.
+  const pickLang = (l: ProgLanguage, target: "live" | "personal") => {
+    langTouched.current = true;
+    setRunLang(l);
+    if (target === "live" && isTeacher && !text.trim()) onTextChange(STARTER_CODE[l]);
+    if (target === "personal" && !personalText.trim()) setPersonalText(STARTER_CODE[l]);
+  };
+
+  // Botón "Código base": inserta la plantilla (pide confirmación si hay texto).
+  const insertBase = (target: "live" | "personal") => {
+    const current = target === "live" ? text : personalText;
+    if (current.trim() && !window.confirm("¿Reemplazar lo escrito con el código base?")) {
+      return;
+    }
+    if (target === "live") onTextChange(STARTER_CODE[runLang]);
+    else setPersonalText(STARTER_CODE[runLang]);
   };
 
   const toggleAllowWrite = () => {
@@ -415,12 +434,12 @@ export function BoardPage() {
 
           {/* Ejecutar el código del tablero */}
           <div className="mt-3 space-y-2">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs text-muted-foreground">Ejecutar como:</span>
               {(["python", "java"] as ProgLanguage[]).map((l) => (
                 <button
                   key={l}
-                  onClick={() => { langTouched.current = true; setRunLang(l); }}
+                  onClick={() => pickLang(l, "live")}
                   className={cn(
                     "rounded-lg px-2.5 py-1 text-xs font-semibold",
                     runLang === l
@@ -431,6 +450,14 @@ export function BoardPage() {
                   {l === "python" ? "🐍 Python" : "☕ Java"}
                 </button>
               ))}
+              {isTeacher && (
+                <button
+                  onClick={() => insertBase("live")}
+                  className="ml-auto rounded-lg bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground hover:bg-muted/70"
+                >
+                  ↺ Código base
+                </button>
+              )}
             </div>
             <CodeRunner language={runLang} code={text} />
           </div>
@@ -472,14 +499,14 @@ export function BoardPage() {
               className="min-h-[120px] font-mono text-sm"
             />
             <div className="mt-3 space-y-2">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs text-muted-foreground">
                   Ejecutar como:
                 </span>
                 {(["python", "java"] as ProgLanguage[]).map((l) => (
                   <button
                     key={l}
-                    onClick={() => { langTouched.current = true; setRunLang(l); }}
+                    onClick={() => pickLang(l, "personal")}
                     className={cn(
                       "rounded-lg px-2.5 py-1 text-xs font-semibold",
                       runLang === l
@@ -490,6 +517,12 @@ export function BoardPage() {
                     {l === "python" ? "🐍 Python" : "☕ Java"}
                   </button>
                 ))}
+                <button
+                  onClick={() => insertBase("personal")}
+                  className="ml-auto rounded-lg bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground hover:bg-muted/70"
+                >
+                  ↺ Código base
+                </button>
               </div>
               <CodeRunner language={runLang} code={personalText} />
             </div>

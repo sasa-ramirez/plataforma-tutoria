@@ -62,10 +62,10 @@ export const COURSE_COLORS: Record<
 
 export const COURSE_COLOR_KEYS = Object.keys(COURSE_COLORS);
 
-// Plantilla de starter code por lenguaje
+// Plantilla de código base por lenguaje (esqueleto inicial para empezar).
 export const STARTER_CODE: Record<ProgLanguage, string> = {
-  pseint: `Algoritmo HolaMundo\n\tEscribir "Hola Mundo"\nFinAlgoritmo`,
-  java: `public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hola Mundo");\n    }\n}`,
-  python: `print("Hola Mundo")`,
-  logic: `// Describe tu solución paso a paso`,
+  pseint: `Algoritmo MiPrograma\n\t// Escribe tu solución aquí\n\tEscribir "Hola Mundo"\nFinAlgoritmo`,
+  java: `public class Main {\n    public static void main(String[] args) {\n        // Escribe tu código aquí\n        System.out.println("Hola Mundo");\n    }\n}`,
+  python: `# Escribe tu código aquí\nprint("Hola Mundo")`,
+  logic: `// Describe tu solución paso a paso\n1. ...\n2. ...`,
 };
