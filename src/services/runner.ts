@@ -15,6 +15,31 @@ export function isRunnable(language: ProgLanguage): boolean {
   return language in COMPILER;
 }
 
+/**
+ * Adivina si un fragmento es Java o Python por señales típicas.
+ * Útil en el tablero, donde el texto no tiene lenguaje asociado.
+ * Por defecto cae en Python (más común en principiantes).
+ */
+export function detectLanguage(code: string): "python" | "java" {
+  const c = code ?? "";
+  const javaHints = [
+    /\bpublic\s+class\b/,
+    /\bSystem\.out\.print/,
+    /\b(public|private|protected|static)\s+(static\s+)?(void|int|String|double|boolean)\b/,
+    /\bvoid\s+main\s*\(/,
+    /;\s*$/m, // líneas que terminan en ;
+  ];
+  const pyHints = [
+    /^\s*def\s+\w+\s*\(/m,
+    /\bprint\s*\(/,
+    /^\s*import\s+\w+\s*$/m,
+    /:\s*$/m, // bloques que terminan en :
+  ];
+  const javaScore = javaHints.reduce((n, re) => n + (re.test(c) ? 1 : 0), 0);
+  const pyScore = pyHints.reduce((n, re) => n + (re.test(c) ? 1 : 0), 0);
+  return javaScore > pyScore ? "java" : "python";
+}
+
 export interface RunResult {
   ok: boolean;
   stdout: string;

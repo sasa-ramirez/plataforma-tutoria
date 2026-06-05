@@ -14,6 +14,7 @@ import {
   setBoardLive,
   type Board,
 } from "@/services/board";
+import { detectLanguage } from "@/services/runner";
 import { Whiteboard, type WhiteboardHandle, type Segment } from "@/components/board/Whiteboard";
 import { CodeRunner } from "@/components/editor/CodeRunner";
 import { Button } from "@/components/ui/button";
@@ -50,6 +51,13 @@ export function BoardPage() {
   const personalWbRef = useRef<WhiteboardHandle>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const langTouched = useRef(false); // true si el usuario eligió lenguaje a mano
+
+  // Autodetecta Python/Java del código en vivo (hasta que el usuario elija).
+  useEffect(() => {
+    if (langTouched.current) return;
+    if (text.trim()) setRunLang(detectLanguage(text));
+  }, [text]);
 
   useEffect(() => {
     let active = true;
@@ -412,7 +420,7 @@ export function BoardPage() {
               {(["python", "java"] as ProgLanguage[]).map((l) => (
                 <button
                   key={l}
-                  onClick={() => setRunLang(l)}
+                  onClick={() => { langTouched.current = true; setRunLang(l); }}
                   className={cn(
                     "rounded-lg px-2.5 py-1 text-xs font-semibold",
                     runLang === l
@@ -471,7 +479,7 @@ export function BoardPage() {
                 {(["python", "java"] as ProgLanguage[]).map((l) => (
                   <button
                     key={l}
-                    onClick={() => setRunLang(l)}
+                    onClick={() => { langTouched.current = true; setRunLang(l); }}
                     className={cn(
                       "rounded-lg px-2.5 py-1 text-xs font-semibold",
                       runLang === l
