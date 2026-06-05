@@ -73,21 +73,58 @@ Deno.serve(async (req) => {
     const { submission_id } = await req.json();
     if (!submission_id) throw new Error("submission_id requerido");
 
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+
+    // ---- Autenticación: ¿quién llama? ----
+    // verify_jwt=true ya garantiza un token válido; aquí resolvemos el usuario
+    // para luego comprobar que tenga permiso sobre ESTA submission.
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const caller = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: userData, error: userErr } = await caller.auth.getUser();
+    const callerId = userData?.user?.id;
+    if (userErr || !callerId) throw new Error("No autenticado");
+
     // Cliente con service-role para poder escribir ai_feedback (bypassa RLS).
     const admin = createClient(
-      Deno.env.get("SUPABASE_URL")!,
+      SUPABASE_URL,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Trae submission + ejercicio
+    // Trae submission + ejercicio (incluye course_id para verificar al profesor)
     const { data: sub, error: subErr } = await admin
       .from("submissions")
       .select(
-        "id, code, language, exercise_id, student_id, exercises(prompt, solution_code)",
+        "id, code, language, exercise_id, student_id, exercises(prompt, solution_code, assignment_id, assignments(course_id))",
       )
       .eq("id", submission_id)
       .single();
     if (subErr || !sub) throw new Error("Submission no encontrada");
+
+    // ---- Autorización: el dueño de la submission o el profesor del curso ----
+    // deno-lint-ignore no-explicit-any
+    const courseId = (sub as any).exercises?.assignments?.course_id as
+      | string
+      | undefined;
+    let isOwner = sub.student_id === callerId;
+    if (!isOwner && courseId) {
+      const { data: course } = await admin
+        .from("courses")
+        .select("teacher_id")
+        .eq("id", courseId)
+        .single();
+      isOwner = course?.teacher_id === callerId;
+    }
+    if (!isOwner) {
+      return new Response(
+        JSON.stringify({ ok: false, error: "No autorizado" }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
 
     // ---- Rate limit por estudiante (protege tu costo de IA) ----
     const sid = sub.student_id as string;
