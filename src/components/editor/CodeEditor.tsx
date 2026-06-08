@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import Editor, { type OnMount } from "@monaco-editor/react";
 import { motion } from "framer-motion";
 import {
@@ -28,6 +28,33 @@ interface CodeEditorProps {
 const MIN_FONT = 12;
 const MAX_FONT = 22;
 
+// Barra de símbolos para escribir código en el celular sin pelear con el teclado.
+const SYMBOL_KEYS: { label: string; insert?: string; cmd?: string }[] = [
+  { label: "Tab", cmd: "tab" },
+  { label: "{", insert: "{" },
+  { label: "}", insert: "}" },
+  { label: "(", insert: "(" },
+  { label: ")", insert: ")" },
+  { label: "[", insert: "[" },
+  { label: "]", insert: "]" },
+  { label: ";", insert: ";" },
+  { label: '"', insert: '"' },
+  { label: "'", insert: "'" },
+  { label: "=", insert: "=" },
+  { label: "<", insert: "<" },
+  { label: ">", insert: ">" },
+  { label: "+", insert: "+" },
+  { label: "-", insert: "-" },
+  { label: "*", insert: "*" },
+  { label: "/", insert: "/" },
+  { label: ":", insert: ":" },
+  { label: ".", insert: "." },
+  { label: "_", insert: "_" },
+  { label: "←", cmd: "cursorLeft" },
+  { label: "→", cmd: "cursorRight" },
+  { label: "⌫", cmd: "deleteLeft" },
+];
+
 export function CodeEditor({
   value,
   onChange,
@@ -39,8 +66,10 @@ export function CodeEditor({
 }: CodeEditorProps) {
   const [fullscreen, setFullscreen] = useState(false);
   const [fontSize, setFontSize] = useState(14);
+  const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
 
   const handleMount: OnMount = useCallback((editor, monaco) => {
+    editorRef.current = editor;
     // Tema oscuro a tono con la marca
     monaco.editor.defineTheme("tutoria-dark", {
       base: "vs-dark",
@@ -54,7 +83,32 @@ export function CodeEditor({
       },
     });
     monaco.editor.setTheme("tutoria-dark");
+    // Apaga autocorrector / mayúsculas automáticas en móvil (dañan el código).
+    const ta = editor.getDomNode()?.querySelector("textarea");
+    if (ta) {
+      ta.setAttribute("autocorrect", "off");
+      ta.setAttribute("autocapitalize", "off");
+      ta.setAttribute("autocomplete", "off");
+      ta.setAttribute("spellcheck", "false");
+    }
     editor.focus();
+  }, []);
+
+  // Inserta texto donde está el cursor (barra de símbolos móvil).
+  const insertSymbol = useCallback((text: string) => {
+    const ed = editorRef.current;
+    if (!ed) return;
+    ed.focus();
+    const sel = ed.getSelection();
+    if (sel) ed.executeEdits("kbd", [{ range: sel, text, forceMoveMarkers: true }]);
+  }, []);
+
+  // Ejecuta un comando del editor (Tab, mover cursor, borrar).
+  const runCmd = useCallback((cmd: string) => {
+    const ed = editorRef.current;
+    if (!ed) return;
+    ed.focus();
+    ed.trigger("kbd", cmd, null);
   }, []);
 
   return (
@@ -124,6 +178,24 @@ export function CodeEditor({
           </Button>
         </div>
       </div>
+
+      {/* Barra de símbolos (ayuda a programar en el celular) */}
+      {!readOnly && (
+        <div className="flex gap-1 overflow-x-auto border-b border-white/10 bg-white/5 px-2 py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {SYMBOL_KEYS.map((k) => (
+            <button
+              key={k.label}
+              type="button"
+              // Evita que el editor pierda el cursor al tocar el botón.
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => (k.cmd ? runCmd(k.cmd) : insertSymbol(k.insert ?? ""))}
+              className="grid h-9 min-w-9 shrink-0 place-items-center rounded-lg bg-white/10 px-2 font-mono text-sm font-semibold text-white/90 active:bg-primary/40"
+            >
+              {k.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Editor */}
       <div className="relative flex-1">
