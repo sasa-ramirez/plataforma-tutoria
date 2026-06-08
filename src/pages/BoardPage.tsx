@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { ArrowLeft, Eraser, Pen, Trash2, Radio, Code2, Hand, Share2, Square } from "lucide-react";
+import { ArrowLeft, Eraser, Pen, Trash2, Radio, Code2, Hand, Share2, Square, Copy, GraduationCap, User } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/components/ui/toast";
@@ -18,8 +18,8 @@ import { detectLanguage } from "@/services/runner";
 import { STARTER_CODE } from "@/lib/constants";
 import { Whiteboard, type WhiteboardHandle, type Segment } from "@/components/board/Whiteboard";
 import { CodeRunner } from "@/components/editor/CodeRunner";
+import { CodeEditor } from "@/components/editor/CodeEditor";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import type { ProgLanguage } from "@/types/database";
 import { Card, CardContent } from "@/components/ui/card";
 import { FullScreenLoader } from "@/components/common/Spinner";
@@ -47,6 +47,7 @@ export function BoardPage() {
   const [personalText, setPersonalText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<"pizarra" | "codigo">("pizarra");
+  const [codeTab, setCodeTab] = useState<"profe" | "mio">("profe");
 
   const wbRef = useRef<WhiteboardHandle>(null);
   const personalWbRef = useRef<WhiteboardHandle>(null);
@@ -169,6 +170,16 @@ export function BoardPage() {
     }
     if (target === "live") onTextChange(STARTER_CODE[runLang]);
     else setPersonalText(STARTER_CODE[runLang]);
+  };
+
+  // Alumno: lleva el código del profe a su espacio editable.
+  const copyToMine = () => {
+    if (personalText.trim() && !window.confirm("¿Reemplazar tu código con el del profe?")) {
+      return;
+    }
+    setPersonalText(text);
+    setCodeTab("mio");
+    toast("Código del profe copiado a tu espacio ✏️", "success");
   };
 
   const toggleAllowWrite = () => {
@@ -413,122 +424,152 @@ export function BoardPage() {
       </div>
       {/* ===== fin VISTA PIZARRA ===== */}
 
-      {/* ===== VISTA CÓDIGO (oculta pero montada) ===== */}
-      <div className={cn(view !== "codigo" && "hidden")}>
-      <Card>
-        <CardContent className="p-4">
-          <div className="mb-2 flex items-center gap-1.5 text-sm font-bold">
-            <Code2 className="size-4 text-accent" /> Notas / código en vivo
-          </div>
-          <Textarea
-            value={text}
-            onChange={(e) => onTextChange(e.target.value)}
-            readOnly={!isTeacher}
-            placeholder={
-              isTeacher
-                ? "Escribe aquí notas o código… los estudiantes lo ven en vivo"
-                : "Tu profesor escribirá aquí en vivo"
-            }
-            className="min-h-[160px] font-mono text-sm"
-          />
-
-          {/* Ejecutar el código del tablero */}
-          <div className="mt-3 space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs text-muted-foreground">Ejecutar como:</span>
-              {(["python", "java"] as ProgLanguage[]).map((l) => (
-                <button
-                  key={l}
-                  onClick={() => pickLang(l, "live")}
-                  className={cn(
-                    "rounded-lg px-2.5 py-1 text-xs font-semibold",
-                    runLang === l
-                      ? "bg-primary/15 text-primary"
-                      : "bg-muted text-muted-foreground",
-                  )}
-                >
-                  {l === "python" ? "🐍 Python" : "☕ Java"}
-                </button>
-              ))}
-              {isTeacher && (
-                <button
-                  onClick={() => insertBase("live")}
-                  className="ml-auto rounded-lg bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground hover:bg-muted/70"
-                >
-                  ↺ Código base
-                </button>
+      {/* ===== VISTA CÓDIGO ===== */}
+      {view === "codigo" && (
+        <div className="space-y-3">
+          {/* Sub-selector: Código del profe / Mi código */}
+          <div className="grid grid-cols-2 gap-2 rounded-xl bg-muted/50 p-1">
+            <button
+              onClick={() => setCodeTab("profe")}
+              className={cn(
+                "flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-semibold transition-colors",
+                codeTab === "profe"
+                  ? "bg-card text-foreground shadow"
+                  : "text-muted-foreground",
               )}
-            </div>
-            <CodeRunner language={runLang} code={text} />
+            >
+              <GraduationCap className="size-4" /> Código del profe
+            </button>
+            <button
+              onClick={() => setCodeTab("mio")}
+              className={cn(
+                "flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-semibold transition-colors",
+                codeTab === "mio"
+                  ? "bg-card text-foreground shadow"
+                  : "text-muted-foreground",
+              )}
+            >
+              <User className="size-4" /> Mi código
+            </button>
           </div>
-        </CardContent>
-      </Card>
-      </div>
+
+          {/* --- Código del profe (en vivo) --- */}
+          {codeTab === "profe" && (
+            <Card>
+              <CardContent className="space-y-3 p-3">
+                <div className="flex items-center gap-1.5 text-sm font-bold">
+                  <Code2 className="size-4 text-accent" /> Código en vivo
+                  {!isTeacher && (
+                    <span className="text-xs font-normal text-muted-foreground">
+                      (lo escribe tu profe)
+                    </span>
+                  )}
+                </div>
+                <CodeEditor
+                  value={text}
+                  onChange={isTeacher ? onTextChange : () => {}}
+                  language={runLang}
+                  readOnly={!isTeacher}
+                  onReset={isTeacher ? () => insertBase("live") : undefined}
+                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Ejecutar como:</span>
+                  {(["python", "java"] as ProgLanguage[]).map((l) => (
+                    <button
+                      key={l}
+                      onClick={() => pickLang(l, "live")}
+                      className={cn(
+                        "rounded-lg px-2.5 py-1 text-xs font-semibold",
+                        runLang === l
+                          ? "bg-primary/15 text-primary"
+                          : "bg-muted text-muted-foreground",
+                      )}
+                    >
+                      {l === "python" ? "🐍 Python" : "☕ Java"}
+                    </button>
+                  ))}
+                  {!isTeacher && (
+                    <button
+                      onClick={copyToMine}
+                      className="ml-auto flex items-center gap-1 rounded-lg bg-accent/15 px-2.5 py-1 text-xs font-semibold text-accent hover:bg-accent/25"
+                    >
+                      <Copy className="size-3.5" /> Copiar a mi código
+                    </button>
+                  )}
+                </div>
+                <CodeRunner language={runLang} code={text} />
+              </CardContent>
+            </Card>
+          )}
+
+          {/* --- Mi código (privado) --- */}
+          {codeTab === "mio" && (
+            <Card className="border-accent/30">
+              <CardContent className="space-y-3 p-3">
+                <div className="flex items-center gap-1.5 text-sm font-bold">
+                  <Pen className="size-4 text-accent" /> Mi código
+                  <span className="text-xs font-normal text-muted-foreground">
+                    (privado — practica mientras sigues la clase)
+                  </span>
+                </div>
+                <CodeEditor
+                  value={personalText}
+                  onChange={setPersonalText}
+                  language={runLang}
+                  onReset={() => insertBase("personal")}
+                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Ejecutar como:</span>
+                  {(["python", "java"] as ProgLanguage[]).map((l) => (
+                    <button
+                      key={l}
+                      onClick={() => pickLang(l, "personal")}
+                      className={cn(
+                        "rounded-lg px-2.5 py-1 text-xs font-semibold",
+                        runLang === l
+                          ? "bg-primary/15 text-primary"
+                          : "bg-muted text-muted-foreground",
+                      )}
+                    >
+                      {l === "python" ? "🐍 Python" : "☕ Java"}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => insertBase("personal")}
+                    className="ml-auto rounded-lg bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground hover:bg-muted/70"
+                  >
+                    ↺ Código base
+                  </button>
+                </div>
+                <CodeRunner language={runLang} code={personalText} />
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
       {/* ===== fin VISTA CÓDIGO ===== */}
 
-      {/* Mi espacio (práctica privada de cada quien) */}
-      <Card className="border-accent/30">
-        <CardContent className="p-4">
-          <div className="mb-1 flex items-center gap-1.5 text-sm font-bold">
-            <Pen className="size-4 text-accent" /> Mi espacio
-            <span className="text-xs font-normal text-muted-foreground">
-              (privado — practica aquí mientras sigues la clase)
-            </span>
-          </div>
-          {/* Mi pizarra privada (solo en vista Pizarra) */}
-          <div
-            className={cn(
-              "my-3 overflow-hidden rounded-2xl border bg-[#0e0d1a] p-2",
-              view !== "pizarra" && "hidden",
-            )}
-          >
-            <Whiteboard
-              ref={personalWbRef}
-              color={color}
-              size={mode === "erase" ? 40 : size}
-              mode={mode}
-            />
-          </div>
-
-          {/* Mi código privado (solo en vista Código) */}
-          <div className={cn("mt-3", view !== "codigo" && "hidden")}>
-            <Textarea
-              value={personalText}
-              onChange={(e) => setPersonalText(e.target.value)}
-              placeholder="Tu código de práctica… (privado)"
-              className="min-h-[120px] font-mono text-sm"
-            />
-            <div className="mt-3 space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs text-muted-foreground">
-                  Ejecutar como:
-                </span>
-                {(["python", "java"] as ProgLanguage[]).map((l) => (
-                  <button
-                    key={l}
-                    onClick={() => pickLang(l, "personal")}
-                    className={cn(
-                      "rounded-lg px-2.5 py-1 text-xs font-semibold",
-                      runLang === l
-                        ? "bg-primary/15 text-primary"
-                        : "bg-muted text-muted-foreground",
-                    )}
-                  >
-                    {l === "python" ? "🐍 Python" : "☕ Java"}
-                  </button>
-                ))}
-                <button
-                  onClick={() => insertBase("personal")}
-                  className="ml-auto rounded-lg bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground hover:bg-muted/70"
-                >
-                  ↺ Código base
-                </button>
-              </div>
-              <CodeRunner language={runLang} code={personalText} />
+      {/* Mi espacio: pizarra privada (solo en vista Pizarra) */}
+      <div className={cn(view !== "pizarra" && "hidden")}>
+        <Card className="border-accent/30">
+          <CardContent className="p-4">
+            <div className="mb-1 flex items-center gap-1.5 text-sm font-bold">
+              <Pen className="size-4 text-accent" /> Mi espacio
+              <span className="text-xs font-normal text-muted-foreground">
+                (privado — dibuja mientras sigues la clase)
+              </span>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+            <div className="my-3 overflow-hidden rounded-2xl border bg-[#0e0d1a] p-2">
+              <Whiteboard
+                ref={personalWbRef}
+                color={color}
+                size={mode === "erase" ? 40 : size}
+                mode={mode}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
