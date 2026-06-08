@@ -24,15 +24,26 @@ export async function generatePracticeExercise(input: {
   difficulty: Difficulty;
   topic: string;
 }): Promise<string> {
-  const { data, error } = await supabase.functions.invoke("ai-generate", {
-    body: input,
-  });
-  if (error) throw new Error(error.message);
-  if (!data?.ok) throw new Error(data?.error ?? "La IA no pudo generar el ejercicio");
-
   const { data: auth } = await supabase.auth.getUser();
   const uid = auth?.user?.id;
   if (!uid) throw new Error("No autenticado");
+
+  // Títulos recientes del alumno (mismo lenguaje) para no repetir ejercicios.
+  const { data: recent } = await supabase
+    .from("exercises")
+    .select("title")
+    .eq("is_practice", true)
+    .eq("created_by", uid)
+    .eq("language", input.language)
+    .order("created_at", { ascending: false })
+    .limit(20);
+  const avoid = (recent ?? []).map((r) => (r as { title: string }).title);
+
+  const { data, error } = await supabase.functions.invoke("ai-generate", {
+    body: { ...input, avoid },
+  });
+  if (error) throw new Error(error.message);
+  if (!data?.ok) throw new Error(data?.error ?? "La IA no pudo generar el ejercicio");
 
   const { data: created, error: insErr } = await supabase
     .from("exercises")

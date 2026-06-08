@@ -28,6 +28,12 @@ import type { Difficulty, ProgLanguage } from "@/types/database";
 
 const toIso = (local: string) => (local ? new Date(local).toISOString() : null);
 
+/** Formatea un Date como valor de <input type="datetime-local"> en hora local. */
+const toLocalInput = (d: Date) => {
+  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+};
+
 export function CreateAssignmentDialog({ courseId }: { courseId: string }) {
   const [open, setOpen] = useState(false);
   const { mutateAsync, isPending } = useCreateAssignment(courseId);
@@ -49,8 +55,32 @@ export function CreateAssignmentDialog({ courseId }: { courseId: string }) {
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
 
+  // Botones rápidos de cierre (minutos desde ahora).
+  const setCloseIn = (minutes: number) =>
+    set("closes_at", toLocalInput(new Date(Date.now() + minutes * 60000)));
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Evita el bug de crear una tarea ya cerrada (cierre en el pasado o muy pronto).
+    if (form.closes_at) {
+      const closeMs = new Date(form.closes_at).getTime();
+      if (closeMs <= Date.now() + 30 * 60000) {
+        toast(
+          "El cierre debe ser al menos 30 minutos después de ahora.",
+          "error",
+        );
+        return;
+      }
+      if (
+        form.opens_at &&
+        new Date(form.opens_at).getTime() >= closeMs
+      ) {
+        toast("La apertura debe ser antes del cierre.", "error");
+        return;
+      }
+    }
+
     try {
       await mutateAsync({
         course_id: courseId,
@@ -158,6 +188,7 @@ export function CreateAssignmentDialog({ courseId }: { courseId: string }) {
               <Input
                 id="opens"
                 type="datetime-local"
+                min={toLocalInput(new Date())}
                 value={form.opens_at}
                 onChange={(e) => set("opens_at", e.target.value)}
               />
@@ -167,10 +198,38 @@ export function CreateAssignmentDialog({ courseId }: { courseId: string }) {
               <Input
                 id="closes"
                 type="datetime-local"
+                min={toLocalInput(new Date(Date.now() + 30 * 60000))}
                 value={form.closes_at}
                 onChange={(e) => set("closes_at", e.target.value)}
               />
             </div>
+          </div>
+
+          {/* Atajos de cierre para no equivocarse con la hora */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-muted-foreground">Cerrar en:</span>
+            {[
+              { label: "1 hora", min: 60 },
+              { label: "3 horas", min: 180 },
+              { label: "1 día", min: 1440 },
+              { label: "1 semana", min: 10080 },
+            ].map((p) => (
+              <button
+                key={p.label}
+                type="button"
+                onClick={() => setCloseIn(p.min)}
+                className="rounded-lg bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground hover:bg-muted/70"
+              >
+                {p.label}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => set("closes_at", "")}
+              className="rounded-lg bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground hover:bg-muted/70"
+            >
+              Sin cierre
+            </button>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

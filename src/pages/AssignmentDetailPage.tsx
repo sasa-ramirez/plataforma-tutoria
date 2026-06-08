@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
@@ -10,9 +10,15 @@ import {
   Lock,
   ChevronRight,
   Users,
+  Trash2,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { useAssignment, useExercises } from "@/hooks/useAssignments";
+import {
+  useAssignment,
+  useExercises,
+  useDeleteAssignment,
+} from "@/hooks/useAssignments";
+import { useToast } from "@/components/ui/toast";
 import { CreateExerciseDialog } from "@/components/assignments/CreateExerciseDialog";
 import { SubmissionsPanel } from "@/components/assignments/SubmissionsPanel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,10 +32,31 @@ import { isAssignmentOpen, timeLeft } from "@/lib/utils";
 
 export function AssignmentDetailPage() {
   const { id = "" } = useParams();
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const { isTeacher } = useAuth();
   const { data: a, isLoading } = useAssignment(id);
   const { data: exercises, isLoading: exLoading } = useExercises(id);
+  const { mutateAsync: deleteAssignment, isPending: deleting } =
+    useDeleteAssignment(a?.course_id ?? "");
   const [openEntregas, setOpenEntregas] = useState<string | null>(null);
+
+  const handleDelete = async () => {
+    if (!a) return;
+    if (
+      !window.confirm(
+        `¿Eliminar la tarea "${a.title}"? Se ocultará para ti y tus estudiantes. Esta acción no se puede deshacer fácilmente.`,
+      )
+    )
+      return;
+    try {
+      await deleteAssignment(a.id);
+      toast("Tarea eliminada 🗑️", "success");
+      navigate(`/app/courses/${a.course_id}`);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "No se pudo eliminar", "error");
+    }
+  };
 
   if (isLoading) return <FullScreenLoader />;
   if (!a)
@@ -54,12 +81,25 @@ export function AssignmentDetailPage() {
 
   return (
     <div className="space-y-6">
-      <Link
-        to={`/app/courses/${a.course_id}`}
-        className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" /> Volver al curso
-      </Link>
+      <div className="flex items-center justify-between gap-2">
+        <Link
+          to={`/app/courses/${a.course_id}`}
+          className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="size-4" /> Volver al curso
+        </Link>
+        {isTeacher && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onClick={handleDelete}
+            disabled={deleting}
+          >
+            <Trash2 className="size-4" /> Eliminar
+          </Button>
+        )}
+      </div>
 
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
         <div className="mb-2 flex flex-wrap items-center gap-2">

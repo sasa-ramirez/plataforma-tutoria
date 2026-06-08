@@ -69,6 +69,15 @@ export async function updateAssignmentStatus(
   if (error) throw error;
 }
 
+/** Borrado suave de una tarea (solo el profesor dueño, vía RLS). */
+export async function softDeleteAssignment(id: string): Promise<void> {
+  const { error } = await supabase
+    .from("assignments")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw error;
+}
+
 // -------- Ejercicios --------
 
 export async function fetchExercisesByAssignment(

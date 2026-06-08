@@ -43,15 +43,23 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { language, difficulty, topic } = await req.json();
+    const { language, difficulty, topic, avoid } = await req.json();
     if (!language || !difficulty) {
       throw new Error("language y difficulty son obligatorios");
     }
 
+    const avoidList: string[] = Array.isArray(avoid) ? avoid.slice(0, 20) : [];
+    const avoidText =
+      avoidList.length > 0
+        ? `\n\nNO repitas ni te parezcas a estos ejercicios que el estudiante YA hizo (cambia el enunciado, el contexto y los datos):\n- ${avoidList.join("\n- ")}`
+        : "";
+    // Semilla aleatoria para forzar variedad entre generaciones.
+    const seed = Math.random().toString(36).slice(2, 8);
+
     const prompt = `Eres un profesor de programación para estudiantes universitarios principiantes.
-Genera UN ejercicio de práctica en ${LANG_LABEL[language] ?? language}, de dificultad ${DIFF_LABEL[difficulty] ?? difficulty}${
+Genera UN ejercicio de práctica ORIGINAL y variado en ${LANG_LABEL[language] ?? language}, de dificultad ${DIFF_LABEL[difficulty] ?? difficulty}${
       topic ? `, sobre el tema: "${topic}"` : ""
-    }.
+    }. Usa un contexto/escenario creativo y distinto cada vez (variación #${seed}).${avoidText}
 
 Responde ÚNICAMENTE con un JSON válido (sin markdown, sin texto extra) con esta forma exacta:
 {

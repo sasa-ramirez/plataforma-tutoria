@@ -4,6 +4,7 @@ import {
   fetchAssignment,
   createAssignment,
   updateAssignmentStatus,
+  softDeleteAssignment,
   fetchExercisesByAssignment,
   fetchExercise,
   createExercise,
@@ -53,6 +54,15 @@ export function useUpdateAssignmentStatus(courseId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: assignmentKeys.byCourse(courseId) });
     },
+  });
+}
+
+export function useDeleteAssignment(courseId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => softDeleteAssignment(id),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: assignmentKeys.byCourse(courseId) }),
   });
 }
 
