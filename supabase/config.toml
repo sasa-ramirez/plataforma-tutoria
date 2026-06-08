@@ -32,3 +32,6 @@ enable_confirmations = false
 
 [functions.ai-review]
 verify_jwt = true
+
+[functions.ai-generate]
+verify_jwt = true

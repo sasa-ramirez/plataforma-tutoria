@@ -1,5 +1,10 @@
 import { supabase } from "@/lib/supabase";
-import type { ExamLog, SubmissionStatus } from "@/types/database";
+import type {
+  AIFeedback,
+  ExamLog,
+  ProgLanguage,
+  SubmissionStatus,
+} from "@/types/database";
 
 export interface SubmissionRow {
   id: string;
@@ -9,18 +14,21 @@ export interface SubmissionRow {
   score: number | null;
   attempt: number;
   submitted_at: string | null;
+  code: string;
+  language: ProgLanguage;
+  feedback: AIFeedback | null;
   exit_count: number;
   paste_count: number;
 }
 
-/** Entregas de un ejercicio con nombre del alumno, nota y conteos de examen. */
+/** Entregas de un ejercicio: alumno, nota, CÓDIGO entregado, feedback de IA y examen. */
 export async function fetchSubmissionsForExercise(
   exerciseId: string,
 ): Promise<SubmissionRow[]> {
   const { data, error } = await supabase
     .from("submissions")
     .select(
-      "id, student_id, status, score, attempt, submitted_at, profiles(full_name), exam_logs(event_type)",
+      "id, student_id, status, score, attempt, submitted_at, code, language, profiles(full_name), ai_feedback(*), exam_logs(event_type)",
     )
     .eq("exercise_id", exerciseId)
     .neq("status", "draft")
@@ -36,10 +44,14 @@ export async function fetchSubmissionsForExercise(
       score: number | null;
       attempt: number;
       submitted_at: string | null;
+      code: string;
+      language: ProgLanguage;
       profiles: { full_name: string | null } | null;
+      ai_feedback: AIFeedback | AIFeedback[] | null;
       exam_logs: { event_type: string }[];
     };
     const logs = r.exam_logs ?? [];
+    const fb = Array.isArray(r.ai_feedback) ? r.ai_feedback[0] : r.ai_feedback;
     return {
       id: r.id,
       student_id: r.student_id,
@@ -48,6 +60,9 @@ export async function fetchSubmissionsForExercise(
       score: r.score,
       attempt: r.attempt,
       submitted_at: r.submitted_at,
+      code: r.code ?? "",
+      language: r.language,
+      feedback: fb ?? null,
       exit_count: logs.filter((l) => l.event_type === "window_hidden").length,
       paste_count: logs.filter((l) => l.event_type === "paste").length,
     };

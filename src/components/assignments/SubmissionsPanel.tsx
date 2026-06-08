@@ -7,10 +7,12 @@ import {
   ClipboardPaste,
   ShieldAlert,
   Clock,
+  Code2,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AIFeedbackPanel } from "@/components/ai/AIFeedbackPanel";
 import { fetchSubmissionsForExercise, fetchExamLogs } from "@/services/teacher";
 import { initials, cn } from "@/lib/utils";
 
@@ -146,7 +148,27 @@ export function SubmissionsPanel({ exerciseId }: { exerciseId: string }) {
                   exit={{ height: 0, opacity: 0 }}
                   className="overflow-hidden border-t"
                 >
-                  <div className="space-y-2 p-3">
+                  <div className="space-y-3 p-3">
+                    {/* Código entregado */}
+                    <div>
+                      <p className="mb-1 flex items-center gap-1.5 text-xs font-bold text-muted-foreground">
+                        <Code2 className="size-3.5" /> Código entregado
+                      </p>
+                      {s.code.trim() ? (
+                        <pre className="max-h-72 overflow-auto rounded-lg bg-[#0e0d1a] p-3 font-mono text-xs leading-relaxed text-white/90">
+                          {s.code}
+                        </pre>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">
+                          (entrega vacía)
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Feedback de la IA */}
+                    {s.feedback && <AIFeedbackPanel feedback={s.feedback} />}
+
+                    {/* Anti-trampa */}
                     <div className="flex gap-3 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Eye className="size-3.5" /> {s.exit_count} salidas
