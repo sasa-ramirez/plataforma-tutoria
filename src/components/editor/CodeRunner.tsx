@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, Terminal, CheckCircle2, XCircle } from "lucide-react";
+import { Play, Terminal, CheckCircle2, XCircle, Keyboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/common/Spinner";
 import { runCode, isRunnable, type RunResult } from "@/services/runner";
 import type { ProgLanguage } from "@/types/database";
@@ -16,6 +17,8 @@ export function CodeRunner({
 }) {
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<RunResult | null>(null);
+  const [stdin, setStdin] = useState("");
+  const [showInput, setShowInput] = useState(false);
 
   if (!isRunnable(language)) return null;
 
@@ -23,7 +26,7 @@ export function CodeRunner({
     setRunning(true);
     setResult(null);
     try {
-      setResult(await runCode(language, code));
+      setResult(await runCode(language, code, stdin));
     } catch (e) {
       setResult({
         ok: false,
@@ -37,6 +40,37 @@ export function CodeRunner({
 
   return (
     <div className="space-y-2">
+      {/* Entrada (stdin): para programas con Scanner / input() */}
+      <button
+        type="button"
+        onClick={() => setShowInput((v) => !v)}
+        className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+      >
+        <Keyboard className="size-3.5" />
+        {showInput ? "Ocultar entrada" : "¿Tu programa pide datos? Agregar entrada"}
+      </button>
+      <AnimatePresence>
+        {showInput && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <Textarea
+              value={stdin}
+              onChange={(e) => setStdin(e.target.value)}
+              placeholder={"Lo que tu programa leería del teclado.\nUn dato por línea. Ej:\n21"}
+              className="min-h-[70px] font-mono text-xs"
+            />
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Cada línea es una respuesta a un <code>Scanner</code> /{" "}
+              <code>input()</code>.
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <Button
         type="button"
         variant="outline"

@@ -58,6 +58,7 @@ function prepareJava(code: string): string {
 export async function runCode(
   language: ProgLanguage,
   code: string,
+  stdin = "",
 ): Promise<RunResult> {
   const compiler = COMPILER[language];
   if (!compiler) {
@@ -71,7 +72,8 @@ export async function runCode(
     res = await fetch(WANDBOX, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ compiler, code: source }),
+      // stdin: lo que el programa leería del teclado (Scanner / input()).
+      body: JSON.stringify({ compiler, code: source, stdin }),
     });
   } catch {
     return {
