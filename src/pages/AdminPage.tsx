@@ -1,7 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { ShieldCheck, Check, X, Inbox } from "lucide-react";
+import { ShieldCheck, Check, X, Inbox, Library } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
+import { CatalogManager } from "@/components/admin/CatalogManager";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -40,8 +41,17 @@ export function AdminPage() {
     <div>
       <PageHeader
         title="Administración"
-        subtitle="Aprueba quién puede ser profesor en la plataforma."
+        subtitle="Aprueba profesores y gestiona el catálogo académico."
       />
+
+      {/* Catálogo: Facultad → Carrera → Asignatura */}
+      <div className="mb-3 flex items-center gap-2 text-sm font-bold">
+        <Library className="size-4 text-primary" />
+        Catálogo académico
+      </div>
+      <div className="mb-8">
+        <CatalogManager />
+      </div>
 
       <div className="mb-3 flex items-center gap-2 text-sm font-bold">
         <ShieldCheck className="size-4 text-primary" />

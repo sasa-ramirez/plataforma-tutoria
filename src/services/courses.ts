@@ -46,10 +46,15 @@ export async function createCourse(input: {
   title: string;
   description?: string;
   color?: string;
+  subject_id?: string | null;
 }): Promise<Course> {
+  const { subject_id, ...rest } = input;
+  // Solo enviamos subject_id si se eligió asignatura, así crear cursos sigue
+  // funcionando aunque la migración del catálogo aún no se haya aplicado.
+  const payload = subject_id ? { ...rest, subject_id } : rest;
   const { data, error } = await supabase
     .from("courses")
-    .insert(input)
+    .insert(payload)
     .select()
     .single();
   if (error) throw error;

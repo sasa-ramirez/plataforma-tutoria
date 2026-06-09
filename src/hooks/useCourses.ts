@@ -58,8 +58,12 @@ export function useCreateCourse() {
   const qc = useQueryClient();
   const { profile } = useAuth();
   return useMutation({
-    mutationFn: (input: { title: string; description?: string; color?: string }) =>
-      createCourse({ ...input, teacher_id: profile!.id }),
+    mutationFn: (input: {
+      title: string;
+      description?: string;
+      color?: string;
+      subject_id?: string | null;
+    }) => createCourse({ ...input, teacher_id: profile!.id }),
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: courseKeys.teacher(profile!.id) }),
   });

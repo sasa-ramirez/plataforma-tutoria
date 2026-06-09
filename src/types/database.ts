@@ -53,6 +53,26 @@ export interface Course {
   description: string | null;
   color: string;
   join_code: string;
+  subject_id: string | null;
+  created_at: string;
+}
+
+// ---- Catálogo académico: Facultad → Carrera → Asignatura ----
+export interface Faculty {
+  id: string;
+  name: string;
+  created_at: string;
+}
+export interface Career {
+  id: string;
+  faculty_id: string;
+  name: string;
+  created_at: string;
+}
+export interface Subject {
+  id: string;
+  career_id: string;
+  name: string;
   created_at: string;
 }
 
