@@ -1,18 +1,23 @@
 import type { ProgLanguage } from "@/types/database";
 
-// Motor de ejecución de código: Wandbox (gratis, sin API key, con CORS).
-// Reemplazó a Piston (emkc.org), que pasó a ser "whitelist only" en 2026 y
-// devolvía 401 a todos.
+// Ejecución de código ROBUSTA: dos motores gratis (sin API key, con CORS).
+// Wandbox es el primario; si está caído/saturado, cae automáticamente a
+// Judge0 CE. Antes dependíamos de uno solo (Piston cerró, Wandbox se satura),
+// así que ahora hay respaldo automático.
 const WANDBOX = "https://wandbox.org/api/compile.json";
+const JUDGE0 = "https://ce.judge0.com/submissions?base64_encoded=false&wait=true";
 
-// Solo lenguajes reales son ejecutables. PSeInt no tiene runtime.
-const COMPILER: Partial<Record<ProgLanguage, string>> = {
+const WANDBOX_COMPILER: Partial<Record<ProgLanguage, string>> = {
   python: "cpython-3.13.8",
   java: "openjdk-jdk-21+35",
 };
+const JUDGE0_LANG: Partial<Record<ProgLanguage, number>> = {
+  python: 71, // Python 3
+  java: 62, // OpenJDK
+};
 
 export function isRunnable(language: ProgLanguage): boolean {
-  return language in COMPILER;
+  return language in WANDBOX_COMPILER;
 }
 
 /**
@@ -46,42 +51,34 @@ export interface RunResult {
   stderr: string;
 }
 
-/**
- * Wandbox guarda el código en `prog.java`, así que una clase `public class X`
- * no compila (Java exige X.java). Para principiantes con una sola clase,
- * quitar el modificador `public` de la clase es seguro y la deja ejecutable.
- */
-function prepareJava(code: string): string {
+// available:false → el motor está caído/saturado (probar el siguiente).
+// available:true  → el motor respondió (aunque el código tenga errores).
+type Outcome = { available: true; result: RunResult } | { available: false };
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+// Error de infraestructura del motor (no del código del estudiante).
+const TRANSIENT = /OCI runtime|Resource temporarily unavailable|\bclone:/i;
+
+/** Wandbox compila en prog.java → quitamos `public` de la clase. */
+function prepareJavaWandbox(code: string): string {
   return code.replace(/\bpublic\s+class\b/g, "class");
 }
-
-interface WandboxData {
-  status?: string;
-  compiler_error?: string;
-  program_output?: string;
-  program_error?: string;
+/** Judge0 ejecuta la clase `Main` → renombramos la clase pública a Main. */
+function prepareJavaJudge0(code: string): string {
+  return code.replace(/public\s+class\s+\w+/, "public class Main");
 }
 
-// Error de infraestructura de Wandbox (no del código del estudiante): el
-// servidor no pudo crear el contenedor. Suele ser pasajero → reintentamos.
-const TRANSIENT = /OCI runtime|Resource temporarily unavailable|\bclone:/i;
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-export async function runCode(
+// ---------- Motor 1: Wandbox ----------
+async function runWandbox(
   language: ProgLanguage,
   code: string,
-  stdin = "",
-): Promise<RunResult> {
-  const compiler = COMPILER[language];
-  if (!compiler) {
-    return { ok: false, stdout: "", stderr: "Este lenguaje no se puede ejecutar." };
-  }
-
-  const source = language === "java" ? prepareJava(code) : code;
+  stdin: string,
+): Promise<Outcome> {
+  const compiler = WANDBOX_COMPILER[language]!;
+  const source = language === "java" ? prepareJavaWandbox(code) : code;
   const body = JSON.stringify({ compiler, code: source, stdin });
 
-  let lastTransient = false;
-  for (let attempt = 1; attempt <= 3; attempt++) {
+  for (let attempt = 1; attempt <= 2; attempt++) {
     let res: Response;
     try {
       res = await fetch(WANDBOX, {
@@ -90,51 +87,99 @@ export async function runCode(
         body,
       });
     } catch {
-      if (attempt < 3) {
-        await sleep(1200);
-        continue;
-      }
-      return {
-        ok: false,
-        stdout: "",
-        stderr:
-          "No se pudo conectar con el motor de ejecución. Revisa tu conexión e inténtalo de nuevo.",
-      };
+      return { available: false };
     }
+    if (!res.ok) return { available: false };
 
-    if (!res.ok) {
-      if (attempt < 3) {
-        await sleep(1200);
-        continue;
-      }
-      return { ok: false, stdout: "", stderr: `Error del motor (${res.status}).` };
-    }
-
-    const data = (await res.json()) as WandboxData;
+    const data = (await res.json()) as {
+      status?: string;
+      compiler_error?: string;
+      program_output?: string;
+      program_error?: string;
+    };
     const compileErr = (data.compiler_error ?? "").trim();
-
-    // Si el motor está saturado, espera y reintenta.
     if (TRANSIENT.test(compileErr)) {
-      lastTransient = true;
-      if (attempt < 3) {
-        await sleep(1500);
+      if (attempt < 2) {
+        await sleep(1200);
         continue;
       }
-      break;
+      return { available: false };
     }
-
     const runErr = (data.program_error ?? "").trim();
     const stderr = [compileErr, runErr].filter(Boolean).join("\n").trim();
     const stdout = (data.program_output ?? "").trim();
-    return { ok: data.status === "0" && !stderr, stdout, stderr };
+    return {
+      available: true,
+      result: { ok: data.status === "0" && !stderr, stdout, stderr },
+    };
+  }
+  return { available: false };
+}
+
+// ---------- Motor 2: Judge0 CE (respaldo) ----------
+async function runJudge0(
+  language: ProgLanguage,
+  code: string,
+  stdin: string,
+): Promise<Outcome> {
+  const langId = JUDGE0_LANG[language]!;
+  const source = language === "java" ? prepareJavaJudge0(code) : code;
+
+  let res: Response;
+  try {
+    res = await fetch(JUDGE0, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        language_id: langId,
+        source_code: source,
+        stdin,
+      }),
+    });
+  } catch {
+    return { available: false };
+  }
+  if (!res.ok) return { available: false };
+
+  const data = (await res.json()) as {
+    stdout?: string | null;
+    stderr?: string | null;
+    compile_output?: string | null;
+    status?: { id?: number };
+  };
+  // id 13 = Internal Error (motor con problemas) → probar otro.
+  if (!data.status || data.status.id === 13) return { available: false };
+
+  const compileErr = (data.compile_output ?? "").trim();
+  const runErr = (data.stderr ?? "").trim();
+  const stderr = [compileErr, runErr].filter(Boolean).join("\n").trim();
+  const stdout = (data.stdout ?? "").trim();
+  return {
+    available: true,
+    result: { ok: data.status.id === 3 && !stderr, stdout, stderr },
+  };
+}
+
+export async function runCode(
+  language: ProgLanguage,
+  code: string,
+  stdin = "",
+): Promise<RunResult> {
+  if (!isRunnable(language)) {
+    return { ok: false, stdout: "", stderr: "Este lenguaje no se puede ejecutar." };
   }
 
-  // Agotó los reintentos por saturación del motor.
+  // Primario: Wandbox. Si está caído/saturado → Judge0.
+  const primary = await runWandbox(language, code, stdin);
+  if (primary.available) return primary.result;
+
+  const backup = await runJudge0(language, code, stdin);
+  if (backup.available) return backup.result;
+
   return {
     ok: false,
     stdout: "",
-    stderr: lastTransient
-      ? "El motor de ejecución está saturado en este momento (no es tu código). Espera unos segundos y vuelve a intentar. La IA igual puede revisar tu código."
-      : "No se pudo ejecutar. Inténtalo de nuevo en unos segundos.",
+    stderr:
+      "Los motores de ejecución están saturados en este momento (no es tu código). Espera unos segundos y vuelve a intentar. La IA igual puede revisar tu código.",
   };
 }
