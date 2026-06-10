@@ -55,6 +55,18 @@ function prepareJava(code: string): string {
   return code.replace(/\bpublic\s+class\b/g, "class");
 }
 
+interface WandboxData {
+  status?: string;
+  compiler_error?: string;
+  program_output?: string;
+  program_error?: string;
+}
+
+// Error de infraestructura de Wandbox (no del código del estudiante): el
+// servidor no pudo crear el contenedor. Suele ser pasajero → reintentamos.
+const TRANSIENT = /OCI runtime|Resource temporarily unavailable|\bclone:/i;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 export async function runCode(
   language: ProgLanguage,
   code: string,
@@ -66,38 +78,63 @@ export async function runCode(
   }
 
   const source = language === "java" ? prepareJava(code) : code;
+  const body = JSON.stringify({ compiler, code: source, stdin });
 
-  let res: Response;
-  try {
-    res = await fetch(WANDBOX, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      // stdin: lo que el programa leería del teclado (Scanner / input()).
-      body: JSON.stringify({ compiler, code: source, stdin }),
-    });
-  } catch {
-    return {
-      ok: false,
-      stdout: "",
-      stderr: "No se pudo conectar con el motor de ejecución. Revisa tu conexión.",
-    };
+  let lastTransient = false;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    let res: Response;
+    try {
+      res = await fetch(WANDBOX, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+      });
+    } catch {
+      if (attempt < 3) {
+        await sleep(1200);
+        continue;
+      }
+      return {
+        ok: false,
+        stdout: "",
+        stderr:
+          "No se pudo conectar con el motor de ejecución. Revisa tu conexión e inténtalo de nuevo.",
+      };
+    }
+
+    if (!res.ok) {
+      if (attempt < 3) {
+        await sleep(1200);
+        continue;
+      }
+      return { ok: false, stdout: "", stderr: `Error del motor (${res.status}).` };
+    }
+
+    const data = (await res.json()) as WandboxData;
+    const compileErr = (data.compiler_error ?? "").trim();
+
+    // Si el motor está saturado, espera y reintenta.
+    if (TRANSIENT.test(compileErr)) {
+      lastTransient = true;
+      if (attempt < 3) {
+        await sleep(1500);
+        continue;
+      }
+      break;
+    }
+
+    const runErr = (data.program_error ?? "").trim();
+    const stderr = [compileErr, runErr].filter(Boolean).join("\n").trim();
+    const stdout = (data.program_output ?? "").trim();
+    return { ok: data.status === "0" && !stderr, stdout, stderr };
   }
 
-  if (!res.ok) {
-    return { ok: false, stdout: "", stderr: `Error del motor (${res.status}).` };
-  }
-
-  const data = (await res.json()) as {
-    status?: string;
-    compiler_error?: string;
-    program_output?: string;
-    program_error?: string;
+  // Agotó los reintentos por saturación del motor.
+  return {
+    ok: false,
+    stdout: "",
+    stderr: lastTransient
+      ? "El motor de ejecución está saturado en este momento (no es tu código). Espera unos segundos y vuelve a intentar. La IA igual puede revisar tu código."
+      : "No se pudo ejecutar. Inténtalo de nuevo en unos segundos.",
   };
-
-  const compileErr = (data.compiler_error ?? "").trim();
-  const runErr = (data.program_error ?? "").trim();
-  const stderr = [compileErr, runErr].filter(Boolean).join("\n").trim();
-  const stdout = (data.program_output ?? "").trim();
-
-  return { ok: data.status === "0" && !stderr, stdout, stderr };
 }
