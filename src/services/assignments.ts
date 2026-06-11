@@ -4,6 +4,7 @@ import type {
   AssignmentStatus,
   Difficulty,
   Exercise,
+  ExerciseType,
   ProgLanguage,
 } from "@/types/database";
 
@@ -113,17 +114,56 @@ export interface CreateExerciseInput {
   difficulty: Difficulty;
   points: number;
   order_index: number;
+  type?: ExerciseType;
+  options?: string[];
+  // Clave de respuesta privada (correcta/tolerancia). Va a exercise_answers.
+  answer_key?: Record<string, unknown>;
 }
 
 export async function createExercise(
   input: CreateExerciseInput,
 ): Promise<Exercise> {
   const { data: userData } = await supabase.auth.getUser();
+  const { answer_key, options, type, ...rest } = input;
+  // Para 'code' (o legado) no enviamos type/options: así crear ejercicios de
+  // código sigue funcionando aunque la migración 0012 no esté aplicada.
+  const isNonCode = !!type && type !== "code";
+  const payload = isNonCode
+    ? { ...rest, type, options: options ?? [], created_by: userData.user?.id }
+    : { ...rest, created_by: userData.user?.id };
   const { data, error } = await supabase
     .from("exercises")
-    .insert({ ...input, created_by: userData.user?.id })
+    .insert(payload)
     .select()
     .single();
   if (error) throw error;
-  return data as Exercise;
+  const exercise = data as Exercise;
+
+  // Guarda la clave de respuesta privada (selección/numérica) aparte.
+  if (answer_key && Object.keys(answer_key).length > 0) {
+    const { error: keyErr } = await supabase
+      .from("exercise_answers")
+      .upsert({ exercise_id: exercise.id, key: answer_key });
+    if (keyErr) throw keyErr;
+  }
+  return exercise;
+}
+
+export interface GradeResult {
+  score: number;
+  correct: boolean;
+  submission_id: string;
+}
+
+/** Envía y califica una respuesta no-código (selección/numérica) de forma segura. */
+export async function submitAnswer(
+  exerciseId: string,
+  answer: Record<string, unknown>,
+): Promise<GradeResult> {
+  const { data, error } = await supabase.rpc("submit_answer", {
+    p_exercise_id: exerciseId,
+    p_answer: answer,
+  });
+  if (error) throw new Error(error.message);
+  return data as GradeResult;
 }

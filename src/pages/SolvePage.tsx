@@ -7,6 +7,7 @@ import { useExamGuard } from "@/hooks/useExamGuard";
 import { useToast } from "@/components/ui/toast";
 import { CodeEditor } from "@/components/editor/CodeEditor";
 import { CodeRunner } from "@/components/editor/CodeRunner";
+import { AnswerExercise } from "@/components/assignments/AnswerExercise";
 import { AIFeedbackPanel } from "@/components/ai/AIFeedbackPanel";
 import { ExamModeBanner } from "@/components/exam/ExamModeBanner";
 import { Button } from "@/components/ui/button";
@@ -51,9 +52,14 @@ export function SolvePage() {
     },
   });
 
-  // Inicializa borrador
+  // Inicializa borrador (solo ejercicios de código; legado sin tipo = código)
   useEffect(() => {
-    if (!exercise) return;
+    if (
+      !exercise ||
+      exercise.type === "multiple_choice" ||
+      exercise.type === "numeric"
+    )
+      return;
     let active = true;
     getOrCreateDraft(exercise.id, exercise.language, exercise.starter_code)
       .then(async (sub) => {
@@ -160,6 +166,10 @@ export function SolvePage() {
         Ejercicio no encontrado.
       </div>
     );
+
+  // Ejercicios NO-código (opción múltiple / numérica) usan otra pantalla.
+  if (exercise.type === "multiple_choice" || exercise.type === "numeric")
+    return <AnswerExercise exercise={exercise} assignment={assignment} />;
 
   const lang = LANGUAGE_META[exercise.language];
   const diff = DIFFICULTY_META[exercise.difficulty];

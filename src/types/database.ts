@@ -100,6 +100,8 @@ export interface Assignment {
   created_at: string;
 }
 
+export type ExerciseType = "code" | "multiple_choice" | "numeric" | "open";
+
 export interface Exercise {
   id: string;
   assignment_id: string | null;
@@ -112,6 +114,8 @@ export interface Exercise {
   difficulty: Difficulty;
   points: number;
   order_index: number;
+  type: ExerciseType;
+  options: string[]; // opciones (selección múltiple)
   created_by: string | null;
   created_at: string;
 }
@@ -125,6 +129,7 @@ export interface Submission {
   status: SubmissionStatus;
   score: number | null;
   attempt: number;
+  answer: Record<string, unknown> | null;
   started_at: string | null;
   submitted_at: string | null;
   created_at: string;
