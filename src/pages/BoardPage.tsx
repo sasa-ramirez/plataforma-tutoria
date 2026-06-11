@@ -4,6 +4,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { ArrowLeft, Eraser, Pen, Trash2, Radio, Code2, Hand, Share2, Square, Copy, GraduationCap, User } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
+import { useCourse } from "@/hooks/useCourses";
 import { useToast } from "@/components/ui/toast";
 import {
   getOrCreateBoard,
@@ -33,6 +34,7 @@ export function BoardPage() {
   const { id: courseId = "" } = useParams();
   const { isTeacher } = useAuth();
   const { toast } = useToast();
+  const { data: course } = useCourse(courseId);
 
   const [board, setBoard] = useState<Board | null>(null);
   const [isLive, setIsLive] = useState(false);
@@ -258,21 +260,24 @@ export function BoardPage() {
             <ArrowLeft className="size-5" />
           </Link>
         </Button>
-        <div className="flex-1">
-          <h1 className="text-xl font-extrabold tracking-tight">Tablero en vivo</h1>
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-lg font-extrabold tracking-tight">
+            {course?.title ?? "Tablero en vivo"}
+          </h1>
           {isLive ? (
             <p className="flex items-center gap-1.5 text-xs font-semibold text-destructive">
               <span className="relative flex size-2">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive opacity-75" />
                 <span className="relative inline-flex size-2 rounded-full bg-destructive" />
               </span>
-              EN VIVO
+              EN VIVO · Tablero
             </p>
           ) : (
             <p className="text-xs text-muted-foreground">
+              Tablero ·{" "}
               {isTeacher
                 ? "Sin transmitir todavía"
-                : "El profe aún no está transmitiendo"}
+                : "El profe aún no transmite"}
             </p>
           )}
         </div>
@@ -427,31 +432,33 @@ export function BoardPage() {
       {/* ===== VISTA CÓDIGO ===== */}
       {view === "codigo" && (
         <div className="space-y-3">
-          {/* Sub-selector: Código del profe / Mi código */}
-          <div className="grid grid-cols-2 gap-2 rounded-xl bg-muted/50 p-1">
-            <button
-              onClick={() => setCodeTab("profe")}
-              className={cn(
-                "flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-semibold transition-colors",
-                codeTab === "profe"
-                  ? "bg-card text-foreground shadow"
-                  : "text-muted-foreground",
-              )}
-            >
-              <GraduationCap className="size-4" /> Código del profe
-            </button>
-            <button
-              onClick={() => setCodeTab("mio")}
-              className={cn(
-                "flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-semibold transition-colors",
-                codeTab === "mio"
-                  ? "bg-card text-foreground shadow"
-                  : "text-muted-foreground",
-              )}
-            >
-              <User className="size-4" /> Mi código
-            </button>
-          </div>
+          {/* Sub-selector Profe/Mío: SOLO el estudiante (el profe solo transmite) */}
+          {!isTeacher && (
+            <div className="grid grid-cols-2 gap-2 rounded-xl bg-muted/50 p-1">
+              <button
+                onClick={() => setCodeTab("profe")}
+                className={cn(
+                  "flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-semibold transition-colors",
+                  codeTab === "profe"
+                    ? "bg-card text-foreground shadow"
+                    : "text-muted-foreground",
+                )}
+              >
+                <GraduationCap className="size-4" /> Código del profe
+              </button>
+              <button
+                onClick={() => setCodeTab("mio")}
+                className={cn(
+                  "flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-semibold transition-colors",
+                  codeTab === "mio"
+                    ? "bg-card text-foreground shadow"
+                    : "text-muted-foreground",
+                )}
+              >
+                <User className="size-4" /> Mi código
+              </button>
+            </div>
+          )}
 
           {/* --- Código del profe (en vivo) --- */}
           {codeTab === "profe" && (
@@ -502,8 +509,8 @@ export function BoardPage() {
             </Card>
           )}
 
-          {/* --- Mi código (privado) --- */}
-          {codeTab === "mio" && (
+          {/* --- Mi código (privado del estudiante) --- */}
+          {!isTeacher && codeTab === "mio" && (
             <Card className="border-accent/30">
               <CardContent className="space-y-3 p-3">
                 <div className="flex items-center gap-1.5 text-sm font-bold">
@@ -549,27 +556,29 @@ export function BoardPage() {
       )}
       {/* ===== fin VISTA CÓDIGO ===== */}
 
-      {/* Mi espacio: pizarra privada (solo en vista Pizarra) */}
-      <div className={cn(view !== "pizarra" && "hidden")}>
-        <Card className="border-accent/30">
-          <CardContent className="p-4">
-            <div className="mb-1 flex items-center gap-1.5 text-sm font-bold">
-              <Pen className="size-4 text-accent" /> Mi espacio
-              <span className="text-xs font-normal text-muted-foreground">
-                (privado — dibuja mientras sigues la clase)
-              </span>
-            </div>
-            <div className="my-3 overflow-hidden rounded-2xl border bg-[#0e0d1a] p-2">
-              <Whiteboard
-                ref={personalWbRef}
-                color={color}
-                size={mode === "erase" ? 40 : size}
-                mode={mode}
-              />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Mi espacio: pizarra privada del ESTUDIANTE (solo en vista Pizarra) */}
+      {!isTeacher && (
+        <div className={cn(view !== "pizarra" && "hidden")}>
+          <Card className="border-accent/30">
+            <CardContent className="p-4">
+              <div className="mb-1 flex items-center gap-1.5 text-sm font-bold">
+                <Pen className="size-4 text-accent" /> Mi espacio
+                <span className="text-xs font-normal text-muted-foreground">
+                  (privado — dibuja mientras sigues la clase)
+                </span>
+              </div>
+              <div className="my-3 overflow-hidden rounded-2xl border bg-[#0e0d1a] p-2">
+                <Whiteboard
+                  ref={personalWbRef}
+                  color={color}
+                  size={mode === "erase" ? 40 : size}
+                  mode={mode}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
