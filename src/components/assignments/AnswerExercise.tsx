@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/common/Spinner";
+import { MathText } from "@/components/common/MathText";
 import { useToast } from "@/components/ui/toast";
 import { submitAnswer, type GradeResult } from "@/services/assignments";
 import { DIFFICULTY_META } from "@/lib/constants";
@@ -74,9 +75,9 @@ export function AnswerExercise({
             <div className="mb-1.5 flex items-center gap-1.5 text-sm font-bold">
               <BookOpen className="size-4 text-primary" /> Enunciado
             </div>
-            <p className="whitespace-pre-wrap text-sm text-muted-foreground">
+            <MathText className="text-sm text-muted-foreground">
               {exercise.prompt}
-            </p>
+            </MathText>
           </CardContent>
         </Card>
 

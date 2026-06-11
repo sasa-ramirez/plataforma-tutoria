@@ -23,6 +23,7 @@ export default defineConfig({
           react: ["react", "react-dom", "react-router-dom"],
           monaco: ["@monaco-editor/react"],
           charts: ["recharts"],
+          katex: ["katex"],
           motion: ["framer-motion"],
           supabase: ["@supabase/supabase-js"],
         },

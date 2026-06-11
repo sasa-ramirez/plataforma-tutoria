@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2, Code2, ListChecks, Hash } from "lucide-react";
+import { Plus, Trash2, Code2, ListChecks, Hash, PenLine } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +23,7 @@ const TYPES: { id: ExerciseType; label: string; icon: typeof Code2 }[] = [
   { id: "code", label: "Código", icon: Code2 },
   { id: "multiple_choice", label: "Opción múltiple", icon: ListChecks },
   { id: "numeric", label: "Numérica", icon: Hash },
+  { id: "open", label: "Respuesta abierta", icon: PenLine },
 ];
 
 export function CreateExerciseDialog({
@@ -48,6 +49,8 @@ export function CreateExerciseDialog({
   // Numérica
   const [answer, setAnswer] = useState("");
   const [tolerance, setTolerance] = useState("0");
+  // Respuesta abierta
+  const [rubric, setRubric] = useState("");
 
   const reset = () => {
     setType("code");
@@ -59,6 +62,7 @@ export function CreateExerciseDialog({
     setCorrect(0);
     setAnswer("");
     setTolerance("0");
+    setRubric("");
   };
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -105,13 +109,19 @@ export function CreateExerciseDialog({
           options: options.map((o) => o.trim()).filter(Boolean),
           answer_key: { correct: String(correct) },
         });
-      } else {
+      } else if (type === "numeric") {
         await mutateAsync({
           ...base,
           answer_key: {
             value: Number(answer),
             tolerance: Number(tolerance) || 0,
           },
+        });
+      } else {
+        // Respuesta abierta: la IA califica con la rúbrica.
+        await mutateAsync({
+          ...base,
+          answer_key: rubric.trim() ? { rubric: rubric.trim() } : {},
         });
       }
 
@@ -140,14 +150,14 @@ export function CreateExerciseDialog({
 
         <form onSubmit={onSubmit} className="space-y-4">
           {/* Selector de tipo */}
-          <div className="grid grid-cols-3 gap-2 rounded-xl bg-muted/50 p-1">
+          <div className="grid grid-cols-2 gap-2 rounded-xl bg-muted/50 p-1 sm:grid-cols-4">
             {TYPES.map((t) => (
               <button
                 key={t.id}
                 type="button"
                 onClick={() => setType(t.id)}
                 className={cn(
-                  "flex flex-col items-center gap-1 rounded-lg py-2 text-xs font-semibold transition-colors",
+                  "flex flex-col items-center gap-1 rounded-lg px-1 py-2 text-center text-[11px] font-semibold leading-tight transition-colors",
                   type === t.id
                     ? "bg-card text-foreground shadow"
                     : "text-muted-foreground",
@@ -283,6 +293,19 @@ export function CreateExerciseDialog({
                   placeholder="0"
                 />
               </div>
+            </div>
+          )}
+
+          {type === "open" && (
+            <div className="space-y-2">
+              <Label htmlFor="ex-rubric">Rúbrica (guía para la IA)</Label>
+              <Textarea
+                id="ex-rubric"
+                value={rubric}
+                onChange={(e) => setRubric(e.target.value)}
+                className="min-h-[90px] text-sm"
+                placeholder="Qué debe contener una buena respuesta: conceptos clave, procedimiento, ejemplo… La IA califica con esto."
+              />
             </div>
           )}
 

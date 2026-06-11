@@ -16,6 +16,18 @@ import { AIFeedbackPanel } from "@/components/ai/AIFeedbackPanel";
 import { fetchSubmissionsForExercise, fetchExamLogs } from "@/services/teacher";
 import { initials, cn } from "@/lib/utils";
 
+// Muestra la respuesta no-código de forma legible.
+function formatAnswer(answer: Record<string, unknown>): string {
+  if (answer.selected != null) {
+    const i = Number(answer.selected);
+    return Number.isFinite(i)
+      ? `Opción ${String.fromCharCode(65 + i)}`
+      : String(answer.selected);
+  }
+  if (answer.value != null) return `Valor: ${answer.value}`;
+  return JSON.stringify(answer);
+}
+
 const EVENT_LABEL: Record<string, string> = {
   window_hidden: "Salió de pantalla",
   window_visible: "Volvió a la pantalla",
@@ -149,12 +161,16 @@ export function SubmissionsPanel({ exerciseId }: { exerciseId: string }) {
                   className="overflow-hidden border-t"
                 >
                   <div className="space-y-3 p-3">
-                    {/* Código entregado */}
+                    {/* Respuesta entregada */}
                     <div>
                       <p className="mb-1 flex items-center gap-1.5 text-xs font-bold text-muted-foreground">
-                        <Code2 className="size-3.5" /> Código entregado
+                        <Code2 className="size-3.5" /> Respuesta entregada
                       </p>
-                      {s.code.trim() ? (
+                      {s.answer ? (
+                        <p className="rounded-lg bg-muted px-3 py-2 text-sm font-semibold">
+                          {formatAnswer(s.answer)}
+                        </p>
+                      ) : s.code.trim() ? (
                         <pre className="max-h-72 overflow-auto rounded-lg bg-[#0e0d1a] p-3 font-mono text-xs leading-relaxed text-white/90">
                           {s.code}
                         </pre>

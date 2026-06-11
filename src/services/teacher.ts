@@ -16,6 +16,7 @@ export interface SubmissionRow {
   submitted_at: string | null;
   code: string;
   language: ProgLanguage;
+  answer: Record<string, unknown> | null;
   feedback: AIFeedback | null;
   exit_count: number;
   paste_count: number;
@@ -28,7 +29,7 @@ export async function fetchSubmissionsForExercise(
   const { data, error } = await supabase
     .from("submissions")
     .select(
-      "id, student_id, status, score, attempt, submitted_at, code, language, profiles(full_name), ai_feedback(*), exam_logs(event_type)",
+      "id, student_id, status, score, attempt, submitted_at, code, language, answer, profiles(full_name), ai_feedback(*), exam_logs(event_type)",
     )
     .eq("exercise_id", exerciseId)
     .neq("status", "draft")
@@ -46,6 +47,7 @@ export async function fetchSubmissionsForExercise(
       submitted_at: string | null;
       code: string;
       language: ProgLanguage;
+      answer: Record<string, unknown> | null;
       profiles: { full_name: string | null } | null;
       ai_feedback: AIFeedback | AIFeedback[] | null;
       exam_logs: { event_type: string }[];
@@ -62,6 +64,7 @@ export async function fetchSubmissionsForExercise(
       submitted_at: r.submitted_at,
       code: r.code ?? "",
       language: r.language,
+      answer: r.answer ?? null,
       feedback: fb ?? null,
       exit_count: logs.filter((l) => l.event_type === "window_hidden").length,
       paste_count: logs.filter((l) => l.event_type === "paste").length,

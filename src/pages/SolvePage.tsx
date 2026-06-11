@@ -9,9 +9,11 @@ import { CodeEditor } from "@/components/editor/CodeEditor";
 import { CodeRunner } from "@/components/editor/CodeRunner";
 import { AnswerExercise } from "@/components/assignments/AnswerExercise";
 import { AIFeedbackPanel } from "@/components/ai/AIFeedbackPanel";
+import { MathText } from "@/components/common/MathText";
 import { ExamModeBanner } from "@/components/exam/ExamModeBanner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { FullScreenLoader, Spinner } from "@/components/common/Spinner";
 import { LANGUAGE_META, DIFFICULTY_META } from "@/lib/constants";
@@ -189,7 +191,9 @@ export function SolvePage() {
         </Button>
         <div className="min-w-0 flex-1">
           <p className="truncate font-bold">{exercise.title}</p>
-          <p className="text-xs text-muted-foreground">{lang.label}</p>
+          <p className="text-xs text-muted-foreground">
+            {exercise.type === "open" ? "Respuesta abierta" : lang.label}
+          </p>
         </div>
         {remainingMs !== null && (
           <Badge
@@ -217,9 +221,9 @@ export function SolvePage() {
             <div className="mb-1.5 flex items-center gap-1.5 text-sm font-bold">
               <BookOpen className="size-4 text-primary" /> Enunciado
             </div>
-            <p className="whitespace-pre-wrap text-sm text-muted-foreground">
+            <MathText className="text-sm text-muted-foreground">
               {exercise.prompt}
-            </p>
+            </MathText>
           </CardContent>
         </Card>
 
@@ -233,19 +237,53 @@ export function SolvePage() {
           </div>
         )}
 
-        {/* Editor */}
-        <CodeEditor
-          value={code}
-          onChange={handleChange}
-          language={exercise.language}
-          submitting={submitting}
-          readOnly={locked}
-          onSubmit={locked ? undefined : handleSubmit}
-          onReset={locked ? undefined : handleReset}
-        />
+        {/* Respuesta abierta (texto) vs Código (editor) */}
+        {exercise.type === "open" ? (
+          <Card>
+            <CardContent className="space-y-3 p-4">
+              <Textarea
+                value={code}
+                onChange={(e) => handleChange(e.target.value)}
+                readOnly={locked}
+                placeholder="Escribe tu respuesta aquí… desarrolla tu razonamiento o procedimiento."
+                className="min-h-[220px] text-sm"
+              />
+              {!locked && (
+                <Button
+                  variant="brand"
+                  size="lg"
+                  className="w-full"
+                  onClick={handleSubmit}
+                  disabled={submitting || !code.trim()}
+                >
+                  {submitting ? (
+                    <Spinner className="size-4" />
+                  ) : (
+                    <>
+                      <Sparkles className="size-4" /> Enviar para revisión
+                    </>
+                  )}
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            {/* Editor */}
+            <CodeEditor
+              value={code}
+              onChange={handleChange}
+              language={exercise.language}
+              submitting={submitting}
+              readOnly={locked}
+              onSubmit={locked ? undefined : handleSubmit}
+              onReset={locked ? undefined : handleReset}
+            />
 
-        {/* Ejecutar (Python/Java) — pruébalo antes de enviar */}
-        <CodeRunner language={exercise.language} code={code} />
+            {/* Ejecutar (Python/Java) — pruébalo antes de enviar */}
+            <CodeRunner language={exercise.language} code={code} />
+          </>
+        )}
 
         {/* Estado de revisión */}
         <AnimatePresence mode="wait">

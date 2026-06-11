@@ -55,6 +55,33 @@ Responde ÚNICAMENTE con un JSON válido (sin markdown, sin texto extra) con est
 Sé honesto pero motivador. Explica los errores de forma sencilla.`;
 }
 
+// Evaluación de respuesta ABIERTA (ensayo / procedimiento) contra una rúbrica.
+function buildOpenPrompt(opts: {
+  prompt: string;
+  answer: string;
+  rubric?: string | null;
+}) {
+  return `Eres un profesor universitario amable y justo. Evalúa la respuesta de desarrollo del estudiante.
+
+ENUNCIADO / PREGUNTA:
+${opts.prompt}
+
+${opts.rubric ? `RÚBRICA / CRITERIOS DE EVALUACIÓN:\n${opts.rubric}\n` : ""}
+RESPUESTA DEL ESTUDIANTE:
+${opts.answer}
+
+Califica según la rúbrica (o, si no hay, según corrección, claridad y completitud).
+Responde ÚNICAMENTE con un JSON válido (sin markdown, sin texto extra) con esta forma exacta:
+{
+  "score": <entero 1-100>,
+  "summary": "<2-3 frases de feedback cálido y claro en español>",
+  "errors": [{"line": null, "message": "<algo que falta o está mal>", "severity": "error|warning|info"}],
+  "suggestions": ["<cómo mejorar la respuesta>", "..."],
+  "strengths": ["<algo que hizo bien>", "..."]
+}
+Sé honesto pero motivador.`;
+}
+
 function extractJson(text: string): unknown {
   // Tolerante a ```json ... ``` o texto alrededor.
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -96,7 +123,7 @@ Deno.serve(async (req) => {
     const { data: sub, error: subErr } = await admin
       .from("submissions")
       .select(
-        "id, code, language, exercise_id, student_id, exercises(prompt, solution_code, assignment_id, assignments(course_id))",
+        "id, code, language, exercise_id, student_id, exercises(prompt, solution_code, type, assignment_id, assignments(course_id))",
       )
       .eq("id", submission_id)
       .single();
@@ -158,12 +185,27 @@ Deno.serve(async (req) => {
     // deno-lint-ignore no-explicit-any
     const exercise = (sub as any).exercises;
 
-    const prompt = buildPrompt({
-      language: sub.language,
-      prompt: exercise?.prompt ?? "",
-      code: sub.code,
-      solution: exercise?.solution_code,
-    });
+    let prompt: string;
+    if (exercise?.type === "open") {
+      // Respuesta abierta: califica contra la rúbrica privada.
+      const { data: ans } = await admin
+        .from("exercise_answers")
+        .select("key")
+        .eq("exercise_id", sub.exercise_id)
+        .maybeSingle();
+      prompt = buildOpenPrompt({
+        prompt: exercise?.prompt ?? "",
+        answer: sub.code,
+        rubric: (ans?.key as { rubric?: string } | null)?.rubric ?? null,
+      });
+    } else {
+      prompt = buildPrompt({
+        language: sub.language,
+        prompt: exercise?.prompt ?? "",
+        code: sub.code,
+        solution: exercise?.solution_code,
+      });
+    }
 
     // Una llamada al modelo. Lanza si la respuesta viene vacía o no parsea.
     async function callModel() {
