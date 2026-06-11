@@ -46,7 +46,15 @@ export function BoardPage() {
   const [runLang, setRunLang] = useState<ProgLanguage>("python");
   const [allowWrite, setAllowWrite] = useState(false); // permiso (profe)
   const [canWrite, setCanWrite] = useState(false); // permiso recibido (alumno)
-  const [personalText, setPersonalText] = useState("");
+  // "Mi código" del alumno: se guarda en su dispositivo para no perderlo.
+  const scratchKey = `kodea:scratch:${courseId}`;
+  const [personalText, setPersonalText] = useState(() => {
+    try {
+      return localStorage.getItem(`kodea:scratch:${courseId}`) ?? "";
+    } catch {
+      return "";
+    }
+  });
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<"pizarra" | "codigo">("pizarra");
   const [codeTab, setCodeTab] = useState<"profe" | "mio">("profe");
@@ -62,6 +70,15 @@ export function BoardPage() {
     if (langTouched.current) return;
     if (text.trim()) setRunLang(detectLanguage(text));
   }, [text]);
+
+  // Persiste "Mi código" en el dispositivo (no se pierde al recargar/salir).
+  useEffect(() => {
+    try {
+      localStorage.setItem(scratchKey, personalText);
+    } catch {
+      /* almacenamiento no disponible (modo privado) */
+    }
+  }, [personalText, scratchKey]);
 
   useEffect(() => {
     let active = true;
