@@ -131,6 +131,15 @@ export function LoginPage() {
           >
             {loading ? <Spinner className="size-4" /> : "Iniciar sesión"}
           </Button>
+
+          <div className="text-center">
+            <Link
+              to="/forgot-password"
+              className="text-sm font-medium text-muted-foreground hover:text-primary"
+            >
+              ¿Olvidaste tu contraseña?
+            </Link>
+          </div>
         </form>
 
         <p className="mt-6 text-center text-sm text-muted-foreground">

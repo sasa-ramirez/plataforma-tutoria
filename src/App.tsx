@@ -3,6 +3,8 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { LoginPage } from "@/pages/auth/LoginPage";
 import { RegisterPage } from "@/pages/auth/RegisterPage";
+import { ForgotPasswordPage } from "@/pages/auth/ForgotPasswordPage";
+import { ResetPasswordPage } from "@/pages/auth/ResetPasswordPage";
 import { TermsPage } from "@/pages/legal/TermsPage";
 import { PrivacyPage } from "@/pages/legal/PrivacyPage";
 import { DashboardPage } from "@/pages/DashboardPage";
@@ -24,6 +26,8 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
 

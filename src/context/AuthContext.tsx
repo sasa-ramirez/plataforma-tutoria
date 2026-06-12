@@ -24,6 +24,8 @@ interface AuthState {
     role: UserRole;
   }) => Promise<{ needsConfirmation: boolean }>;
   resendConfirmation: (email: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  updatePassword: (password: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -125,6 +127,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   }, []);
 
+  // Envía el correo con el enlace para crear una nueva contraseña.
+  const resetPassword = useCallback(async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    if (error) throw error;
+  }, []);
+
+  // Define la nueva contraseña (tras llegar por el enlace de recuperación).
+  const updatePassword = useCallback(async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) throw error;
+  }, []);
+
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
     setProfile(null);
@@ -145,6 +161,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signIn,
         signUp,
         resendConfirmation,
+        resetPassword,
+        updatePassword,
         signOut,
         refreshProfile,
       }}
