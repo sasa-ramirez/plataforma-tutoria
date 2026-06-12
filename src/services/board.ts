@@ -91,6 +91,19 @@ export async function getOrCreateBoard(
     if (retry.error) throw retry.error;
     return toBoard(retry.data);
   }
+  // Carrera: otro intento ya creó el tablero (viola la clave única de
+  // course_id). En vez de fallar, releemos el tablero existente.
+  if (
+    created.error &&
+    (created.error as { code?: string }).code === "23505"
+  ) {
+    const reread = await supabase
+      .from("boards")
+      .select(FULL_SELECT)
+      .eq("course_id", courseId)
+      .maybeSingle();
+    if (reread.data) return toBoard(reread.data);
+  }
   if (created.error) throw created.error;
   return toBoard(created.data);
 }
