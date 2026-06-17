@@ -55,6 +55,7 @@ export interface Course {
   color: string;
   join_code: string;
   subject_id: string | null;
+  schedule: string | null;
   created_at: string;
 }
 

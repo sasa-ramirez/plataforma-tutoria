@@ -14,6 +14,8 @@ export interface CoordGroup {
   title: string;
   teacher_name: string | null;
   subject_name: string | null;
+  schedule: string | null;
+  join_code: string | null;
   students: number;
   assignments: number;
   submissions: number;
@@ -86,4 +88,34 @@ export async function fetchStudentSubmissions(
   });
   if (error) throw new Error(error.message);
   return (data ?? []) as CoordStudentSubmission[];
+}
+
+/** Crea un grupo, asigna tutor (lo vuelve profesor) y devuelve su código. */
+export async function createGroup(input: {
+  title: string;
+  subjectId: string;
+  tutorEmail: string;
+  schedule: string;
+}): Promise<{ course_id: string; join_code: string }> {
+  const { data, error } = await supabase.rpc("coord_create_group", {
+    p_title: input.title,
+    p_subject_id: input.subjectId,
+    p_tutor_email: input.tutorEmail,
+    p_schedule: input.schedule,
+  });
+  if (error) throw new Error(error.message);
+  return data as { course_id: string; join_code: string };
+}
+
+/** Inscribe estudiantes por correo y los notifica. Devuelve cuántos y cuáles faltan. */
+export async function addStudents(
+  courseId: string,
+  emails: string[],
+): Promise<{ added: number; missing: string[] }> {
+  const { data, error } = await supabase.rpc("coord_add_students", {
+    p_course: courseId,
+    p_emails: emails,
+  });
+  if (error) throw new Error(error.message);
+  return data as { added: number; missing: string[] };
 }

@@ -8,20 +8,30 @@ import {
   Star,
   ChevronDown,
   Flame,
+  Clock,
+  Copy,
+  UserPlus,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/common/StatCard";
+import { Spinner } from "@/components/common/Spinner";
+import { useToast } from "@/components/ui/toast";
+import { CreateGroupDialog } from "@/components/coordinator/CreateGroupDialog";
 import {
   useCoordOverview,
   useCoordGroups,
   useCoordGroupAssignments,
   useCoordStudents,
   useCoordStudentSubmissions,
+  useAddStudents,
 } from "@/hooks/useCoordinator";
 import { cn } from "@/lib/utils";
+import type { CoordGroup } from "@/services/coordinator";
 
 type Tab = "resumen" | "grupos" | "estudiantes";
 
@@ -97,50 +107,131 @@ function Grupos() {
   const { data, isLoading } = useCoordGroups();
   const [open, setOpen] = useState<string | null>(null);
 
-  if (isLoading)
-    return (
-      <div className="space-y-2">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <Skeleton key={i} className="h-16 w-full" />
-        ))}
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-bold">Grupos de tutoría</p>
+        <CreateGroupDialog />
       </div>
-    );
-  if (!data || data.length === 0)
-    return <p className="py-8 text-center text-sm text-muted-foreground">Aún no hay grupos.</p>;
+
+      {isLoading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full" />
+          ))}
+        </div>
+      ) : !data || data.length === 0 ? (
+        <p className="py-8 text-center text-sm text-muted-foreground">
+          Aún no hay grupos. Crea el primero con "Crear grupo".
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {data.map((g) => (
+            <Card key={g.course_id}>
+              <button
+                onClick={() => setOpen(open === g.course_id ? null : g.course_id)}
+                className="flex w-full items-center gap-3 p-4 text-left"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-semibold">{g.title}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {g.teacher_name ?? "Sin tutor"}
+                    {g.subject_name ? ` · ${g.subject_name}` : ""}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-3 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <Users className="size-3.5" /> {g.students}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <ClipboardList className="size-3.5" /> {g.assignments}
+                  </span>
+                  <span className={cn("font-bold", scoreColor(g.avg_score))}>
+                    {g.avg_score ?? "—"}
+                  </span>
+                  <ChevronDown
+                    className={cn(
+                      "size-4 transition-transform",
+                      open === g.course_id && "rotate-180",
+                    )}
+                  />
+                </div>
+              </button>
+              {open === g.course_id && <GroupDetail group={g} />}
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GroupDetail({ group }: { group: CoordGroup }) {
+  const { toast } = useToast();
+  return (
+    <div className="space-y-4 border-t p-4">
+      {/* Horario + código */}
+      <div className="flex flex-wrap items-center gap-3 text-xs">
+        {group.schedule && (
+          <span className="flex items-center gap-1 text-muted-foreground">
+            <Clock className="size-3.5" /> {group.schedule}
+          </span>
+        )}
+        {group.join_code && (
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(group.join_code as string);
+              toast(`Código ${group.join_code} copiado`, "success");
+            }}
+            className="flex items-center gap-1 rounded-lg bg-muted px-2 py-1 font-mono font-semibold"
+          >
+            {group.join_code} <Copy className="size-3" />
+          </button>
+        )}
+      </div>
+
+      <AddStudents courseId={group.course_id} />
+      <GroupTasks courseId={group.course_id} />
+    </div>
+  );
+}
+
+function AddStudents({ courseId }: { courseId: string }) {
+  const { toast } = useToast();
+  const { mutateAsync, isPending } = useAddStudents(courseId);
+  const [emails, setEmails] = useState("");
+
+  const submit = async () => {
+    const list = emails
+      .split(/[\s,;]+/)
+      .map((e) => e.trim())
+      .filter(Boolean);
+    if (list.length === 0) return;
+    try {
+      const r = await mutateAsync(list);
+      let msg = `${r.added} estudiante(s) agregado(s) y notificado(s).`;
+      if (r.missing.length) msg += ` Sin cuenta: ${r.missing.join(", ")}.`;
+      toast(msg, r.missing.length ? "info" : "success");
+      if (r.missing.length === 0) setEmails("");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Error", "error");
+    }
+  };
 
   return (
     <div className="space-y-2">
-      {data.map((g) => (
-        <Card key={g.course_id}>
-          <button
-            onClick={() => setOpen(open === g.course_id ? null : g.course_id)}
-            className="flex w-full items-center gap-3 p-4 text-left"
-          >
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-semibold">{g.title}</p>
-              <p className="truncate text-xs text-muted-foreground">
-                {g.teacher_name ?? "Sin tutor"}
-                {g.subject_name ? ` · ${g.subject_name}` : ""}
-              </p>
-            </div>
-            <div className="flex shrink-0 items-center gap-3 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <Users className="size-3.5" /> {g.students}
-              </span>
-              <span className="flex items-center gap-1">
-                <ClipboardList className="size-3.5" /> {g.assignments}
-              </span>
-              <span className={cn("font-bold", scoreColor(g.avg_score))}>
-                {g.avg_score ?? "—"}
-              </span>
-              <ChevronDown
-                className={cn("size-4 transition-transform", open === g.course_id && "rotate-180")}
-              />
-            </div>
-          </button>
-          {open === g.course_id && <GroupTasks courseId={g.course_id} />}
-        </Card>
-      ))}
+      <p className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground">
+        <UserPlus className="size-3.5" /> Agregar estudiantes (por correo)
+      </p>
+      <Textarea
+        value={emails}
+        onChange={(e) => setEmails(e.target.value)}
+        placeholder="Pega los correos separados por coma, espacio o salto de línea…"
+        className="min-h-[70px] text-sm"
+      />
+      <Button size="sm" variant="brand" onClick={submit} disabled={isPending}>
+        {isPending ? <Spinner className="size-4" /> : "Agregar y avisar"}
+      </Button>
     </div>
   );
 }
