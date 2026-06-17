@@ -1,8 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { ShieldCheck, Check, X, Inbox, Library } from "lucide-react";
+import { useState } from "react";
+import { ShieldCheck, Check, X, Inbox, Library, LineChart } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { CatalogManager } from "@/components/admin/CatalogManager";
+import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -12,6 +14,7 @@ import { useToast } from "@/components/ui/toast";
 import {
   fetchPendingTeacherRequests,
   reviewTeacherRequest,
+  setCoordinator,
 } from "@/services/admin";
 import { initials } from "@/lib/utils";
 
@@ -51,6 +54,15 @@ export function AdminPage() {
       </div>
       <div className="mb-8">
         <CatalogManager />
+      </div>
+
+      {/* Coordinador(a) de tutoría */}
+      <div className="mb-3 flex items-center gap-2 text-sm font-bold">
+        <LineChart className="size-4 text-primary" />
+        Coordinación de tutoría
+      </div>
+      <div className="mb-8">
+        <AssignCoordinator />
       </div>
 
       <div className="mb-3 flex items-center gap-2 text-sm font-bold">
@@ -126,5 +138,53 @@ export function AdminPage() {
         </div>
       )}
     </div>
+  );
+}
+
+function AssignCoordinator() {
+  const { toast } = useToast();
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const run = async (value: boolean) => {
+    if (!email.trim()) return;
+    setBusy(true);
+    try {
+      await setCoordinator(email.trim(), value);
+      toast(
+        value ? "Coordinador(a) asignado ✅" : "Rol de coordinador quitado",
+        value ? "success" : "info",
+      );
+      setEmail("");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Error", "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card className="p-4">
+      <p className="mb-2 text-sm text-muted-foreground">
+        Escribe el correo de la cuenta y nómbrala coordinador(a) de tutoría
+        (verá estadísticas y reportes de todos los grupos y estudiantes).
+      </p>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <Input
+          type="email"
+          placeholder="correo@uniguajira.edu.co"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <div className="flex gap-2">
+          <Button variant="brand" disabled={busy} onClick={() => run(true)}>
+            Nombrar
+          </Button>
+          <Button variant="outline" disabled={busy} onClick={() => run(false)}>
+            Quitar
+          </Button>
+        </div>
+      </div>
+    </Card>
   );
 }

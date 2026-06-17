@@ -7,10 +7,12 @@ export function ProtectedRoute({
   children,
   role,
   adminOnly = false,
+  coordinatorOnly = false,
 }: {
   children: React.ReactNode;
   role?: UserRole;
   adminOnly?: boolean;
+  coordinatorOnly?: boolean;
 }) {
   const { session, profile, loading } = useAuth();
   const location = useLocation();
@@ -29,6 +31,11 @@ export function ProtectedRoute({
   }
 
   if (adminOnly && !profile.is_admin) {
+    return <Navigate to="/app" replace />;
+  }
+
+  // Coordinación: la ve el coordinador o el admin.
+  if (coordinatorOnly && !profile.is_coordinator && !profile.is_admin) {
     return <Navigate to="/app" replace />;
   }
 

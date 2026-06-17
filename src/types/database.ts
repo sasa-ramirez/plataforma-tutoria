@@ -27,6 +27,7 @@ export interface Profile {
   avatar_url: string | null;
   role: UserRole;
   is_admin: boolean;
+  is_coordinator: boolean;
   streak: number;
   xp: number;
   last_active: string | null;

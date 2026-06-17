@@ -61,3 +61,12 @@ export async function reviewTeacherRequest(reqId: string, approve: boolean) {
   });
   if (error) throw error;
 }
+
+/** Nombra (o quita) coordinador(a) de tutoría por correo (solo admin). */
+export async function setCoordinator(email: string, value: boolean) {
+  const { error } = await supabase.rpc("set_coordinator", {
+    p_email: email,
+    p_value: value,
+  });
+  if (error) throw new Error(error.message);
+}

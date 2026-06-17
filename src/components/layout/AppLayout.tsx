@@ -8,6 +8,7 @@ import {
   LogOut,
   GraduationCap,
   ShieldCheck,
+  LineChart,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { cn, initials } from "@/lib/utils";
@@ -29,11 +30,22 @@ const ADMIN_NAV = {
   end: false,
 };
 
+const COORD_NAV = {
+  to: "/app/coordinacion",
+  label: "Coordinación",
+  icon: LineChart,
+  end: false,
+};
+
 export function AppLayout() {
-  const { profile, signOut, isAdmin } = useAuth();
+  const { profile, signOut, isAdmin, isCoordinator } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const NAV_ITEMS = isAdmin ? [...NAV, ADMIN_NAV] : NAV;
+  const NAV_ITEMS = [
+    ...NAV,
+    ...(isCoordinator || isAdmin ? [COORD_NAV] : []),
+    ...(isAdmin ? [ADMIN_NAV] : []),
+  ];
 
   const handleSignOut = async () => {
     await signOut();
@@ -84,7 +96,11 @@ export function AppLayout() {
               {profile?.full_name}
             </p>
             <p className="truncate text-xs capitalize text-muted-foreground">
-              {profile?.role === "teacher" ? "Profesor" : "Estudiante"}
+              {isCoordinator
+                ? "Coordinación"
+                : profile?.role === "teacher"
+                  ? "Profesor"
+                  : "Estudiante"}
             </p>
           </div>
           <Button

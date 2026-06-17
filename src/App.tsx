@@ -19,6 +19,7 @@ import { SandboxPage } from "@/pages/SandboxPage";
 import { FreePracticePage } from "@/pages/FreePracticePage";
 import { ProfilePage } from "@/pages/ProfilePage";
 import { AdminPage } from "@/pages/AdminPage";
+import { CoordinationPage } from "@/pages/CoordinationPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 
 export default function App() {
@@ -56,6 +57,14 @@ export default function App() {
           element={
             <ProtectedRoute adminOnly>
               <AdminPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="coordinacion"
+          element={
+            <ProtectedRoute coordinatorOnly>
+              <CoordinationPage />
             </ProtectedRoute>
           }
         />
