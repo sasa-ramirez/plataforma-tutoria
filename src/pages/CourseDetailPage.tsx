@@ -6,6 +6,7 @@ import { useCourse, useCourseMembers } from "@/hooks/useCourses";
 import { useAssignments } from "@/hooks/useAssignments";
 import { AssignmentCard } from "@/components/assignments/AssignmentCard";
 import { CreateAssignmentDialog } from "@/components/assignments/CreateAssignmentDialog";
+import { ScheduleCard } from "@/components/courses/ScheduleCard";
 import { useToast } from "@/components/ui/toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -90,6 +91,13 @@ export function CourseDetailPage() {
           {isTeacher ? "Abrir tablero en vivo" : "Entrar al tablero en vivo"}
         </Link>
       </Button>
+
+      {/* Cuadrar horario (tutor propone, alumnos votan) */}
+      <ScheduleCard
+        courseId={id}
+        isTeacher={isTeacher}
+        currentSchedule={course.schedule}
+      />
 
       {/* Tareas */}
       <Card>
