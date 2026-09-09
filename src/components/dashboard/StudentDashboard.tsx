@@ -20,7 +20,7 @@ export function StudentDashboard() {
   const { profile } = useAuth();
   const { data, isLoading } = useStudentStats();
   const { data: game } = useGameStats();
-  const firstName = profile?.full_name?.split(" ")[0] ?? "👋";
+  const firstName = profile?.full_name?.split(" ")[0] ?? "Estudiante";
 
   return (
     <div className="space-y-6">

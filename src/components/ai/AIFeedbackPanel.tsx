@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import {
-  Sparkles,
+  BadgeCheck,
   CheckCircle2,
   AlertTriangle,
   Info,
@@ -73,8 +73,11 @@ export function AIFeedbackPanel({ feedback }: { feedback: AIFeedback }) {
             </span>
           </div>
           <div className="min-w-0">
-            <div className="mb-1 flex items-center gap-1.5 text-sm font-bold text-primary">
-              <Sparkles className="size-4" /> Feedback de la IA
+            <div className="mb-1 flex items-center gap-1.5">
+              <span className="grid size-5 shrink-0 place-items-center rounded-md bg-primary/15 text-primary">
+                <BadgeCheck className="size-3.5" />
+              </span>
+              <span className="text-sm font-bold">Retroalimentación</span>
             </div>
             {feedback.summary && (
               <p className="text-sm text-muted-foreground">

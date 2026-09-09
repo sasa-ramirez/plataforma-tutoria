@@ -30,7 +30,7 @@ export function ProfilePage() {
   const request = useMutation({
     mutationFn: () => requestTeacherRole(),
     onSuccess: () => {
-      toast("Solicitud enviada ✅ Un admin la revisará.", "success");
+      toast("Solicitud enviada. Un admin la revisará.", "success");
       qc.invalidateQueries({ queryKey: ["my-teacher-request"] });
     },
     onError: (e) => toast(e instanceof Error ? e.message : "Error", "error"),

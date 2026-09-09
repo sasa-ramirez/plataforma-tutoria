@@ -31,7 +31,7 @@ export function AdminPage() {
       reviewTeacherRequest(id, approve),
     onSuccess: (_d, vars) => {
       toast(
-        vars.approve ? "Profesor aprobado ✅" : "Solicitud rechazada",
+        vars.approve ? "Profesor aprobado" : "Solicitud rechazada",
         vars.approve ? "success" : "info",
       );
       qc.invalidateQueries({ queryKey: ["teacher-requests", "pending"] });
@@ -152,7 +152,7 @@ function AssignCoordinator() {
     try {
       await setCoordinator(email.trim(), value);
       toast(
-        value ? "Coordinador(a) asignado ✅" : "Rol de coordinador quitado",
+        value ? "Coordinador(a) asignado" : "Rol de coordinador quitado",
         value ? "success" : "info",
       );
       setEmail("");

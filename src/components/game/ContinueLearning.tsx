@@ -23,8 +23,8 @@ export function ContinueLearning() {
         <div className="card-interactive relative overflow-hidden rounded-2xl border p-5 surface-glow">
           <div className="absolute inset-0 gradient-brand opacity-[0.10]" />
           <div className="relative flex items-center gap-4">
-            <div className="grid size-14 shrink-0 place-items-center rounded-2xl bg-background/60 text-3xl backdrop-blur">
-              {lang.emoji}
+            <div className="grid size-14 shrink-0 place-items-center rounded-2xl bg-background/60 backdrop-blur">
+              <lang.icon className="size-6 text-primary" />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-xs font-bold uppercase tracking-widest text-primary">

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, ShieldCheck } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -98,7 +98,7 @@ export function CreateAssignmentDialog({ courseId }: { courseId: string }) {
         closes_at: toIso(form.closes_at),
         status: form.publish ? "open" : "draft",
       });
-      toast("Tarea creada ✅", "success");
+      toast("Tarea creada", "success");
       setOpen(false);
     } catch (err) {
       toast(err instanceof Error ? err.message : "Error al crear", "error");
@@ -156,7 +156,9 @@ export function CreateAssignmentDialog({ courseId }: { courseId: string }) {
                 <SelectContent>
                   {Object.entries(LANGUAGE_META).map(([k, v]) => (
                     <SelectItem key={k} value={k}>
-                      {v.emoji} {v.label}
+                      <span className="flex items-center gap-2">
+                        <v.icon className="size-4" /> {v.label}
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -258,7 +260,9 @@ export function CreateAssignmentDialog({ courseId }: { courseId: string }) {
 
           <div className="flex items-center justify-between rounded-xl border p-3">
             <div>
-              <p className="text-sm font-semibold">Modo examen 🛡️</p>
+              <p className="flex items-center gap-1.5 text-sm font-semibold">
+                <ShieldCheck className="size-4 text-primary" /> Modo examen
+              </p>
               <p className="text-xs text-muted-foreground">
                 Registra salidas de pantalla y copy/paste.
               </p>

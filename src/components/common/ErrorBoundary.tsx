@@ -1,4 +1,5 @@
 import { Component, type ReactNode } from "react";
+import { OctagonAlert } from "lucide-react";
 
 interface State {
   error: Error | null;
@@ -32,13 +33,13 @@ export class ErrorBoundary extends Component<
             justifyContent: "center",
             gap: 12,
             padding: 24,
-            background: "#0b0b12",
-            color: "#e6e4f0",
+            background: "#0E1517",
+            color: "#F2EEE6",
             fontFamily: "Inter, system-ui, sans-serif",
             textAlign: "center",
           }}
         >
-          <div style={{ fontSize: 40 }}>😵</div>
+          <OctagonAlert size={36} color="#E2635F" strokeWidth={1.75} />
           <h1 style={{ fontSize: 20, fontWeight: 800 }}>
             Algo falló al cargar la app
           </h1>
@@ -49,11 +50,11 @@ export class ErrorBoundary extends Component<
             style={{
               maxWidth: "90vw",
               overflow: "auto",
-              background: "#1a1830",
+              background: "#161F22",
               padding: 16,
               borderRadius: 12,
               fontSize: 12,
-              color: "#ff8a8a",
+              color: "#E2635F",
               textAlign: "left",
             }}
           >
@@ -68,8 +69,8 @@ export class ErrorBoundary extends Component<
               padding: "10px 20px",
               borderRadius: 12,
               border: "none",
-              background: "#7c5cff",
-              color: "white",
+              background: "#5CC0D0",
+              color: "#06272C",
               fontWeight: 700,
               cursor: "pointer",
             }}

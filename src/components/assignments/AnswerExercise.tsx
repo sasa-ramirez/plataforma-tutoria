@@ -45,7 +45,7 @@ export function AnswerExercise({
           : { value: Number(value) };
       const r = await submitAnswer(exercise.id, answer);
       setResult(r);
-      toast(r.correct ? "¡Correcto! 🎉" : "Respuesta enviada", r.correct ? "success" : "info");
+      toast(r.correct ? "¡Correcto!" : "Respuesta enviada", r.correct ? "success" : "info");
     } catch (e) {
       toast(e instanceof Error ? e.message : "No se pudo enviar", "error");
     } finally {

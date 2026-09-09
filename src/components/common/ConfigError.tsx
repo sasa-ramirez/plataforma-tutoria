@@ -1,3 +1,5 @@
+import { Unplug } from "lucide-react";
+
 /** Pantalla clara cuando faltan las variables de entorno de Supabase. */
 export function ConfigError() {
   return (
@@ -10,13 +12,13 @@ export function ConfigError() {
         justifyContent: "center",
         gap: 14,
         padding: 24,
-        background: "#0b0b12",
-        color: "#e6e4f0",
+        background: "#0E1517",
+        color: "#F2EEE6",
         fontFamily: "Inter, system-ui, sans-serif",
         textAlign: "center",
       }}
     >
-      <div style={{ fontSize: 44 }}>🔌</div>
+      <Unplug size={40} color="#5CC0D0" strokeWidth={1.75} />
       <h1 style={{ fontSize: 22, fontWeight: 800 }}>Falta conectar Supabase</h1>
       <p style={{ fontSize: 14, opacity: 0.75, maxWidth: 460, lineHeight: 1.5 }}>
         No se encontraron las variables de entorno al compilar. Añádelas en
@@ -25,12 +27,12 @@ export function ConfigError() {
       </p>
       <pre
         style={{
-          background: "#1a1830",
+          background: "#161F22",
           padding: 16,
           borderRadius: 12,
           fontSize: 12,
           textAlign: "left",
-          color: "#a9f0e0",
+          color: "#5CC0D0",
         }}
       >
         VITE_SUPABASE_URL{"\n"}

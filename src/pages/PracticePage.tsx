@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Dumbbell, ChevronRight, Code2, Sparkles, Wand2 } from "lucide-react";
+import { Dumbbell, ChevronRight, Code2, Wand2 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Card } from "@/components/ui/card";
@@ -30,10 +30,7 @@ export function PracticePage() {
             <Wand2 className="size-5" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="flex items-center gap-1.5 font-semibold">
-              Práctica libre con IA
-              <Sparkles className="size-3.5 text-accent" />
-            </p>
+            <p className="font-semibold">Práctica libre con IA</p>
             <p className="text-xs text-muted-foreground">
               Elige lenguaje, dificultad y tema; la IA crea y califica.
             </p>
@@ -49,10 +46,7 @@ export function PracticePage() {
             <Code2 className="size-5" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="flex items-center gap-1.5 font-semibold">
-              Editor libre
-              <Sparkles className="size-3.5 text-accent" />
-            </p>
+            <p className="font-semibold">Editor libre</p>
             <p className="text-xs text-muted-foreground">
               Elige lenguaje y empieza con el código base listo.
             </p>
@@ -78,6 +72,7 @@ export function PracticePage() {
           {data.map((ex, i) => {
             const lang = LANGUAGE_META[ex.language];
             const diff = DIFFICULTY_META[ex.difficulty];
+            const LangIcon = lang.icon;
             return (
               <motion.div
                 key={ex.id}
@@ -87,8 +82,8 @@ export function PracticePage() {
               >
                 <Link to={`/app/solve/${ex.id}`}>
                   <Card className="card-interactive flex items-center gap-3 p-4 active:scale-[0.99]">
-                    <div className="grid size-11 place-items-center rounded-xl bg-muted text-xl">
-                      {lang.emoji}
+                    <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-muted text-muted-foreground">
+                      <LangIcon className="size-5" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-semibold">{ex.title}</p>

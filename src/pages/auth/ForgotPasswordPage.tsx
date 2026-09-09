@@ -42,7 +42,7 @@ export function ForgotPasswordPage() {
             <div className="mx-auto mb-4 grid size-14 place-items-center rounded-2xl bg-success/15 text-success">
               <MailCheck className="size-7" />
             </div>
-            <h1 className="text-xl font-bold tracking-tight">Revisa tu correo 📨</h1>
+            <h1 className="text-xl font-bold tracking-tight">Revisa tu correo</h1>
             <p className="mt-2 text-sm text-muted-foreground">
               Si <span className="font-semibold">{email}</span> tiene una cuenta,
               te enviamos un enlace para crear una nueva contraseña. Revisa también

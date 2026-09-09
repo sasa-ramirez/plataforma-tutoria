@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sparkles, Wand2 } from "lucide-react";
+import { Wand2 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,21 +48,24 @@ export function FreePracticePage() {
           <div className="space-y-2">
             <Label>Lenguaje</Label>
             <div className="flex flex-wrap gap-2">
-              {LANGS.map((l) => (
-                <button
-                  key={l}
-                  onClick={() => setLanguage(l)}
-                  className={cn(
-                    "flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-semibold transition-colors",
-                    language === l
-                      ? "bg-primary/15 text-primary ring-1 ring-primary/40"
-                      : "bg-muted text-muted-foreground hover:bg-muted/70",
-                  )}
-                >
-                  <span>{LANGUAGE_META[l].emoji}</span>
-                  {LANGUAGE_META[l].label}
-                </button>
-              ))}
+              {LANGS.map((l) => {
+                const Icon = LANGUAGE_META[l].icon;
+                return (
+                  <button
+                    key={l}
+                    onClick={() => setLanguage(l)}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-semibold transition-colors",
+                      language === l
+                        ? "bg-primary/15 text-primary ring-1 ring-primary/40"
+                        : "bg-muted text-muted-foreground hover:bg-muted/70",
+                    )}
+                  >
+                    <Icon className="size-4" />
+                    {LANGUAGE_META[l].label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -116,8 +119,7 @@ export function FreePracticePage() {
             )}
           </Button>
 
-          <p className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
-            <Sparkles className="size-3.5 text-accent" />
+          <p className="text-center text-xs text-muted-foreground">
             La IA crea el enunciado y, al enviar tu solución, te califica.
           </p>
         </CardContent>

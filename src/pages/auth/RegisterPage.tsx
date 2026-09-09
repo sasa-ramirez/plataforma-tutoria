@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { GraduationCap, BookUser, MailCheck } from "lucide-react";
+import { GraduationCap, BookUser, Laptop, MailCheck } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { requestTeacherRole } from "@/services/admin";
 import { useToast } from "@/components/ui/toast";
@@ -68,7 +68,7 @@ export function RegisterPage() {
     if (!sentTo) return;
     try {
       await resendConfirmation(sentTo);
-      toast("Correo reenviado 📨", "success");
+      toast("Correo reenviado", "success");
     } catch (err) {
       toast(err instanceof Error ? err.message : "No se pudo reenviar", "error");
     }
@@ -131,7 +131,7 @@ export function RegisterPage() {
       >
         <div className="mb-8 flex flex-col items-center text-center">
           <div className="mb-3 grid size-14 place-items-center rounded-2xl gradient-brand text-white surface-glow">
-            <GraduationCap className="size-7" />
+            <Laptop className="size-7" />
           </div>
           <span className="mb-2 text-2xl font-extrabold tracking-tight text-gradient">
             Kódea

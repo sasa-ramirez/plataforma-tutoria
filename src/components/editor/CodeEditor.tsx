@@ -111,6 +111,8 @@ export function CodeEditor({
     ed.trigger("kbd", cmd, null);
   }, []);
 
+  const LangIcon = LANGUAGE_META[language].icon;
+
   return (
     <div
       className={cn(
@@ -123,7 +125,7 @@ export function CodeEditor({
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-2 border-b border-white/10 bg-white/5 px-3 py-2">
         <div className="flex items-center gap-2 text-xs font-medium text-white/70">
-          <span>{LANGUAGE_META[language].emoji}</span>
+          <LangIcon className="size-3.5" />
           <span>{LANGUAGE_META[language].label}</span>
         </div>
         <div className="flex items-center gap-1">

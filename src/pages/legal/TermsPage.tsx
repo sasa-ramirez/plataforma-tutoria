@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, AlertTriangle } from "lucide-react";
 
 /**
  * PLANTILLA de Términos y Condiciones. NO es asesoría legal.
@@ -111,10 +111,13 @@ export function TermsPage() {
         </section>
       </div>
 
-      <p className="mt-10 rounded-xl border border-warning/30 bg-warning/5 p-4 text-xs text-muted-foreground">
-        ⚠️ Este texto es una <strong>plantilla de referencia</strong>, no
-        asesoría legal. Hazlo revisar por un profesional, especialmente si
-        manejas datos de menores de edad.
+      <p className="mt-10 flex items-start gap-2 rounded-xl border border-warning/30 bg-warning/5 p-4 text-xs text-muted-foreground">
+        <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" />
+        <span>
+          Este texto es una <strong>plantilla de referencia</strong>, no
+          asesoría legal. Hazlo revisar por un profesional, especialmente si
+          manejas datos de menores de edad.
+        </span>
       </p>
     </div>
   );

@@ -1,7 +1,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, CheckCheck } from "lucide-react";
+import {
+  Bell,
+  CheckCheck,
+  CheckCircle2,
+  FileText,
+  UserCheck,
+  Radio,
+} from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNotifications } from "@/hooks/useNotifications";
 import { markAllRead, markRead } from "@/services/notifications";
@@ -9,11 +16,11 @@ import { ensureNotifyPermission } from "@/lib/notify";
 import { enablePush } from "@/lib/push";
 import { cn } from "@/lib/utils";
 
-const TYPE_EMOJI: Record<string, string> = {
-  graded: "✅",
-  assignment: "📝",
-  teacher_approved: "🎉",
-  live: "🔴",
+const TYPE_ICON: Record<string, typeof Bell> = {
+  graded: CheckCircle2,
+  assignment: FileText,
+  teacher_approved: UserCheck,
+  live: Radio,
 };
 
 export function NotificationBell() {
@@ -84,7 +91,9 @@ export function NotificationBell() {
                   No tienes notificaciones aún.
                 </p>
               ) : (
-                items.map((n) => (
+                items.map((n) => {
+                  const TypeIcon = TYPE_ICON[n.type] ?? Bell;
+                  return (
                   <button
                     key={n.id}
                     onClick={() => openItem(n.id, n.link)}
@@ -93,7 +102,9 @@ export function NotificationBell() {
                       !n.read && "bg-primary/5",
                     )}
                   >
-                    <span className="text-lg">{TYPE_EMOJI[n.type] ?? "🔔"}</span>
+                    <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                      <TypeIcon className="size-3.5" />
+                    </span>
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-semibold">
                         {n.title}
@@ -111,7 +122,8 @@ export function NotificationBell() {
                       <span className="mt-1 size-2 shrink-0 rounded-full bg-primary" />
                     )}
                   </button>
-                ))
+                  );
+                })
               )}
             </motion.div>
           </>

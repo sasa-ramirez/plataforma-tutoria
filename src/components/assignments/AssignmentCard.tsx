@@ -37,7 +37,7 @@ export function AssignmentCard({
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="mb-1 flex flex-wrap items-center gap-1.5">
-                <span className="text-lg">{lang.emoji}</span>
+                <lang.icon className="size-4 shrink-0 text-muted-foreground" />
                 <h3 className="truncate font-bold">{assignment.title}</h3>
                 {assignment.is_exam && (
                   <Badge variant="destructive">

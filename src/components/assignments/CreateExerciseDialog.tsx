@@ -125,7 +125,7 @@ export function CreateExerciseDialog({
         });
       }
 
-      toast("Ejercicio añadido ✅", "success");
+      toast("Ejercicio añadido", "success");
       setOpen(false);
       reset();
     } catch (err) {

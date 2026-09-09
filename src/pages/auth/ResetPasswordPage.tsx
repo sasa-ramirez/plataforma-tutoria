@@ -46,7 +46,7 @@ export function ResetPasswordPage() {
     setLoading(true);
     try {
       await updatePassword(password);
-      toast("¡Contraseña actualizada! 🎉", "success");
+      toast("¡Contraseña actualizada!", "success");
       navigate("/app", { replace: true });
     } catch (err) {
       setError(

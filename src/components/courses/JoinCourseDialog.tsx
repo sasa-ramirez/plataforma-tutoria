@@ -25,7 +25,7 @@ export function JoinCourseDialog() {
     e.preventDefault();
     try {
       const course = await mutateAsync(code);
-      toast(`Te uniste a "${course.title}" 🎉`, "success");
+      toast(`Te uniste a "${course.title}"`, "success");
       setOpen(false);
       setCode("");
     } catch (err) {

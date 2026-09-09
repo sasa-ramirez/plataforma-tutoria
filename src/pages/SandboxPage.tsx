@@ -47,21 +47,24 @@ export function SandboxPage() {
 
       {/* Selector de lenguaje */}
       <div className="mb-3 flex flex-wrap gap-2">
-        {LANGS.map((l) => (
-          <button
-            key={l}
-            onClick={() => pickLang(l)}
-            className={cn(
-              "flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-semibold transition-colors",
-              lang === l
-                ? "bg-primary/15 text-primary ring-1 ring-primary/40"
-                : "bg-muted text-muted-foreground hover:bg-muted/70",
-            )}
-          >
-            <span>{LANGUAGE_META[l].emoji}</span>
-            {LANGUAGE_META[l].label}
-          </button>
-        ))}
+        {LANGS.map((l) => {
+          const Icon = LANGUAGE_META[l].icon;
+          return (
+            <button
+              key={l}
+              onClick={() => pickLang(l)}
+              className={cn(
+                "flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-semibold transition-colors",
+                lang === l
+                  ? "bg-primary/15 text-primary ring-1 ring-primary/40"
+                  : "bg-muted text-muted-foreground hover:bg-muted/70",
+              )}
+            >
+              <Icon className="size-4" />
+              {LANGUAGE_META[l].label}
+            </button>
+          );
+        })}
       </div>
 
       <CodeEditor

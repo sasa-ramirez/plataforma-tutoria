@@ -46,8 +46,13 @@ export function Achievements() {
                   : "opacity-70 grayscale",
               )}
             >
-              <div className="relative text-3xl">
-                {a.emoji}
+              <div
+                className={cn(
+                  "relative grid size-11 place-items-center rounded-2xl",
+                  a.unlocked ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
+                )}
+              >
+                <a.icon className="size-5" />
                 {!a.unlocked && (
                   <span className="absolute -bottom-1 -right-2 grid size-5 place-items-center rounded-full bg-muted text-muted-foreground">
                     <Lock className="size-3" />

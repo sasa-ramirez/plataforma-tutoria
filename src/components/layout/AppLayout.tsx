@@ -6,7 +6,7 @@ import {
   Dumbbell,
   User,
   LogOut,
-  GraduationCap,
+  Laptop,
   ShieldCheck,
   LineChart,
 } from "lucide-react";
@@ -58,7 +58,7 @@ export function AppLayout() {
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r bg-card/50 p-4 md:flex">
         <div className="flex items-center gap-2 px-2 py-3">
           <div className="grid size-9 place-items-center rounded-xl gradient-brand text-white">
-            <GraduationCap className="size-5" />
+            <Laptop className="size-5" />
           </div>
           <span className="text-lg font-extrabold tracking-tight">
             Kódea

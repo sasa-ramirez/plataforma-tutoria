@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Trophy, Flame } from "lucide-react";
+import { Trophy, Flame, Medal } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useLeaderboard } from "@/hooks/useGamification";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/common/EmptyState";
 import { cn, initials } from "@/lib/utils";
 
-const MEDAL = ["🥇", "🥈", "🥉"];
+const MEDAL_COLOR = ["text-warning", "text-zinc-400", "text-amber-700"];
 
 export function Leaderboard({ limit = 10 }: { limit?: number }) {
   const { profile } = useAuth();
@@ -42,8 +42,8 @@ export function Leaderboard({ limit = 10 }: { limit?: number }) {
                     : "hover:bg-muted/50",
                 )}
               >
-                <span className="w-6 text-center text-sm font-bold tabular-nums text-muted-foreground">
-                  {i < 3 ? MEDAL[i] : i + 1}
+                <span className="grid w-6 place-items-center text-sm font-bold tabular-nums text-muted-foreground">
+                  {i < 3 ? <Medal className={cn("size-4", MEDAL_COLOR[i])} /> : i + 1}
                 </span>
                 <Avatar className="size-8">
                   <AvatarImage src={u.avatar_url ?? undefined} />

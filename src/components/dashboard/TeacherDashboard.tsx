@@ -20,7 +20,7 @@ export function TeacherDashboard() {
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
         <p className="text-sm text-muted-foreground">Panel del profesor</p>
         <h1 className="text-2xl font-extrabold tracking-tight md:text-3xl">
-          Hola, {firstName} 👨‍🏫
+          Hola, {firstName}
         </h1>
       </motion.div>
 

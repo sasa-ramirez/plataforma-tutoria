@@ -51,7 +51,7 @@ export function AssignmentDetailPage() {
       return;
     try {
       await deleteAssignment(a.id);
-      toast("Tarea eliminada 🗑️", "success");
+      toast("Tarea eliminada", "success");
       navigate(`/app/courses/${a.course_id}`);
     } catch (err) {
       toast(err instanceof Error ? err.message : "No se pudo eliminar", "error");
@@ -103,7 +103,9 @@ export function AssignmentDetailPage() {
 
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
         <div className="mb-2 flex flex-wrap items-center gap-2">
-          <span className="text-2xl">{lang.emoji}</span>
+          <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+            <lang.icon className="size-5" />
+          </span>
           <h1 className="text-2xl font-extrabold tracking-tight">{a.title}</h1>
           {a.is_exam && (
             <Badge variant="destructive">

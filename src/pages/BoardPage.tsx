@@ -16,7 +16,7 @@ import {
   type Board,
 } from "@/services/board";
 import { detectLanguage } from "@/services/runner";
-import { STARTER_CODE } from "@/lib/constants";
+import { STARTER_CODE, LANGUAGE_META } from "@/lib/constants";
 import { Whiteboard, type WhiteboardHandle, type Segment } from "@/components/board/Whiteboard";
 import { CodeRunner } from "@/components/editor/CodeRunner";
 import { CodeEditor } from "@/components/editor/CodeEditor";
@@ -151,7 +151,7 @@ export function BoardPage() {
       event: "live",
       payload: { live: next },
     });
-    if (next) toast("¡Estás en vivo! Se avisó a tus estudiantes 🔴", "success");
+    if (next) toast("¡Estás en vivo! Se avisó a tus estudiantes.", "success");
   };
 
   const shareClass = async () => {
@@ -198,7 +198,7 @@ export function BoardPage() {
     }
     setPersonalText(text);
     setCodeTab("mio");
-    toast("Código del profe copiado a tu espacio ✏️", "success");
+    toast("Código del profe copiado a tu espacio", "success");
   };
 
   const toggleAllowWrite = () => {
@@ -426,8 +426,8 @@ export function BoardPage() {
 
       {/* Aviso al estudiante con permiso */}
       {!isTeacher && canWrite && (
-        <div className="rounded-xl border border-success/30 bg-success/5 px-3 py-2 text-sm font-medium text-success">
-          ✏️ El profe te dio permiso de escribir en el tablero
+        <div className="flex items-center gap-1.5 rounded-xl border border-success/30 bg-success/5 px-3 py-2 text-sm font-medium text-success">
+          <Pen className="size-4 shrink-0" /> El profe te dio permiso de escribir en el tablero
         </div>
       )}
 
@@ -509,7 +509,13 @@ export function BoardPage() {
                           : "bg-muted text-muted-foreground",
                       )}
                     >
-                      {l === "python" ? "🐍 Python" : "☕ Java"}
+                      <span className="inline-flex items-center gap-1">
+                        {(() => {
+                          const Icon = LANGUAGE_META[l].icon;
+                          return <Icon className="size-3.5" />;
+                        })()}
+                        {LANGUAGE_META[l].label}
+                      </span>
                     </button>
                   ))}
                   {!isTeacher && (
@@ -555,7 +561,13 @@ export function BoardPage() {
                           : "bg-muted text-muted-foreground",
                       )}
                     >
-                      {l === "python" ? "🐍 Python" : "☕ Java"}
+                      <span className="inline-flex items-center gap-1">
+                        {(() => {
+                          const Icon = LANGUAGE_META[l].icon;
+                          return <Icon className="size-3.5" />;
+                        })()}
+                        {LANGUAGE_META[l].label}
+                      </span>
                     </button>
                   ))}
                   <button

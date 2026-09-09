@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-import { GraduationCap } from "lucide-react";
+import { Laptop } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
@@ -50,7 +50,7 @@ export function LoginPage() {
     if (!email) return;
     try {
       await resendConfirmation(email);
-      toast("Correo de confirmación reenviado 📨", "success");
+      toast("Correo de confirmación reenviado", "success");
     } catch (err) {
       toast(err instanceof Error ? err.message : "No se pudo reenviar", "error");
     }
@@ -67,7 +67,7 @@ export function LoginPage() {
       >
         <div className="mb-8 flex flex-col items-center text-center">
           <div className="mb-3 grid size-14 place-items-center rounded-2xl gradient-brand text-white surface-glow">
-            <GraduationCap className="size-7" />
+            <Laptop className="size-7" />
           </div>
           <span className="mb-2 text-2xl font-extrabold tracking-tight text-gradient">
             Kódea
@@ -76,7 +76,7 @@ export function LoginPage() {
             Bienvenido de vuelta
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Continúa aprendiendo a programar 🚀
+            Continúa aprendiendo a programar
           </p>
         </div>
 

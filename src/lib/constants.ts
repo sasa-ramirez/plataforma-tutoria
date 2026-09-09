@@ -1,13 +1,14 @@
+import { Coffee, NotebookPen, Puzzle, Terminal, type LucideIcon } from "lucide-react";
 import type { Difficulty, ProgLanguage } from "@/types/database";
 
 export const LANGUAGE_META: Record<
   ProgLanguage,
-  { label: string; monaco: string; emoji: string }
+  { label: string; monaco: string; icon: LucideIcon }
 > = {
-  pseint: { label: "PSeInt", monaco: "pascal", emoji: "📘" },
-  java: { label: "Java", monaco: "java", emoji: "☕" },
-  python: { label: "Python", monaco: "python", emoji: "🐍" },
-  logic: { label: "Lógica", monaco: "plaintext", emoji: "🧩" },
+  pseint: { label: "PSeInt", monaco: "pascal", icon: NotebookPen },
+  java: { label: "Java", monaco: "java", icon: Coffee },
+  python: { label: "Python", monaco: "python", icon: Terminal },
+  logic: { label: "Lógica", monaco: "plaintext", icon: Puzzle },
 };
 
 export const DIFFICULTY_META: Record<

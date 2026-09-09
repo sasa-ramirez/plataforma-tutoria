@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, AlertTriangle } from "lucide-react";
 
 /**
  * PLANTILLA de Política de Privacidad / Tratamiento de Datos.
@@ -122,9 +122,12 @@ export function PrivacyPage() {
         </section>
       </div>
 
-      <p className="mt-10 rounded-xl border border-warning/30 bg-warning/5 p-4 text-xs text-muted-foreground">
-        ⚠️ Plantilla de referencia, no asesoría legal. Adáptala a la ley de tu
-        país y revísala con un abogado, en especial respecto a menores de edad.
+      <p className="mt-10 flex items-start gap-2 rounded-xl border border-warning/30 bg-warning/5 p-4 text-xs text-muted-foreground">
+        <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" />
+        <span>
+          Plantilla de referencia, no asesoría legal. Adáptala a la ley de tu
+          país y revísala con un abogado, en especial respecto a menores de edad.
+        </span>
       </p>
     </div>
   );

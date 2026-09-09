@@ -20,7 +20,7 @@ export function WeeklyChallenge({ weekCount }: { weekCount: number }) {
             <p className="font-bold">Reto semanal</p>
             <p className="text-xs text-muted-foreground">
               {complete
-                ? "¡Completado! 🎉 Vuelve la próxima semana"
+                ? "¡Completado! Vuelve la próxima semana"
                 : `Resuelve ${WEEKLY_GOAL} ejercicios esta semana`}
             </p>
           </div>

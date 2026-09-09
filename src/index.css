@@ -4,65 +4,67 @@
 
 @layer base {
   :root {
-    /* Modo claro (secundario — la app brilla en oscuro) */
-    --background: 240 30% 99%;
-    --foreground: 240 20% 12%;
+    /* Modo claro — paleta institucional Universidad de La Guajira
+       (aguamarina, ocre, rosa flamenco, tomada del escudo oficial) */
+    --background: 40 25% 97%;
+    --foreground: 200 20% 12%;
     --card: 0 0% 100%;
-    --card-foreground: 240 20% 12%;
+    --card-foreground: 200 20% 12%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 20% 12%;
-    --primary: 235 86% 62%;
+    --popover-foreground: 200 20% 12%;
+    --primary: 190 58% 30%;         /* aguamarina */
     --primary-foreground: 0 0% 100%;
-    --secondary: 240 30% 96%;
-    --secondary-foreground: 240 20% 18%;
-    --muted: 240 25% 95%;
-    --muted-foreground: 240 8% 46%;
-    --accent: 190 95% 45%;
+    --secondary: 40 20% 94%;
+    --secondary-foreground: 200 15% 20%;
+    --muted: 40 18% 95%;
+    --muted-foreground: 200 10% 40%;
+    --accent: 5 55% 55%;            /* rosa flamenco */
     --accent-foreground: 0 0% 100%;
-    --success: 145 70% 42%;
+    --success: 152 45% 36%;
     --success-foreground: 0 0% 100%;
-    --warning: 38 95% 55%;
-    --warning-foreground: 30 40% 12%;
-    --destructive: 348 83% 58%;
+    --warning: 36 65% 45%;          /* ocre */
+    --warning-foreground: 30 45% 12%;
+    --destructive: 3 62% 46%;
     --destructive-foreground: 0 0% 100%;
-    --border: 240 20% 90%;
-    --input: 240 20% 90%;
-    --ring: 235 86% 62%;
+    --border: 40 20% 88%;
+    --input: 40 20% 88%;
+    --ring: 190 58% 30%;
     --radius: 1rem;
   }
 
-  /* ===== MODO OSCURO — Discord × Spotify (estrella) ===== */
+  /* Modo oscuro — misma paleta institucional, en reserva para un futuro
+     selector de tema (la app usa modo claro por defecto). */
   .dark {
-    --background: 240 24% 6%;       /* casi negro azulado, elegante */
-    --foreground: 240 20% 96%;
+    --background: 195 18% 7%;
+    --foreground: 40 15% 95%;
 
-    --card: 240 20% 10%;            /* superficie elevada tipo Discord */
-    --card-foreground: 240 20% 96%;
-    --popover: 240 22% 9%;
-    --popover-foreground: 240 20% 96%;
+    --card: 195 14% 11%;
+    --card-foreground: 40 15% 95%;
+    --popover: 195 16% 10%;
+    --popover-foreground: 40 15% 95%;
 
-    --primary: 235 89% 66%;         /* blurple (#5865F2) */
-    --primary-foreground: 0 0% 100%;
+    --primary: 190 48% 48%;
+    --primary-foreground: 195 30% 8%;
 
-    --secondary: 240 16% 15%;
-    --secondary-foreground: 240 20% 92%;
+    --secondary: 195 12% 16%;
+    --secondary-foreground: 40 12% 90%;
 
-    --muted: 240 14% 15%;
-    --muted-foreground: 240 12% 64%;
+    --muted: 195 10% 15%;
+    --muted-foreground: 40 8% 64%;
 
-    --accent: 190 95% 55%;          /* cyan eléctrico */
-    --accent-foreground: 240 30% 7%;
+    --accent: 5 55% 62%;
+    --accent-foreground: 195 30% 8%;
 
-    --success: 145 65% 50%;
-    --success-foreground: 240 30% 7%;
-    --warning: 38 92% 58%;
+    --success: 152 40% 48%;
+    --success-foreground: 195 30% 8%;
+    --warning: 36 62% 54%;
     --warning-foreground: 30 40% 10%;
-    --destructive: 348 90% 64%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 3 55% 52%;
+    --destructive-foreground: 195 30% 8%;
 
-    --border: 240 14% 17%;
-    --input: 240 14% 17%;
-    --ring: 235 89% 66%;
+    --border: 195 12% 17%;
+    --input: 195 12% 17%;
+    --ring: 190 48% 48%;
   }
 }
 
@@ -81,24 +83,26 @@
     padding: env(safe-area-inset-top) env(safe-area-inset-right)
       env(safe-area-inset-bottom) env(safe-area-inset-left);
   }
-  /* Fondo elegante con halos de color (azul/morado/cyan) en oscuro */
+  /* Halos suaves con la paleta institucional (aguamarina/ocre/rosa), en oscuro */
   .dark body {
     background-image:
-      radial-gradient(60rem 60rem at 110% -10%, hsl(235 89% 66% / 0.14), transparent 60%),
-      radial-gradient(50rem 50rem at -10% 10%, hsl(270 90% 65% / 0.12), transparent 55%),
-      radial-gradient(40rem 40rem at 50% 120%, hsl(190 95% 55% / 0.10), transparent 60%);
+      radial-gradient(60rem 60rem at 110% -10%, hsl(190 48% 48% / 0.10), transparent 60%),
+      radial-gradient(50rem 50rem at -10% 10%, hsl(36 62% 54% / 0.08), transparent 55%),
+      radial-gradient(40rem 40rem at 50% 120%, hsl(5 55% 62% / 0.07), transparent 60%);
     background-attachment: fixed;
   }
 }
 
 @layer utilities {
-  /* Gradiente de marca tricolor: azul → morado → cyan */
+  /* Gradiente de marca tricolor: aguamarina → ocre → rosa flamenco
+     (colores del escudo de la Universidad de La Guajira). Uso puntual,
+     no como fondo general. */
   .gradient-brand {
     background-image: linear-gradient(
       135deg,
-      hsl(235 89% 66%) 0%,
-      hsl(270 90% 66%) 50%,
-      hsl(190 95% 58%) 100%
+      hsl(190 55% 32%) 0%,
+      hsl(36 70% 42%) 50%,
+      hsl(5 55% 45%) 100%
     );
   }
   .text-gradient {
@@ -133,7 +137,7 @@
 
   /* Anillo con gradiente (para avatares/CTAs destacados) */
   .ring-brand {
-    box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(235 89% 66% / 0.6);
+    box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(190 58% 30% / 0.6);
   }
 
   /* Skeleton shimmer */
@@ -162,8 +166,8 @@
 
   /* Brillo pulsante suave para CTAs/logros */
   @keyframes glow-pulse {
-    0%, 100% { box-shadow: 0 0 0 0 hsl(235 89% 66% / 0.5); }
-    50% { box-shadow: 0 0 24px 4px hsl(235 89% 66% / 0.35); }
+    0%, 100% { box-shadow: 0 0 0 0 hsl(190 58% 30% / 0.5); }
+    50% { box-shadow: 0 0 24px 4px hsl(190 58% 30% / 0.35); }
   }
   .glow-pulse {
     animation: glow-pulse 2.4s ease-in-out infinite;

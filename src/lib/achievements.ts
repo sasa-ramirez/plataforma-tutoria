@@ -1,3 +1,5 @@
+import { Flame, Footprints, Gem, Sprout, Star, Target, Zap, type LucideIcon } from "lucide-react";
+
 /** Stats reales del estudiante con los que se calculan los logros. */
 export interface GameStats {
   xp: number;
@@ -11,7 +13,7 @@ export interface Achievement {
   id: string;
   title: string;
   description: string;
-  emoji: string;
+  icon: LucideIcon;
   goal: number;
   current: (s: GameStats) => number;
 }
@@ -22,7 +24,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     id: "first_step",
     title: "Primer paso",
     description: "Completa tu primer ejercicio",
-    emoji: "🌱",
+    icon: Sprout,
     goal: 1,
     current: (s) => s.gradedCount,
   },
@@ -30,7 +32,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     id: "unstoppable",
     title: "Imparable",
     description: "Completa 10 ejercicios",
-    emoji: "⚡",
+    icon: Zap,
     goal: 10,
     current: (s) => s.gradedCount,
   },
@@ -38,7 +40,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     id: "marathon",
     title: "Maratonista",
     description: "Completa 25 ejercicios",
-    emoji: "🏃",
+    icon: Footprints,
     goal: 25,
     current: (s) => s.gradedCount,
   },
@@ -46,7 +48,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     id: "streak3",
     title: "En racha",
     description: "Programa 3 días seguidos",
-    emoji: "🔥",
+    icon: Flame,
     goal: 3,
     current: (s) => s.streak,
   },
@@ -54,7 +56,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     id: "streak7",
     title: "Una semana imparable",
     description: "Programa 7 días seguidos",
-    emoji: "🌟",
+    icon: Star,
     goal: 7,
     current: (s) => s.streak,
   },
@@ -62,7 +64,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     id: "perfect",
     title: "Perfeccionista",
     description: "Consigue un 100 en un ejercicio",
-    emoji: "💯",
+    icon: Target,
     goal: 100,
     current: (s) => s.bestScore,
   },
@@ -70,7 +72,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     id: "xp500",
     title: "Cazador de XP",
     description: "Acumula 500 XP",
-    emoji: "💎",
+    icon: Gem,
     goal: 500,
     current: (s) => s.xp,
   },

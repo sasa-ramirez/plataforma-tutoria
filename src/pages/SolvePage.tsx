@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, BookOpen, Eye, Sparkles, Timer, Lock } from "lucide-react";
+import { ArrowLeft, BookOpen, Eye, Send, Timer, Lock } from "lucide-react";
 import { useExercise, useAssignment } from "@/hooks/useAssignments";
 import { useExamGuard } from "@/hooks/useExamGuard";
 import { useToast } from "@/components/ui/toast";
@@ -48,9 +48,9 @@ export function SolvePage() {
     enabled: isExam,
     onWarning: (event) => {
       if (event === "window_hidden")
-        toast("⚠️ Saliste de la pantalla. Quedó registrado.", "error");
+        toast("Saliste de la pantalla. Quedó registrado.", "error");
       if (event === "paste")
-        toast("⚠️ Pegado detectado. Quedó registrado.", "error");
+        toast("Pegado detectado. Quedó registrado.", "error");
     },
   });
 
@@ -260,7 +260,7 @@ export function SolvePage() {
                     <Spinner className="size-4" />
                   ) : (
                     <>
-                      <Sparkles className="size-4" /> Enviar para revisión
+                      <Send className="size-4" /> Enviar para revisión
                     </>
                   )}
                 </Button>
@@ -296,10 +296,7 @@ export function SolvePage() {
               className="flex items-center justify-center gap-2 rounded-xl border bg-card py-6 text-sm text-muted-foreground"
             >
               <Spinner className="size-4" />
-              <span className="flex items-center gap-1">
-                <Sparkles className="size-4 text-primary" /> La IA está
-                revisando tu código…
-              </span>
+              <span>La IA está revisando tu código…</span>
             </motion.div>
           )}
           {feedback && !submitting && (

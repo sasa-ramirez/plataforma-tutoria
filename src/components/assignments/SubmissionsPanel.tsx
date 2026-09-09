@@ -48,7 +48,7 @@ function ExamTimeline({ submissionId }: { submissionId: string }) {
   if (!data || data.length === 0)
     return (
       <p className="px-2 py-3 text-xs text-muted-foreground">
-        Sin eventos registrados. 🎉
+        Sin eventos registrados.
       </p>
     );
 
