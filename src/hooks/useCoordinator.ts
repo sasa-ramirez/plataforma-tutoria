@@ -5,8 +5,10 @@ import {
   fetchGroupAssignments,
   fetchStudents,
   fetchStudentSubmissions,
+  fetchGroupStudents,
   createGroup,
   addStudents,
+  removeStudent,
 } from "@/services/coordinator";
 
 export function useCoordOverview() {
@@ -54,6 +56,27 @@ export function useAddStudents(courseId: string) {
     mutationFn: (emails: string[]) => addStudents(courseId, emails),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["coord", "groups"] });
+      qc.invalidateQueries({ queryKey: ["coord", "group-students", courseId] });
+    },
+  });
+}
+
+export function useCoordGroupStudents(courseId: string | null) {
+  return useQuery({
+    queryKey: ["coord", "group-students", courseId],
+    queryFn: () => fetchGroupStudents(courseId as string),
+    enabled: !!courseId,
+  });
+}
+
+export function useRemoveStudent(courseId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (studentId: string) => removeStudent(courseId, studentId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["coord", "groups"] });
+      qc.invalidateQueries({ queryKey: ["coord", "group-students", courseId] });
+      qc.invalidateQueries({ queryKey: ["coord", "students"] });
     },
   });
 }

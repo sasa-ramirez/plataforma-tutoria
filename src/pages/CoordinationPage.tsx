@@ -11,6 +11,8 @@ import {
   Clock,
   Copy,
   UserPlus,
+  UserX,
+  Download,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -28,10 +30,12 @@ import {
   useCoordGroupAssignments,
   useCoordStudents,
   useCoordStudentSubmissions,
+  useCoordGroupStudents,
   useAddStudents,
+  useRemoveStudent,
 } from "@/hooks/useCoordinator";
 import { cn } from "@/lib/utils";
-import type { CoordGroup } from "@/services/coordinator";
+import type { CoordGroup, CoordStudent } from "@/services/coordinator";
 
 type Tab = "resumen" | "grupos" | "estudiantes";
 
@@ -40,6 +44,44 @@ function scoreColor(s: number | null) {
   if (s >= 60) return "text-success";
   if (s >= 40) return "text-warning";
   return "text-destructive";
+}
+
+/** Descarga el reporte de estudiantes como CSV (se abre bien en Excel/Sheets). */
+function exportStudentsCSV(students: CoordStudent[]) {
+  const header = [
+    "Nombre",
+    "Correo",
+    "Cursos",
+    "Entregas",
+    "Promedio",
+    "XP",
+    "Racha",
+    "Última actividad",
+  ];
+  const rows = students.map((s) => [
+    s.full_name ?? "",
+    s.email,
+    s.courses,
+    s.submissions,
+    s.avg_score ?? "",
+    s.xp,
+    s.streak,
+    s.last_active ?? "",
+  ]);
+  const escape = (v: unknown) => `"${String(v).replace(/"/g, '""')}"`;
+  const csv = [header, ...rows].map((r) => r.map(escape).join(",")).join("\n");
+  // BOM al inicio para que Excel detecte UTF-8 y no rompa tildes/ñ.
+  const blob = new Blob([String.fromCharCode(0xfeff) + csv], {
+    type: "text/csv;charset=utf-8;",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `estudiantes_${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 export function CoordinationPage() {
@@ -190,8 +232,78 @@ function GroupDetail({ group }: { group: CoordGroup }) {
         )}
       </div>
 
+      <GroupStudents courseId={group.course_id} />
       <AddStudents courseId={group.course_id} />
       <GroupTasks courseId={group.course_id} />
+    </div>
+  );
+}
+
+function GroupStudents({ courseId }: { courseId: string }) {
+  const { toast } = useToast();
+  const { data, isLoading } = useCoordGroupStudents(courseId);
+  const { mutateAsync: remove, isPending } = useRemoveStudent(courseId);
+  const [removingId, setRemovingId] = useState<string | null>(null);
+
+  const handleRemove = async (studentId: string, name: string | null) => {
+    if (!window.confirm(`¿Quitar a ${name ?? "este estudiante"} del grupo?`))
+      return;
+    setRemovingId(studentId);
+    try {
+      await remove(studentId);
+      toast("Estudiante removido del grupo", "success");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "No se pudo quitar", "error");
+    } finally {
+      setRemovingId(null);
+    }
+  };
+
+  if (isLoading) return <Skeleton className="h-10 w-full" />;
+  if (!data || data.length === 0)
+    return (
+      <p className="text-xs text-muted-foreground">
+        Aún no hay estudiantes en este grupo.
+      </p>
+    );
+
+  return (
+    <div className="space-y-2">
+      <p className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground">
+        <Users className="size-3.5" /> Estudiantes del grupo ({data.length})
+      </p>
+      <div className="space-y-1.5">
+        {data.map((s) => (
+          <div
+            key={s.student_id}
+            className="flex items-center gap-2 rounded-lg border px-2.5 py-1.5"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium">
+                {s.full_name ?? "Estudiante"}
+              </p>
+              <p className="truncate text-xs text-muted-foreground">
+                {s.email}
+              </p>
+            </div>
+            <span className={cn("shrink-0 text-xs font-bold", scoreColor(s.avg_score))}>
+              {s.avg_score ?? "—"}
+            </span>
+            <button
+              onClick={() => handleRemove(s.student_id, s.full_name)}
+              disabled={isPending && removingId === s.student_id}
+              className="shrink-0 rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+              aria-label={`Quitar a ${s.full_name ?? "estudiante"} del grupo`}
+            >
+              {isPending && removingId === s.student_id ? (
+                <Spinner className="size-4" />
+              ) : (
+                <UserX className="size-4" />
+              )}
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -279,6 +391,15 @@ function Estudiantes() {
 
   return (
     <div className="space-y-2">
+      <div className="mb-1 flex justify-end">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => exportStudentsCSV(data)}
+        >
+          <Download className="size-4" /> Exportar CSV
+        </Button>
+      </div>
       {data.map((s) => (
         <Card key={s.student_id}>
           <button

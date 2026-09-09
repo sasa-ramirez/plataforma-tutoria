@@ -52,6 +52,15 @@ export interface CoordStudentSubmission {
   submitted_at: string | null;
 }
 
+export interface CoordGroupStudent {
+  student_id: string;
+  full_name: string | null;
+  email: string;
+  submissions: number;
+  avg_score: number | null;
+  enrolled_at: string;
+}
+
 export async function fetchOverview(): Promise<CoordOverview> {
   const { data, error } = await supabase.rpc("coord_overview");
   if (error) throw new Error(error.message);
@@ -118,4 +127,27 @@ export async function addStudents(
   });
   if (error) throw new Error(error.message);
   return data as { added: number; missing: string[] };
+}
+
+/** Estudiantes inscritos en un grupo (para poder quitarlos). */
+export async function fetchGroupStudents(
+  courseId: string,
+): Promise<CoordGroupStudent[]> {
+  const { data, error } = await supabase.rpc("coord_group_students", {
+    p_course: courseId,
+  });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as CoordGroupStudent[];
+}
+
+/** Quita a un estudiante de un grupo (y lo notifica). */
+export async function removeStudent(
+  courseId: string,
+  studentId: string,
+): Promise<void> {
+  const { error } = await supabase.rpc("coord_remove_student", {
+    p_course: courseId,
+    p_student: studentId,
+  });
+  if (error) throw new Error(error.message);
 }

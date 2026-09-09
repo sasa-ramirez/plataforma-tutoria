@@ -7,7 +7,10 @@ import {
   CheckCircle2,
   FileText,
   UserCheck,
+  UserX,
   Radio,
+  GraduationCap,
+  BookOpen,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -21,6 +24,9 @@ const TYPE_ICON: Record<string, typeof Bell> = {
   assignment: FileText,
   teacher_approved: UserCheck,
   live: Radio,
+  group_tutor: GraduationCap,
+  group_assigned: BookOpen,
+  group_removed: UserX,
 };
 
 export function NotificationBell() {
