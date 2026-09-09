@@ -226,7 +226,7 @@ export function AssignmentDetailPage() {
                           className="overflow-hidden"
                         >
                           <div className="mt-3 border-t pt-3">
-                            <SubmissionsPanel exerciseId={ex.id} />
+                            <SubmissionsPanel exerciseId={ex.id} prompt={ex.prompt} />
                           </div>
                         </motion.div>
                       )}

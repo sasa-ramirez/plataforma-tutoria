@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, BookOpen, CheckCircle2, XCircle, Lock } from "lucide-react";
@@ -10,6 +10,7 @@ import { Spinner } from "@/components/common/Spinner";
 import { MathText } from "@/components/common/MathText";
 import { useToast } from "@/components/ui/toast";
 import { submitAnswer, type GradeResult } from "@/services/assignments";
+import { fetchLatestSubmission } from "@/services/submissions";
 import { DIFFICULTY_META } from "@/lib/constants";
 import { isAssignmentOpen, cn } from "@/lib/utils";
 import type { Assignment, Exercise } from "@/types/database";
@@ -28,9 +29,32 @@ export function AnswerExercise({
   const [value, setValue] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<GradeResult | null>(null);
+  const [checkingAttempt, setCheckingAttempt] = useState(!!assignment?.is_exam);
+  const [attemptUsed, setAttemptUsed] = useState<{ score: number | null } | null>(null);
 
   const diff = DIFFICULTY_META[exercise.difficulty];
-  const locked = !!assignment && !isAssignmentOpen(assignment);
+  const isExam = !!assignment?.is_exam;
+  const locked = (!!assignment && !isAssignmentOpen(assignment)) || !!attemptUsed;
+
+  // Modo examen: un solo intento. Si ya hay una entrega, se bloquea el
+  // formulario y se muestra la nota que ya se obtuvo.
+  useEffect(() => {
+    if (!isExam) return;
+    let active = true;
+    fetchLatestSubmission(exercise.id)
+      .then((sub) => {
+        if (!active) return;
+        if (sub && sub.status !== "draft" && sub.status !== "error") {
+          setAttemptUsed({ score: sub.score });
+        }
+      })
+      .finally(() => {
+        if (active) setCheckingAttempt(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [exercise.id, isExam]);
 
   const canSubmit =
     exercise.type === "multiple_choice" ? selected !== null : value.trim() !== "";
@@ -83,7 +107,12 @@ export function AnswerExercise({
 
         {locked && (
           <div className="flex items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm font-medium text-destructive">
-            <Lock className="size-5 shrink-0" /> Esta tarea está cerrada.
+            <Lock className="size-5 shrink-0" />
+            {attemptUsed
+              ? `Modo examen: ya usaste tu único intento.${
+                  attemptUsed.score != null ? ` Nota: ${attemptUsed.score}/100` : ""
+                }`
+              : "Esta tarea está cerrada."}
           </div>
         )}
 
@@ -94,7 +123,7 @@ export function AnswerExercise({
               <button
                 key={i}
                 type="button"
-                disabled={locked || !!result}
+                disabled={locked || checkingAttempt || !!result}
                 onClick={() => setSelected(i)}
                 className={cn(
                   "flex w-full items-center gap-3 rounded-xl border p-4 text-left text-sm transition-colors",
@@ -128,7 +157,7 @@ export function AnswerExercise({
                 inputMode="decimal"
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
-                disabled={locked || !!result}
+                disabled={locked || checkingAttempt || !!result}
                 placeholder="Escribe el resultado…"
                 className="text-lg"
               />
@@ -165,12 +194,16 @@ export function AnswerExercise({
         </AnimatePresence>
 
         {/* Acciones */}
-        {!result ? (
+        {attemptUsed || (result && isExam) ? (
+          <Button variant="outline" className="w-full" onClick={() => navigate(-1)}>
+            Volver
+          </Button>
+        ) : !result ? (
           <Button
             variant="brand"
             size="lg"
             className="w-full"
-            disabled={!canSubmit || submitting || locked}
+            disabled={!canSubmit || submitting || checkingAttempt || locked}
             onClick={submit}
           >
             {submitting ? <Spinner className="size-4" /> : "Enviar respuesta"}

@@ -62,6 +62,15 @@ export function CreateAssignmentDialog({ courseId }: { courseId: string }) {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (Number(form.points) < 0) {
+      toast("Los puntos no pueden ser negativos.", "error");
+      return;
+    }
+    if (form.time_limit_min && Number(form.time_limit_min) < 0) {
+      toast("El tiempo límite no puede ser negativo.", "error");
+      return;
+    }
+
     // Evita el bug de crear una tarea ya cerrada (cierre en el pasado o muy pronto).
     if (form.closes_at) {
       const closeMs = new Date(form.closes_at).getTime();
@@ -241,6 +250,7 @@ export function CreateAssignmentDialog({ courseId }: { courseId: string }) {
                 id="pts"
                 type="number"
                 inputMode="numeric"
+                min={0}
                 value={form.points}
                 onChange={(e) => set("points", Number(e.target.value))}
               />
@@ -251,6 +261,7 @@ export function CreateAssignmentDialog({ courseId }: { courseId: string }) {
                 id="lim"
                 type="number"
                 inputMode="numeric"
+                min={0}
                 placeholder="Opcional"
                 value={form.time_limit_min}
                 onChange={(e) => set("time_limit_min", e.target.value)}

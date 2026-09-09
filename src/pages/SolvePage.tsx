@@ -33,6 +33,9 @@ export function SolvePage() {
 
   const { data: exercise, isLoading } = useExercise(exerciseId);
   const { data: assignment } = useAssignment(exercise?.assignment_id ?? "");
+  // Evita crear el borrador antes de saber si la tarea es examen: si hay
+  // assignment_id, esperamos a que cargue para no perder la restricción.
+  const assignmentReady = !exercise?.assignment_id || !!assignment;
 
   const [submission, setSubmission] = useState<Submission | null>(null);
   const [code, setCode] = useState("");
@@ -58,17 +61,18 @@ export function SolvePage() {
   useEffect(() => {
     if (
       !exercise ||
+      !assignmentReady ||
       exercise.type === "multiple_choice" ||
       exercise.type === "numeric"
     )
       return;
     let active = true;
-    getOrCreateDraft(exercise.id, exercise.language, exercise.starter_code)
+    getOrCreateDraft(exercise.id, exercise.language, exercise.starter_code, isExam)
       .then(async (sub) => {
         if (!active) return;
         setSubmission(sub);
         setCode(sub.code);
-        if (sub.status === "graded") {
+        if (sub.status !== "draft") {
           const fb = await fetchFeedback(sub.id);
           if (active) setFeedback(fb);
         }
@@ -78,7 +82,7 @@ export function SolvePage() {
       active = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [exercise?.id]);
+  }, [exercise?.id, assignmentReady, isExam]);
 
   // Autoguardado de borrador (debounced)
   const handleChange = useCallback(
@@ -143,7 +147,9 @@ export function SolvePage() {
   const timeUp = remainingMs !== null && remainingMs <= 0;
   const closedByDate =
     !!assignment && !isAssignmentOpen(assignment);
-  const locked = timeUp || closedByDate;
+  // Modo examen: un solo intento — si la entrega ya se envió, se bloquea.
+  const attemptUsed = isExam && !!submission && submission.status !== "draft";
+  const locked = timeUp || closedByDate || attemptUsed;
 
   // Auto-envío al agotarse el tiempo (una sola vez)
   const autoSent = useRef(false);
@@ -233,7 +239,9 @@ export function SolvePage() {
             <Lock className="size-5 shrink-0" />
             {timeUp
               ? "Se acabó el tiempo. Tu trabajo se envió automáticamente."
-              : "Esta tarea está cerrada. Ya no puedes enviar."}
+              : attemptUsed
+                ? "Modo examen: ya usaste tu único intento."
+                : "Esta tarea está cerrada. Ya no puedes enviar."}
           </div>
         )}
 

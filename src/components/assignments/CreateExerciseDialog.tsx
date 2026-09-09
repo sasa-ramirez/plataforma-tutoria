@@ -84,6 +84,10 @@ export function CreateExerciseDialog({
       toast("Escribe la respuesta numérica correcta.", "error");
       return;
     }
+    if (type === "numeric" && Number(tolerance) < 0) {
+      toast("La tolerancia no puede ser negativa.", "error");
+      return;
+    }
 
     try {
       const base = {
@@ -287,6 +291,7 @@ export function CreateExerciseDialog({
                   id="ex-tol"
                   type="number"
                   step="any"
+                  min={0}
                   inputMode="decimal"
                   value={tolerance}
                   onChange={(e) => setTolerance(e.target.value)}

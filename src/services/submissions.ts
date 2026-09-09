@@ -26,10 +26,16 @@ export async function getOrCreateDraft(
   exerciseId: string,
   language: ProgLanguage,
   starter: string,
+  isExam = false,
 ): Promise<Submission> {
   const latest = await fetchLatestSubmission(exerciseId);
   // Si la última sigue siendo borrador, la reusamos.
   if (latest && latest.status === "draft") return latest;
+
+  // Modo examen: un solo intento. Si ya hay una entrega enviada (no un
+  // error transitorio de la IA), no se crea un intento nuevo — se
+  // devuelve la existente para mostrarla de solo lectura.
+  if (isExam && latest && latest.status !== "error") return latest;
 
   const { data: userData } = await supabase.auth.getUser();
   const studentId = userData.user?.id;
