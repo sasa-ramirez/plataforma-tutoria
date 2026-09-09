@@ -12,7 +12,7 @@
     --card-foreground: 200 20% 12%;
     --popover: 0 0% 100%;
     --popover-foreground: 200 20% 12%;
-    --primary: 190 58% 30%;         /* aguamarina */
+    --primary: 187 88% 21%;         /* azul petróleo institucional (uniguajira.edu.co) */
     --primary-foreground: 0 0% 100%;
     --secondary: 40 20% 94%;
     --secondary-foreground: 200 15% 20%;
@@ -28,7 +28,7 @@
     --destructive-foreground: 0 0% 100%;
     --border: 40 20% 88%;
     --input: 40 20% 88%;
-    --ring: 190 58% 30%;
+    --ring: 187 88% 21%;
     --radius: 1rem;
   }
 
@@ -43,7 +43,7 @@
     --popover: 195 16% 10%;
     --popover-foreground: 40 15% 95%;
 
-    --primary: 190 48% 48%;
+    --primary: 187 55% 46%;
     --primary-foreground: 195 30% 8%;
 
     --secondary: 195 12% 16%;
@@ -64,7 +64,7 @@
 
     --border: 195 12% 17%;
     --input: 195 12% 17%;
-    --ring: 190 48% 48%;
+    --ring: 187 55% 46%;
   }
 }
 
@@ -83,10 +83,10 @@
     padding: env(safe-area-inset-top) env(safe-area-inset-right)
       env(safe-area-inset-bottom) env(safe-area-inset-left);
   }
-  /* Halos suaves con la paleta institucional (aguamarina/ocre/rosa), en oscuro */
+  /* Halos suaves con la paleta institucional (azul petróleo/ocre/rosa), en oscuro */
   .dark body {
     background-image:
-      radial-gradient(60rem 60rem at 110% -10%, hsl(190 48% 48% / 0.10), transparent 60%),
+      radial-gradient(60rem 60rem at 110% -10%, hsl(187 55% 46% / 0.10), transparent 60%),
       radial-gradient(50rem 50rem at -10% 10%, hsl(36 62% 54% / 0.08), transparent 55%),
       radial-gradient(40rem 40rem at 50% 120%, hsl(5 55% 62% / 0.07), transparent 60%);
     background-attachment: fixed;
@@ -94,15 +94,13 @@
 }
 
 @layer utilities {
-  /* Gradiente de marca tricolor: aguamarina → ocre → rosa flamenco
-     (colores del escudo de la Universidad de La Guajira). Uso puntual,
-     no como fondo general. */
+  /* Azul petróleo institucional (el mismo tono del sitio uniguajira.edu.co),
+     con un leve matiz para dar profundidad sin mezclar varios colores. */
   .gradient-brand {
     background-image: linear-gradient(
       135deg,
-      hsl(190 55% 32%) 0%,
-      hsl(36 70% 42%) 50%,
-      hsl(5 55% 45%) 100%
+      hsl(190 90% 17%) 0%,
+      hsl(186 80% 26%) 100%
     );
   }
   .text-gradient {
@@ -126,7 +124,7 @@
     border-color: hsl(var(--primary) / 0.5);
     box-shadow:
       0 1px 0 hsl(0 0% 100% / 0.05) inset,
-      0 18px 40px -18px hsl(235 89% 66% / 0.45);
+      0 18px 40px -18px hsl(var(--primary) / 0.45);
   }
 
   /* Vidrio (glassmorphism) para barras/nav */
@@ -137,7 +135,7 @@
 
   /* Anillo con gradiente (para avatares/CTAs destacados) */
   .ring-brand {
-    box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(190 58% 30% / 0.6);
+    box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--primary) / 0.6);
   }
 
   /* Skeleton shimmer */
@@ -166,8 +164,8 @@
 
   /* Brillo pulsante suave para CTAs/logros */
   @keyframes glow-pulse {
-    0%, 100% { box-shadow: 0 0 0 0 hsl(190 58% 30% / 0.5); }
-    50% { box-shadow: 0 0 24px 4px hsl(190 58% 30% / 0.35); }
+    0%, 100% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0.5); }
+    50% { box-shadow: 0 0 24px 4px hsl(var(--primary) / 0.35); }
   }
   .glow-pulse {
     animation: glow-pulse 2.4s ease-in-out infinite;

@@ -116,7 +116,7 @@ export function AppLayout() {
       </aside>
 
       {/* Contenido */}
-      <main className="flex-1 pb-24 md:pb-0">
+      <main className="flex-1 pb-28 md:pb-0">
         {/* Barra superior con la campanita */}
         <div className="sticky top-0 z-30 flex items-center justify-between glass px-4 py-2 md:justify-end md:px-8">
           <span className="font-extrabold tracking-tight md:hidden">Kódea</span>
@@ -137,10 +137,10 @@ export function AppLayout() {
         </div>
       </main>
 
-      {/* Bottom nav (mobile) */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t bg-card/90 backdrop-blur-lg md:hidden">
+      {/* Bottom nav (mobile) — flotante, como el selector de Coordinación */}
+      <nav className="fixed inset-x-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-40 mx-auto max-w-md rounded-2xl border bg-card/95 p-1.5 shadow-lg backdrop-blur-lg surface-glow md:hidden">
         <div
-          className="mx-auto grid max-w-md"
+          className="grid gap-1"
           style={{
             gridTemplateColumns: `repeat(${NAV_ITEMS.length}, minmax(0, 1fr))`,
           }}
@@ -152,7 +152,7 @@ export function AppLayout() {
               end={item.end}
               className={({ isActive }) =>
                 cn(
-                  "relative flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors",
+                  "relative flex flex-col items-center gap-1 rounded-xl py-2 text-[11px] font-medium transition-colors",
                   isActive ? "text-primary" : "text-muted-foreground",
                 )
               }
@@ -161,12 +161,13 @@ export function AppLayout() {
                 <>
                   {isActive && (
                     <motion.span
-                      layoutId="tab-indicator"
-                      className="absolute -top-px h-0.5 w-8 rounded-full bg-primary"
+                      layoutId="tab-pill"
+                      className="absolute inset-0 rounded-xl bg-primary/10"
+                      transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
                     />
                   )}
-                  <item.icon className="size-5" />
-                  {item.label}
+                  <item.icon className="relative size-5" />
+                  <span className="relative">{item.label}</span>
                 </>
               )}
             </NavLink>
