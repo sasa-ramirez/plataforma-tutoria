@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  keepPreviousData,
+} from "@tanstack/react-query";
 import {
   fetchOverview,
   fetchGroups,
@@ -27,8 +32,14 @@ export function useCoordGroupAssignments(courseId: string | null) {
   });
 }
 
-export function useCoordStudents() {
-  return useQuery({ queryKey: ["coord", "students"], queryFn: fetchStudents });
+export function useCoordStudents(opts: { search?: string; page?: number } = {}) {
+  const search = opts.search?.trim() ?? "";
+  const page = opts.page ?? 0;
+  return useQuery({
+    queryKey: ["coord", "students", search, page],
+    queryFn: () => fetchStudents({ search, page }),
+    placeholderData: keepPreviousData,
+  });
 }
 
 export function useCoordStudentSubmissions(studentId: string | null) {

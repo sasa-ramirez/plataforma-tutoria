@@ -83,10 +83,36 @@ export async function fetchGroupAssignments(
   return (data ?? []) as CoordGroupAssignment[];
 }
 
-export async function fetchStudents(): Promise<CoordStudent[]> {
-  const { data, error } = await supabase.rpc("coord_students");
+export interface CoordStudentsPage {
+  rows: CoordStudent[];
+  total: number;
+}
+
+export const STUDENTS_PAGE_SIZE = 20;
+
+/**
+ * Estudiantes con búsqueda y paginación (no trae a todos de una: con
+ * miles de usuarios reventaría la consulta y el render del cliente).
+ */
+export async function fetchStudents(opts: {
+  search?: string;
+  page?: number;
+  pageSize?: number;
+} = {}): Promise<CoordStudentsPage> {
+  const pageSize = opts.pageSize ?? STUDENTS_PAGE_SIZE;
+  const page = opts.page ?? 0;
+  const { data, error } = await supabase.rpc("coord_students", {
+    p_search: opts.search?.trim() || null,
+    p_limit: pageSize,
+    p_offset: page * pageSize,
+  });
   if (error) throw new Error(error.message);
-  return (data ?? []) as CoordStudent[];
+  const rows = (data ?? []) as (CoordStudent & { total_count: number })[];
+  const total = rows[0]?.total_count ?? 0;
+  return {
+    rows: rows.map(({ total_count: _total_count, ...r }) => r),
+    total,
+  };
 }
 
 export async function fetchStudentSubmissions(

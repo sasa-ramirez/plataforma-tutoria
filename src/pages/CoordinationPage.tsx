@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Users,
   GraduationCap,
@@ -7,17 +7,21 @@ import {
   Send,
   Star,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Flame,
   Clock,
   Copy,
   UserPlus,
   UserX,
   Download,
+  Search,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/common/StatCard";
@@ -34,6 +38,7 @@ import {
   useAddStudents,
   useRemoveStudent,
 } from "@/hooks/useCoordinator";
+import { fetchStudents, STUDENTS_PAGE_SIZE } from "@/services/coordinator";
 import { cn } from "@/lib/utils";
 import type { CoordGroup, CoordStudent } from "@/services/coordinator";
 
@@ -68,8 +73,14 @@ function exportStudentsCSV(students: CoordStudent[]) {
     s.streak,
     s.last_active ?? "",
   ]);
-  const escape = (v: unknown) => `"${String(v).replace(/"/g, '""')}"`;
-  const csv = [header, ...rows].map((r) => r.map(escape).join(",")).join("\n");
+  // Los números van sin comillas: así Excel/Sheets los reconoce como
+  // números de verdad (se pueden sumar/ordenar), no como texto.
+  const cell = (v: unknown) => {
+    if (typeof v === "number") return String(v);
+    const s = String(v ?? "");
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const csv = [header, ...rows].map((r) => r.map(cell).join(",")).join("\n");
   // BOM al inicio para que Excel detecte UTF-8 y no rompa tildes/ñ.
   const blob = new Blob([String.fromCharCode(0xfeff) + csv], {
     type: "text/csv;charset=utf-8;",
@@ -375,59 +386,167 @@ function GroupTasks({ courseId }: { courseId: string }) {
 }
 
 function Estudiantes() {
-  const { data, isLoading } = useCoordStudents();
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [page, setPage] = useState(0);
   const [open, setOpen] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const { toast } = useToast();
 
-  if (isLoading)
-    return (
-      <div className="space-y-2">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-16 w-full" />
-        ))}
-      </div>
-    );
-  if (!data || data.length === 0)
-    return <p className="py-8 text-center text-sm text-muted-foreground">Aún no hay estudiantes.</p>;
+  // Espera a que dejen de escribir antes de buscar (evita una consulta
+  // por cada letra) y vuelve a la primera página en cada búsqueda nueva.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(0);
+    }, 350);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const { data, isLoading, isPlaceholderData, isError, error } = useCoordStudents({
+    search: debouncedSearch,
+    page,
+  });
+
+  const rows = data?.rows ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / STUDENTS_PAGE_SIZE));
+  const from = total === 0 ? 0 : page * STUDENTS_PAGE_SIZE + 1;
+  const to = Math.min(total, (page + 1) * STUDENTS_PAGE_SIZE);
+
+  // El CSV exporta TODO lo que calza con la búsqueda actual, no solo la
+  // página visible — por eso pide aparte, con un límite grande, en vez
+  // de reusar los 20 que ya están en pantalla.
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const all = await fetchStudents({
+        search: debouncedSearch,
+        page: 0,
+        pageSize: 5000,
+      });
+      if (all.rows.length === 0) {
+        toast("No hay estudiantes para exportar.", "info");
+        return;
+      }
+      exportStudentsCSV(all.rows);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "No se pudo exportar", "error");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
-    <div className="space-y-2">
-      <div className="mb-1 flex justify-end">
+    <div className="space-y-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative flex-1 sm:max-w-xs">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por nombre o correo…"
+            className="pl-9"
+          />
+        </div>
         <Button
           size="sm"
           variant="outline"
-          onClick={() => exportStudentsCSV(data)}
+          onClick={handleExport}
+          disabled={exporting}
+          className="shrink-0"
         >
-          <Download className="size-4" /> Exportar CSV
+          {exporting ? <Spinner className="size-4" /> : <Download className="size-4" />}
+          Exportar CSV
         </Button>
       </div>
-      {data.map((s) => (
-        <Card key={s.student_id}>
-          <button
-            onClick={() => setOpen(open === s.student_id ? null : s.student_id)}
-            className="flex w-full items-center gap-3 p-4 text-left"
-          >
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-semibold">{s.full_name ?? "Estudiante"}</p>
-              <p className="truncate text-xs text-muted-foreground">{s.email}</p>
-            </div>
-            <div className="flex shrink-0 items-center gap-3 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <BookOpen className="size-3.5" /> {s.courses}
-              </span>
-              <span className="flex items-center gap-1">
-                <Flame className="size-3.5 text-warning" /> {s.streak}
-              </span>
-              <span className={cn("font-bold", scoreColor(s.avg_score))}>
-                {s.avg_score ?? "—"}
-              </span>
-              <ChevronDown
-                className={cn("size-4 transition-transform", open === s.student_id && "rotate-180")}
-              />
-            </div>
-          </button>
-          {open === s.student_id && <StudentReport studentId={s.student_id} />}
-        </Card>
-      ))}
+
+      {isLoading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full" />
+          ))}
+        </div>
+      ) : isError ? (
+        <p className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-center text-sm text-destructive">
+          {error instanceof Error ? error.message : "No se pudo cargar la lista."}
+        </p>
+      ) : rows.length === 0 ? (
+        <p className="py-8 text-center text-sm text-muted-foreground">
+          {debouncedSearch
+            ? "Ningún estudiante coincide con esa búsqueda."
+            : "Aún no hay estudiantes."}
+        </p>
+      ) : (
+        <div
+          className={cn(
+            "space-y-2 transition-opacity",
+            isPlaceholderData && "opacity-60",
+          )}
+        >
+          {rows.map((s) => (
+            <Card key={s.student_id}>
+              <button
+                onClick={() => setOpen(open === s.student_id ? null : s.student_id)}
+                className="flex w-full items-center gap-3 p-4 text-left"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-semibold">{s.full_name ?? "Estudiante"}</p>
+                  <p className="truncate text-xs text-muted-foreground">{s.email}</p>
+                </div>
+                <div className="flex shrink-0 items-center gap-3 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <BookOpen className="size-3.5" /> {s.courses}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Flame className="size-3.5 text-warning" /> {s.streak}
+                  </span>
+                  <span className={cn("font-bold", scoreColor(s.avg_score))}>
+                    {s.avg_score ?? "—"}
+                  </span>
+                  <ChevronDown
+                    className={cn("size-4 transition-transform", open === s.student_id && "rotate-180")}
+                  />
+                </div>
+              </button>
+              {open === s.student_id && <StudentReport studentId={s.student_id} />}
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {total > STUDENTS_PAGE_SIZE && (
+        <div className="flex items-center justify-between pt-1 text-sm text-muted-foreground">
+          <span>
+            {from}–{to} de {total}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              size="icon"
+              variant="outline"
+              className="size-8"
+              disabled={page === 0}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              aria-label="Página anterior"
+            >
+              <ChevronLeft className="size-4" />
+            </Button>
+            <span className="tabular-nums">
+              {page + 1} / {totalPages}
+            </span>
+            <Button
+              size="icon"
+              variant="outline"
+              className="size-8"
+              disabled={page + 1 >= totalPages}
+              onClick={() => setPage((p) => p + 1)}
+              aria-label="Página siguiente"
+            >
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
