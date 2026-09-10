@@ -36,6 +36,7 @@ export interface CoordStudent {
   full_name: string | null;
   email: string;
   courses: number;
+  course_names: string | null;
   submissions: number;
   avg_score: number | null;
   xp: number;

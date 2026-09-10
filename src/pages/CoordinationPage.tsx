@@ -67,7 +67,7 @@ async function exportStudentsExcel(students: CoordStudent[]) {
   const header = [
     "Nombre",
     "Correo",
-    "Cursos",
+    "Curso(s)",
     "Entregas",
     "Promedio",
     "XP",
@@ -77,7 +77,7 @@ async function exportStudentsExcel(students: CoordStudent[]) {
   const rows = students.map((s) => [
     s.full_name ?? "",
     s.email,
-    s.courses,
+    s.course_names ?? "Sin curso",
     s.submissions,
     s.avg_score ?? null,
     s.xp,
@@ -91,7 +91,7 @@ async function exportStudentsExcel(students: CoordStudent[]) {
   sheet["!cols"] = [
     { wch: 28 },
     { wch: 32 },
-    { wch: 9 },
+    { wch: 34 },
     { wch: 10 },
     { wch: 10 },
     { wch: 8 },
