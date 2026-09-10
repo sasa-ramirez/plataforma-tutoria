@@ -42,6 +42,30 @@ export interface CoordStudent {
   xp: number;
   streak: number;
   last_active: string | null;
+  login_count: number;
+  last_login: string | null;
+}
+
+export interface CoordTeacher {
+  teacher_id: string;
+  full_name: string | null;
+  email: string;
+  groups: number;
+  students: number;
+  submissions: number;
+  avg_score: number | null;
+  login_count: number;
+  last_login: string | null;
+}
+
+export interface CoordTeacherGroup {
+  course_id: string;
+  title: string;
+  subject_name: string | null;
+  schedule: string | null;
+  students: number;
+  assignments: number;
+  avg_score: number | null;
 }
 
 export interface CoordStudentSubmission {
@@ -114,6 +138,46 @@ export async function fetchStudents(opts: {
     rows: rows.map(({ total_count: _total_count, ...r }) => r),
     total,
   };
+}
+
+export interface CoordTeachersPage {
+  rows: CoordTeacher[];
+  total: number;
+}
+
+export const TEACHERS_PAGE_SIZE = 20;
+
+/** Tutores con búsqueda y paginación (mismo patrón que fetchStudents). */
+export async function fetchTeachers(opts: {
+  search?: string;
+  page?: number;
+  pageSize?: number;
+} = {}): Promise<CoordTeachersPage> {
+  const pageSize = opts.pageSize ?? TEACHERS_PAGE_SIZE;
+  const page = opts.page ?? 0;
+  const { data, error } = await supabase.rpc("coord_teachers", {
+    p_search: opts.search?.trim() || null,
+    p_limit: pageSize,
+    p_offset: page * pageSize,
+  });
+  if (error) throw new Error(error.message);
+  const rows = (data ?? []) as (CoordTeacher & { total_count: number })[];
+  const total = rows[0]?.total_count ?? 0;
+  return {
+    rows: rows.map(({ total_count: _total_count, ...r }) => r),
+    total,
+  };
+}
+
+/** Grupos que dicta un tutor (reporte individual). */
+export async function fetchTeacherGroups(
+  teacherId: string,
+): Promise<CoordTeacherGroup[]> {
+  const { data, error } = await supabase.rpc("coord_teacher_groups", {
+    p_teacher: teacherId,
+  });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as CoordTeacherGroup[];
 }
 
 export async function fetchStudentSubmissions(

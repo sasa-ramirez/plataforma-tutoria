@@ -95,11 +95,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadProfile]);
 
   const signIn = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
     if (error) throw error;
+    // Registro de ingreso para el reporte de Coordinación. No debe romper
+    // el login si falla (p. ej. sin conexión momentánea).
+    if (data.user) {
+      supabase
+        .from("login_events")
+        .insert({ user_id: data.user.id })
+        .then(({ error: logErr }) => {
+          if (logErr) console.error("[auth] login_events:", logErr.message);
+        });
+    }
   }, []);
 
   const signUp = useCallback<AuthState["signUp"]>(

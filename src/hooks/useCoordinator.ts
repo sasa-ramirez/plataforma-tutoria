@@ -11,6 +11,8 @@ import {
   fetchStudents,
   fetchStudentSubmissions,
   fetchGroupStudents,
+  fetchTeachers,
+  fetchTeacherGroups,
   createGroup,
   addStudents,
   removeStudent,
@@ -77,6 +79,24 @@ export function useCoordGroupStudents(courseId: string | null) {
     queryKey: ["coord", "group-students", courseId],
     queryFn: () => fetchGroupStudents(courseId as string),
     enabled: !!courseId,
+  });
+}
+
+export function useCoordTeachers(opts: { search?: string; page?: number } = {}) {
+  const search = opts.search?.trim() ?? "";
+  const page = opts.page ?? 0;
+  return useQuery({
+    queryKey: ["coord", "teachers", search, page],
+    queryFn: () => fetchTeachers({ search, page }),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useCoordTeacherGroups(teacherId: string | null) {
+  return useQuery({
+    queryKey: ["coord", "teacher-groups", teacherId],
+    queryFn: () => fetchTeacherGroups(teacherId as string),
+    enabled: !!teacherId,
   });
 }
 

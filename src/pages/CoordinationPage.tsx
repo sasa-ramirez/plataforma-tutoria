@@ -16,6 +16,7 @@ import {
   UserX,
   Download,
   Search,
+  LogIn,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -35,14 +36,35 @@ import {
   useCoordStudents,
   useCoordStudentSubmissions,
   useCoordGroupStudents,
+  useCoordTeachers,
+  useCoordTeacherGroups,
   useAddStudents,
   useRemoveStudent,
 } from "@/hooks/useCoordinator";
-import { fetchStudents, STUDENTS_PAGE_SIZE } from "@/services/coordinator";
+import {
+  fetchStudents,
+  fetchTeachers,
+  STUDENTS_PAGE_SIZE,
+  TEACHERS_PAGE_SIZE,
+} from "@/services/coordinator";
 import { cn } from "@/lib/utils";
-import type { CoordGroup, CoordStudent } from "@/services/coordinator";
+import type { CoordGroup, CoordStudent, CoordTeacher } from "@/services/coordinator";
 
-type Tab = "resumen" | "grupos" | "estudiantes";
+type Tab = "resumen" | "grupos" | "estudiantes" | "tutores";
+
+/** "hace un momento / hace 3 días / 12 feb 2026" a partir de un timestamp. */
+function timeAgo(iso: string | null): string {
+  if (!iso) return "Nunca";
+  const ms = Date.now() - new Date(iso).getTime();
+  const min = Math.floor(ms / 60000);
+  if (min < 1) return "Hace un momento";
+  if (min < 60) return `Hace ${min} min`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `Hace ${hr} h`;
+  const days = Math.floor(hr / 24);
+  if (days < 30) return `Hace ${days} d`;
+  return new Date(iso).toLocaleDateString();
+}
 
 function scoreColor(s: number | null) {
   if (s == null) return "text-muted-foreground";
@@ -73,6 +95,8 @@ async function exportStudentsExcel(students: CoordStudent[]) {
     "XP",
     "Racha",
     "Última actividad",
+    "Ingresos",
+    "Último ingreso",
   ];
   const rows = students.map((s) => [
     s.full_name ?? "",
@@ -83,6 +107,8 @@ async function exportStudentsExcel(students: CoordStudent[]) {
     s.xp,
     s.streak,
     s.last_active ?? "",
+    s.login_count,
+    s.last_login ? new Date(s.last_login).toLocaleString() : "",
   ]);
 
   const sheet = XLSX.utils.aoa_to_sheet([header, ...rows]);
@@ -97,11 +123,54 @@ async function exportStudentsExcel(students: CoordStudent[]) {
     { wch: 8 },
     { wch: 8 },
     { wch: 16 },
+    { wch: 10 },
+    { wch: 20 },
   ];
 
   const book = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(book, sheet, "Estudiantes");
   XLSX.writeFile(book, `estudiantes_${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
+/** Igual que exportStudentsExcel, pero para el reporte de tutores. */
+async function exportTeachersExcel(teachers: CoordTeacher[]) {
+  const XLSX = await import("xlsx");
+  const header = [
+    "Nombre",
+    "Correo",
+    "Grupos",
+    "Estudiantes",
+    "Entregas",
+    "Promedio",
+    "Ingresos",
+    "Último ingreso",
+  ];
+  const rows = teachers.map((t) => [
+    t.full_name ?? "",
+    t.email,
+    t.groups,
+    t.students,
+    t.submissions,
+    t.avg_score ?? null,
+    t.login_count,
+    t.last_login ? new Date(t.last_login).toLocaleString() : "",
+  ]);
+
+  const sheet = XLSX.utils.aoa_to_sheet([header, ...rows]);
+  sheet["!cols"] = [
+    { wch: 28 },
+    { wch: 32 },
+    { wch: 9 },
+    { wch: 12 },
+    { wch: 10 },
+    { wch: 10 },
+    { wch: 10 },
+    { wch: 20 },
+  ];
+
+  const book = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(book, sheet, "Tutores");
+  XLSX.writeFile(book, `tutores_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
 export function CoordinationPage() {
@@ -114,12 +183,13 @@ export function CoordinationPage() {
         subtitle="Monitorea estudiantes, tutores y grupos. Estadísticas y reportes."
       />
 
-      <div className="mb-5 grid grid-cols-3 gap-2 rounded-xl bg-muted/50 p-1">
+      <div className="mb-5 grid grid-cols-2 gap-2 rounded-xl bg-muted/50 p-1 sm:grid-cols-4">
         {(
           [
             ["resumen", "Resumen"],
             ["grupos", "Grupos"],
             ["estudiantes", "Estudiantes"],
+            ["tutores", "Tutores"],
           ] as [Tab, string][]
         ).map(([id, label]) => (
           <button
@@ -138,6 +208,7 @@ export function CoordinationPage() {
       {tab === "resumen" && <Resumen />}
       {tab === "grupos" && <Grupos />}
       {tab === "estudiantes" && <Estudiantes />}
+      {tab === "tutores" && <Tutores />}
     </div>
   );
 }
@@ -518,7 +589,7 @@ function Estudiantes() {
                   />
                 </div>
               </button>
-              {open === s.student_id && <StudentReport studentId={s.student_id} />}
+              {open === s.student_id && <StudentReport student={s} />}
             </Card>
           ))}
         </div>
@@ -560,14 +631,21 @@ function Estudiantes() {
   );
 }
 
-function StudentReport({ studentId }: { studentId: string }) {
-  const { data, isLoading } = useCoordStudentSubmissions(studentId);
-  if (isLoading)
-    return <div className="px-4 pb-4"><Skeleton className="h-12 w-full" /></div>;
+function StudentReport({ student }: { student: CoordStudent }) {
+  const { data, isLoading } = useCoordStudentSubmissions(student.student_id);
   return (
     <div className="border-t px-4 py-3">
+      <div className="mb-3 flex items-center gap-1.5 rounded-lg bg-muted/50 px-3 py-2 text-xs">
+        <LogIn className="size-3.5 text-muted-foreground" />
+        <span className="font-semibold">{student.login_count}</span>
+        <span className="text-muted-foreground">
+          ingreso{student.login_count === 1 ? "" : "s"} · último: {timeAgo(student.last_login)}
+        </span>
+      </div>
       <p className="mb-2 text-xs font-bold text-muted-foreground">Entregas recientes</p>
-      {!data || data.length === 0 ? (
+      {isLoading ? (
+        <Skeleton className="h-12 w-full" />
+      ) : !data || data.length === 0 ? (
         <p className="text-xs text-muted-foreground">Sin entregas todavía.</p>
       ) : (
         <ul className="space-y-1.5">
@@ -586,6 +664,207 @@ function StudentReport({ studentId }: { studentId: string }) {
               ) : (
                 <Badge variant="secondary">{sub.status}</Badge>
               )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function Tutores() {
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [page, setPage] = useState(0);
+  const [open, setOpen] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(0);
+    }, 350);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const { data, isLoading, isPlaceholderData, isError, error } = useCoordTeachers({
+    search: debouncedSearch,
+    page,
+  });
+
+  const rows = data?.rows ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / TEACHERS_PAGE_SIZE));
+  const from = total === 0 ? 0 : page * TEACHERS_PAGE_SIZE + 1;
+  const to = Math.min(total, (page + 1) * TEACHERS_PAGE_SIZE);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const all = await fetchTeachers({
+        search: debouncedSearch,
+        page: 0,
+        pageSize: 5000,
+      });
+      if (all.rows.length === 0) {
+        toast("No hay tutores para exportar.", "info");
+        return;
+      }
+      await exportTeachersExcel(all.rows);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "No se pudo exportar", "error");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative flex-1 sm:max-w-xs">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por nombre o correo…"
+            className="pl-9"
+          />
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleExport}
+          disabled={exporting}
+          className="shrink-0"
+        >
+          {exporting ? <Spinner className="size-4" /> : <Download className="size-4" />}
+          Exportar Excel
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full" />
+          ))}
+        </div>
+      ) : isError ? (
+        <p className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-center text-sm text-destructive">
+          {error instanceof Error ? error.message : "No se pudo cargar la lista."}
+        </p>
+      ) : rows.length === 0 ? (
+        <p className="py-8 text-center text-sm text-muted-foreground">
+          {debouncedSearch
+            ? "Ningún tutor coincide con esa búsqueda."
+            : "Aún no hay tutores."}
+        </p>
+      ) : (
+        <div
+          className={cn(
+            "space-y-2 transition-opacity",
+            isPlaceholderData && "opacity-60",
+          )}
+        >
+          {rows.map((t) => (
+            <Card key={t.teacher_id}>
+              <button
+                onClick={() => setOpen(open === t.teacher_id ? null : t.teacher_id)}
+                className="flex w-full items-center gap-3 p-4 text-left"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-semibold">{t.full_name ?? "Tutor(a)"}</p>
+                  <p className="truncate text-xs text-muted-foreground">{t.email}</p>
+                </div>
+                <div className="flex shrink-0 items-center gap-3 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <BookOpen className="size-3.5" /> {t.groups}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Users className="size-3.5" /> {t.students}
+                  </span>
+                  <span className={cn("font-bold", scoreColor(t.avg_score))}>
+                    {t.avg_score ?? "—"}
+                  </span>
+                  <ChevronDown
+                    className={cn("size-4 transition-transform", open === t.teacher_id && "rotate-180")}
+                  />
+                </div>
+              </button>
+              {open === t.teacher_id && <TeacherReport teacher={t} />}
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {total > TEACHERS_PAGE_SIZE && (
+        <div className="flex items-center justify-between pt-1 text-sm text-muted-foreground">
+          <span>
+            {from}–{to} de {total}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              size="icon"
+              variant="outline"
+              className="size-8"
+              disabled={page === 0}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              aria-label="Página anterior"
+            >
+              <ChevronLeft className="size-4" />
+            </Button>
+            <span className="tabular-nums">
+              {page + 1} / {totalPages}
+            </span>
+            <Button
+              size="icon"
+              variant="outline"
+              className="size-8"
+              disabled={page + 1 >= totalPages}
+              onClick={() => setPage((p) => p + 1)}
+              aria-label="Página siguiente"
+            >
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TeacherReport({ teacher }: { teacher: CoordTeacher }) {
+  const { data, isLoading } = useCoordTeacherGroups(teacher.teacher_id);
+  return (
+    <div className="border-t px-4 py-3">
+      <div className="mb-3 flex items-center gap-1.5 rounded-lg bg-muted/50 px-3 py-2 text-xs">
+        <LogIn className="size-3.5 text-muted-foreground" />
+        <span className="font-semibold">{teacher.login_count}</span>
+        <span className="text-muted-foreground">
+          ingreso{teacher.login_count === 1 ? "" : "s"} · último: {timeAgo(teacher.last_login)}
+        </span>
+      </div>
+      <p className="mb-2 text-xs font-bold text-muted-foreground">Grupos a cargo</p>
+      {isLoading ? (
+        <Skeleton className="h-12 w-full" />
+      ) : !data || data.length === 0 ? (
+        <p className="text-xs text-muted-foreground">Sin grupos todavía.</p>
+      ) : (
+        <ul className="space-y-1.5">
+          {data.map((g) => (
+            <li key={g.course_id} className="flex items-center gap-2 text-sm">
+              <span className="min-w-0 flex-1 truncate">
+                {g.title}
+                {g.subject_name && (
+                  <span className="text-muted-foreground"> · {g.subject_name}</span>
+                )}
+              </span>
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Users className="size-3.5" /> {g.students}
+              </span>
+              <Badge variant={g.avg_score != null && g.avg_score >= 60 ? "success" : "secondary"}>
+                {g.avg_score ?? "—"}
+              </Badge>
             </li>
           ))}
         </ul>
