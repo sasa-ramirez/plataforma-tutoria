@@ -51,8 +51,19 @@ function scoreColor(s: number | null) {
   return "text-destructive";
 }
 
-/** Descarga el reporte de estudiantes como CSV (se abre bien en Excel/Sheets). */
-function exportStudentsCSV(students: CoordStudent[]) {
+/**
+ * Descarga el reporte de estudiantes como un .xlsx real (no CSV): así
+ * las columnas quedan separadas de verdad sin depender de que el Excel
+ * del que lo abre esté configurado en inglés o en español (en español
+ * el separador de listas es ";", no ",", y un CSV con comas se ve todo
+ * amontonado en una sola columna).
+ *
+ * La librería (xlsx) pesa bastante, así que se carga solo al exportar
+ * (import dinámico) para no engordar el paquete que descarga todo el
+ * mundo con solo abrir la app.
+ */
+async function exportStudentsExcel(students: CoordStudent[]) {
+  const XLSX = await import("xlsx");
   const header = [
     "Nombre",
     "Correo",
@@ -68,31 +79,29 @@ function exportStudentsCSV(students: CoordStudent[]) {
     s.email,
     s.courses,
     s.submissions,
-    s.avg_score ?? "",
+    s.avg_score ?? null,
     s.xp,
     s.streak,
     s.last_active ?? "",
   ]);
-  // Los números van sin comillas: así Excel/Sheets los reconoce como
-  // números de verdad (se pueden sumar/ordenar), no como texto.
-  const cell = (v: unknown) => {
-    if (typeof v === "number") return String(v);
-    const s = String(v ?? "");
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-  const csv = [header, ...rows].map((r) => r.map(cell).join(",")).join("\n");
-  // BOM al inicio para que Excel detecte UTF-8 y no rompa tildes/ñ.
-  const blob = new Blob([String.fromCharCode(0xfeff) + csv], {
-    type: "text/csv;charset=utf-8;",
-  });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `estudiantes_${new Date().toISOString().slice(0, 10)}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+
+  const sheet = XLSX.utils.aoa_to_sheet([header, ...rows]);
+  // Ancho de columna legible (en "caracteres"), no la vista apretada
+  // por defecto de una hoja nueva.
+  sheet["!cols"] = [
+    { wch: 28 },
+    { wch: 32 },
+    { wch: 9 },
+    { wch: 10 },
+    { wch: 10 },
+    { wch: 8 },
+    { wch: 8 },
+    { wch: 16 },
+  ];
+
+  const book = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(book, sheet, "Estudiantes");
+  XLSX.writeFile(book, `estudiantes_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
 export function CoordinationPage() {
@@ -429,7 +438,7 @@ function Estudiantes() {
         toast("No hay estudiantes para exportar.", "info");
         return;
       }
-      exportStudentsCSV(all.rows);
+      await exportStudentsExcel(all.rows);
     } catch (e) {
       toast(e instanceof Error ? e.message : "No se pudo exportar", "error");
     } finally {
@@ -457,7 +466,7 @@ function Estudiantes() {
           className="shrink-0"
         >
           {exporting ? <Spinner className="size-4" /> : <Download className="size-4" />}
-          Exportar CSV
+          Exportar Excel
         </Button>
       </div>
 
