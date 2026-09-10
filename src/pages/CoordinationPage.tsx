@@ -632,7 +632,7 @@ function Estudiantes() {
 }
 
 function StudentReport({ student }: { student: CoordStudent }) {
-  const { data, isLoading } = useCoordStudentSubmissions(student.student_id);
+  const { data, isLoading, isError, error } = useCoordStudentSubmissions(student.student_id);
   return (
     <div className="border-t px-4 py-3">
       <div className="mb-3 flex items-center gap-1.5 rounded-lg bg-muted/50 px-3 py-2 text-xs">
@@ -645,6 +645,10 @@ function StudentReport({ student }: { student: CoordStudent }) {
       <p className="mb-2 text-xs font-bold text-muted-foreground">Entregas recientes</p>
       {isLoading ? (
         <Skeleton className="h-12 w-full" />
+      ) : isError ? (
+        <p className="text-xs text-destructive">
+          {error instanceof Error ? error.message : "No se pudo cargar."}
+        </p>
       ) : !data || data.length === 0 ? (
         <p className="text-xs text-muted-foreground">Sin entregas todavía.</p>
       ) : (
@@ -834,7 +838,7 @@ function Tutores() {
 }
 
 function TeacherReport({ teacher }: { teacher: CoordTeacher }) {
-  const { data, isLoading } = useCoordTeacherGroups(teacher.teacher_id);
+  const { data, isLoading, isError, error } = useCoordTeacherGroups(teacher.teacher_id);
   return (
     <div className="border-t px-4 py-3">
       <div className="mb-3 flex items-center gap-1.5 rounded-lg bg-muted/50 px-3 py-2 text-xs">
@@ -847,6 +851,10 @@ function TeacherReport({ teacher }: { teacher: CoordTeacher }) {
       <p className="mb-2 text-xs font-bold text-muted-foreground">Grupos a cargo</p>
       {isLoading ? (
         <Skeleton className="h-12 w-full" />
+      ) : isError ? (
+        <p className="text-xs text-destructive">
+          {error instanceof Error ? error.message : "No se pudo cargar."}
+        </p>
       ) : !data || data.length === 0 ? (
         <p className="text-xs text-muted-foreground">Sin grupos todavía.</p>
       ) : (
