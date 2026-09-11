@@ -94,6 +94,25 @@ export interface PeriodicReport {
   created_at: string;
 }
 
+export interface Acta {
+  id: string;
+  course_id: string;
+  tutor_id: string;
+  tutor_name: string | null;
+  acta_number: string | null;
+  acta_date: string;
+  organismo: string;
+  asunto: string | null;
+  program_name: string | null;
+  professor_name: string | null;
+  orden_dia: string | null;
+  desarrollo: string;
+  conclusiones: string | null;
+  compromisos: string | null;
+  observaciones: string | null;
+  created_at: string;
+}
+
 export interface TutoringSession {
   id: string;
   course_id: string;
