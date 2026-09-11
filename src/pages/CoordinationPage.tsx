@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Users,
   GraduationCap,
@@ -17,6 +17,9 @@ import {
   Download,
   Search,
   LogIn,
+  FileUp,
+  RotateCcw,
+  FileText,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -49,8 +52,15 @@ import {
 } from "@/services/coordinator";
 import { cn } from "@/lib/utils";
 import type { CoordGroup, CoordStudent, CoordTeacher } from "@/services/coordinator";
+import {
+  fetchTemplateInfo,
+  uploadTemplate,
+  deleteTemplate,
+  type TemplateKey,
+  type TemplateInfo,
+} from "@/services/documentTemplates";
 
-type Tab = "resumen" | "grupos" | "estudiantes" | "tutores";
+type Tab = "resumen" | "grupos" | "estudiantes" | "tutores" | "plantillas";
 
 /** "hace un momento / hace 3 días / 12 feb 2026" a partir de un timestamp. */
 function timeAgo(iso: string | null): string {
@@ -183,13 +193,14 @@ export function CoordinationPage() {
         subtitle="Monitorea estudiantes, tutores y grupos. Estadísticas y reportes."
       />
 
-      <div className="mb-5 grid grid-cols-2 gap-2 rounded-xl bg-muted/50 p-1 sm:grid-cols-4">
+      <div className="mb-5 grid grid-cols-3 gap-2 rounded-xl bg-muted/50 p-1 sm:grid-cols-5">
         {(
           [
             ["resumen", "Resumen"],
             ["grupos", "Grupos"],
             ["estudiantes", "Estudiantes"],
             ["tutores", "Tutores"],
+            ["plantillas", "Plantillas"],
           ] as [Tab, string][]
         ).map(([id, label]) => (
           <button
@@ -209,6 +220,7 @@ export function CoordinationPage() {
       {tab === "grupos" && <Grupos />}
       {tab === "estudiantes" && <Estudiantes />}
       {tab === "tutores" && <Tutores />}
+      {tab === "plantillas" && <Plantillas />}
     </div>
   );
 }
@@ -878,5 +890,148 @@ function TeacherReport({ teacher }: { teacher: CoordTeacher }) {
         </ul>
       )}
     </div>
+  );
+}
+
+/**
+ * Plantillas oficiales (BS-F-17, AD-F-01): reemplazables sin tocar código.
+ * Si la universidad cambia el formato, se sube el .docx ya re-etiquetado
+ * aquí; si no hay ninguno subido, los generadores usan la plantilla que
+ * viene incluida en la app de fábrica.
+ */
+function Plantillas() {
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-muted-foreground">
+        Si la universidad cambia el formato oficial, sube aquí el .docx nuevo (ya con los
+        campos marcados) — no hace falta tocar código ni esperar una actualización.
+      </p>
+      <TemplateSlot
+        templateKey="bs-f17"
+        title="Informe periódico (BS-F-17)"
+        description="Se usa al generar el Word desde “Informe periódico” en cada curso."
+      />
+      <TemplateSlot
+        templateKey="ad-f01"
+        title="Acta de reunión (AD-F-01)"
+        description="Se usa al generar el Word desde “Actas de reunión” en cada curso."
+      />
+    </div>
+  );
+}
+
+function TemplateSlot({
+  templateKey,
+  title,
+  description,
+}: {
+  templateKey: TemplateKey;
+  title: string;
+  description: string;
+}) {
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [info, setInfo] = useState<TemplateInfo | null | undefined>(undefined);
+  const [busy, setBusy] = useState(false);
+
+  const load = async () => {
+    try {
+      setInfo(await fetchTemplateInfo(templateKey));
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "No se pudo consultar la plantilla", "error");
+      setInfo(null);
+    }
+  };
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [templateKey]);
+
+  const handleFile = async (file: File | null) => {
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith(".docx")) {
+      toast("Debe ser un archivo .docx", "error");
+      return;
+    }
+    setBusy(true);
+    try {
+      await uploadTemplate(templateKey, file);
+      toast("Plantilla actualizada", "success");
+      await load();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "No se pudo subir", "error");
+    } finally {
+      setBusy(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleReset = async () => {
+    if (!window.confirm("¿Volver a la plantilla incluida de fábrica?")) return;
+    setBusy(true);
+    try {
+      await deleteTemplate(templateKey);
+      toast("Se volvió a la plantilla de fábrica", "success");
+      await load();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "No se pudo restablecer", "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card>
+      <div className="space-y-3 p-4">
+        <div className="flex items-center gap-2">
+          <FileText className="size-4 text-primary" />
+          <div className="min-w-0">
+            <p className="font-bold">{title}</p>
+            <p className="text-xs text-muted-foreground">{description}</p>
+          </div>
+        </div>
+
+        {info === undefined ? (
+          <Skeleton className="h-10 w-full" />
+        ) : info ? (
+          <div className="rounded-xl border border-success/30 bg-success/5 px-3 py-2 text-xs">
+            <span className="font-semibold text-success">Personalizada</span>
+            <span className="text-muted-foreground">
+              {" "}
+              · actualizada {timeAgo(info.updatedAt)} · {(info.sizeBytes / 1024).toFixed(0)} KB
+            </span>
+          </div>
+        ) : (
+          <p className="rounded-xl border px-3 py-2 text-xs text-muted-foreground">
+            Usando la plantilla incluida de fábrica.
+          </p>
+        )}
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".docx"
+          className="hidden"
+          onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
+        />
+        <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            variant="brand"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={busy}
+          >
+            {busy ? <Spinner className="size-4" /> : <FileUp className="size-4" />}
+            Subir nueva
+          </Button>
+          {info && (
+            <Button size="sm" variant="outline" onClick={handleReset} disabled={busy}>
+              <RotateCcw className="size-4" /> Volver a la de fábrica
+            </Button>
+          )}
+        </div>
+      </div>
+    </Card>
   );
 }

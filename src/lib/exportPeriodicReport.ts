@@ -1,17 +1,11 @@
 import type { PeriodicReport } from "@/types/database";
 import { fetchReportPhotoUrl } from "@/services/reports";
+import { loadDocxTemplate } from "@/lib/loadDocxTemplate";
 
 const MESES = [
   "ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO",
   "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE",
 ];
-
-function base64ToUint8Array(base64: string): Uint8Array {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
 
 function downloadBlob(buffer: ArrayBuffer, filename: string) {
   const blob = new Blob([buffer], {
@@ -69,14 +63,17 @@ export async function renderPeriodicReportDocx(report: PeriodicReport): Promise<
   const Docxtemplater = cjsDefault<DocxtemplaterCtor>(docxtemplaterMod);
   const ImageModule = cjsDefault<ImageModuleCtor>(imageModuleMod);
 
-  let photo: Uint8Array | null = null;
-  if (report.photo_path) {
-    const url = await fetchReportPhotoUrl(report.photo_path);
-    const res = await fetch(url);
-    photo = new Uint8Array(await res.arrayBuffer());
-  }
+  const [templateBytes, photo] = await Promise.all([
+    loadDocxTemplate("bs-f17", BS_F17_TEMPLATE_BASE64),
+    (async () => {
+      if (!report.photo_path) return null;
+      const url = await fetchReportPhotoUrl(report.photo_path);
+      const res = await fetch(url);
+      return new Uint8Array(await res.arrayBuffer());
+    })(),
+  ]);
 
-  const zip = new PizZip(base64ToUint8Array(BS_F17_TEMPLATE_BASE64));
+  const zip = new PizZip(templateBytes);
   const imageModule = new ImageModule({
     centered: false,
     getImage: () => photo as Uint8Array,

@@ -1,16 +1,10 @@
 import type { Acta } from "@/types/database";
+import { loadDocxTemplate } from "@/lib/loadDocxTemplate";
 
 const MESES = [
   "enero", "febrero", "marzo", "abril", "mayo", "junio",
   "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
 ];
-
-function base64ToUint8Array(base64: string): Uint8Array {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
 
 function downloadBlob(buffer: ArrayBuffer, filename: string) {
   const blob = new Blob([buffer], {
@@ -60,7 +54,8 @@ export async function renderActaDocx(acta: Acta): Promise<ArrayBuffer> {
   const PizZip = cjsDefault<PizZipCtor>(pizzipMod);
   const Docxtemplater = cjsDefault<DocxtemplaterCtor>(docxtemplaterMod);
 
-  const zip = new PizZip(base64ToUint8Array(AD_F01_TEMPLATE_BASE64));
+  const templateBytes = await loadDocxTemplate("ad-f01", AD_F01_TEMPLATE_BASE64);
+  const zip = new PizZip(templateBytes);
   const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
 
   const fecha = new Date(acta.acta_date + "T00:00:00");
