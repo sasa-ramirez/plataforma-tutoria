@@ -14,16 +14,6 @@ export async function fetchReports(courseId: string): Promise<PeriodicReport[]> 
   return (data ?? []) as PeriodicReport[];
 }
 
-export async function fetchReport(reportId: string): Promise<PeriodicReport> {
-  const { data, error } = await supabase
-    .from("periodic_reports")
-    .select("*")
-    .eq("id", reportId)
-    .single();
-  if (error) throw error;
-  return data as PeriodicReport;
-}
-
 /** URL firmada (el bucket es privado) para mostrar/imprimir la foto. */
 export async function fetchReportPhotoUrl(path: string): Promise<string> {
   const { data, error } = await supabase.storage

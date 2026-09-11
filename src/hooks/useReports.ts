@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   fetchReports,
-  fetchReport,
   createReport,
   deleteReport,
   type CreateReportInput,
@@ -13,14 +12,6 @@ export function useReports(courseId: string) {
     queryKey: ["reports", courseId],
     queryFn: () => fetchReports(courseId),
     enabled: !!courseId,
-  });
-}
-
-export function useReport(reportId: string) {
-  return useQuery({
-    queryKey: ["reports", "detail", reportId],
-    queryFn: () => fetchReport(reportId),
-    enabled: !!reportId,
   });
 }
 

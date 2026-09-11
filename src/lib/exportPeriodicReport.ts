@@ -1,0 +1,112 @@
+import type { PeriodicReport } from "@/types/database";
+import { fetchReportPhotoUrl } from "@/services/reports";
+
+const MESES = [
+  "ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO",
+  "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE",
+];
+
+function base64ToUint8Array(base64: string): Uint8Array {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+function downloadBlob(buffer: ArrayBuffer, filename: string) {
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/** pizzip, docxtemplater y docxtemplater-image son CJS puros; según el
+ * entorno el import dinámico los expone en `.default` o directamente en
+ * el módulo — se prueban ambos, igual que con exceljs en exportTutoring.ts. */
+function cjsDefault<T>(mod: unknown): T {
+  return ((mod as { default?: T }).default ?? mod) as T;
+}
+
+interface DocxtemplaterInstance {
+  render(data: Record<string, unknown>): void;
+  getZip(): { generate(opts: { type: "arraybuffer" }): ArrayBuffer };
+}
+type DocxtemplaterCtor = new (
+  zip: unknown,
+  opts: { modules: unknown[]; paragraphLoop: boolean; linebreaks: boolean },
+) => DocxtemplaterInstance;
+type PizZipCtor = new (data: Uint8Array) => unknown;
+type ImageModuleCtor = new (opts: {
+  centered: boolean;
+  getImage: () => Uint8Array;
+  getSize: () => [number, number];
+}) => unknown;
+
+/**
+ * Genera el Word del informe periódico usando la plantilla oficial real
+ * (BS-F-17) sin cambiar su formato — solo se rellenan los campos
+ * ({dia}, {lugar}, etc.) que se insertaron en el documento original.
+ * Todas las librerías pesadas se cargan bajo demanda para no engordar
+ * el paquete principal.
+ */
+export async function downloadPeriodicReportDocx(report: PeriodicReport): Promise<void> {
+  const [pizzipMod, docxtemplaterMod, imageModuleMod, { BS_F17_TEMPLATE_BASE64 }] =
+    await Promise.all([
+      import("pizzip"),
+      import("docxtemplater"),
+      import("docxtemplater-image"),
+      import("@/assets/tutoring/bs-f17-template"),
+    ]);
+  const PizZip = cjsDefault<PizZipCtor>(pizzipMod);
+  const Docxtemplater = cjsDefault<DocxtemplaterCtor>(docxtemplaterMod);
+  const ImageModule = cjsDefault<ImageModuleCtor>(imageModuleMod);
+
+  let photo: Uint8Array | null = null;
+  if (report.photo_path) {
+    const url = await fetchReportPhotoUrl(report.photo_path);
+    const res = await fetch(url);
+    photo = new Uint8Array(await res.arrayBuffer());
+  }
+
+  const zip = new PizZip(base64ToUint8Array(BS_F17_TEMPLATE_BASE64));
+  const imageModule = new ImageModule({
+    centered: false,
+    getImage: () => photo as Uint8Array,
+    getSize: () => [280, 190],
+  });
+  const doc = new Docxtemplater(zip, {
+    modules: [imageModule],
+    paragraphLoop: true,
+    linebreaks: true,
+  });
+
+  const fecha = new Date(report.report_date + "T00:00:00");
+
+  doc.render({
+    dia: String(fecha.getDate()).padStart(2, "0"),
+    mes: MESES[fecha.getMonth()],
+    anio: String(fecha.getFullYear()),
+    lugar: report.place,
+    responsable: report.tutor_name ?? "",
+    grupo: report.group_label ?? "",
+    participantes: report.participants_count ?? "",
+    programa: report.program_name ?? "",
+    asignatura: report.subject_name ?? "",
+    semestre: report.semester ?? "",
+    docente: report.professor_name ?? "",
+    temas: report.topics ?? "",
+    descripcion: report.description,
+    observaciones: report.observations ?? "",
+    tieneFoto: !!photo,
+  });
+
+  const out = doc.getZip().generate({ type: "arraybuffer" });
+  downloadBlob(out, `informe_periodico_${report.report_date}.docx`);
+}

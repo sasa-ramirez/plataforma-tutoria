@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { FileText, Plus, Camera, X, Printer, Trash2 } from "lucide-react";
+import { FileText, Plus, Camera, X, FileDown, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -20,6 +19,7 @@ import { useToast } from "@/components/ui/toast";
 import { useCourseMembers, useCourseProgramInfo } from "@/hooks/useCourses";
 import { useTutoringSessions } from "@/hooks/useTutoring";
 import { useReports, useCreateReport, useDeleteReport } from "@/hooks/useReports";
+import { downloadPeriodicReportDocx } from "@/lib/exportPeriodicReport";
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
@@ -37,6 +37,7 @@ export function PeriodicReportCard({
   const { data: reports, isLoading } = useReports(courseId);
   const { mutateAsync: remove, isPending: removing } = useDeleteReport(courseId);
   const { toast } = useToast();
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const handleDelete = async (id: string) => {
     const report = reports?.find((r) => r.id === id);
@@ -47,6 +48,19 @@ export function PeriodicReportCard({
       toast("Informe eliminado", "success");
     } catch (e) {
       toast(e instanceof Error ? e.message : "No se pudo eliminar", "error");
+    }
+  };
+
+  const handleDownload = async (id: string) => {
+    const report = reports?.find((r) => r.id === id);
+    if (!report) return;
+    setDownloadingId(id);
+    try {
+      await downloadPeriodicReportDocx(report);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "No se pudo generar el Word", "error");
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -94,10 +108,18 @@ export function PeriodicReportCard({
                     {r.topics || r.description}
                   </p>
                 </div>
-                <Button size="sm" variant="outline" asChild>
-                  <Link to={`/app/reports/${r.id}/print`} target="_blank">
-                    <Printer className="size-4" /> Ver
-                  </Link>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleDownload(r.id)}
+                  disabled={downloadingId === r.id}
+                >
+                  {downloadingId === r.id ? (
+                    <Spinner className="size-4" />
+                  ) : (
+                    <FileDown className="size-4" />
+                  )}
+                  Word
                 </Button>
                 <button
                   onClick={() => handleDelete(r.id)}
@@ -224,7 +246,7 @@ function NewReportDialog({
         <DialogHeader>
           <DialogTitle>Informe periódico de actividades</DialogTitle>
           <DialogDescription>
-            Uno por corte. Se arma con el formato oficial (BS-F-17) para descargar o imprimir.
+            Uno por corte. Se descarga como Word con el formato oficial (BS-F-17).
           </DialogDescription>
         </DialogHeader>
 
