@@ -1,21 +1,34 @@
+import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Users, Copy, ClipboardList, Radio } from "lucide-react";
+import {
+  ArrowLeft,
+  Users,
+  Copy,
+  ClipboardList,
+  Radio,
+  UserSquare2,
+  Pencil,
+  Check,
+} from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useCourse, useCourseMembers } from "@/hooks/useCourses";
 import { useAssignments } from "@/hooks/useAssignments";
+import { useUpdateProfessorName } from "@/hooks/useTutoring";
 import { AssignmentCard } from "@/components/assignments/AssignmentCard";
 import { CreateAssignmentDialog } from "@/components/assignments/CreateAssignmentDialog";
 import { ScheduleCard } from "@/components/courses/ScheduleCard";
+import { AttendanceCard } from "@/components/courses/AttendanceCard";
 import { useToast } from "@/components/ui/toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/common/EmptyState";
 import { COURSE_COLORS } from "@/lib/constants";
 import { cn, initials } from "@/lib/utils";
-import { FullScreenLoader } from "@/components/common/Spinner";
+import { FullScreenLoader, Spinner } from "@/components/common/Spinner";
 
 export function CourseDetailPage() {
   const { id = "" } = useParams();
@@ -99,6 +112,17 @@ export function CourseDetailPage() {
         currentSchedule={course.schedule}
       />
 
+      {/* Docente titular de la asignatura (para los formatos de Bienestar) */}
+      {isTeacher && (
+        <ProfessorNameField
+          courseId={id}
+          currentName={course.professor_name}
+        />
+      )}
+
+      {/* Asistencia de tutorías */}
+      {isTeacher && <AttendanceCard courseId={id} />}
+
       {/* Tareas */}
       <Card>
         <CardHeader className="flex-row items-center justify-between">
@@ -178,5 +202,79 @@ export function CourseDetailPage() {
         </Card>
       )}
     </div>
+  );
+}
+
+/** Nombre del docente titular de la asignatura (no el tutor) — lo piden
+ * los formatos oficiales (BS-F-17, AD-F-01). Edición simple en el lugar. */
+function ProfessorNameField({
+  courseId,
+  currentName,
+}: {
+  courseId: string;
+  currentName: string | null;
+}) {
+  const { toast } = useToast();
+  const { mutateAsync, isPending } = useUpdateProfessorName(courseId);
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(currentName ?? "");
+
+  const save = async () => {
+    try {
+      await mutateAsync(value);
+      setEditing(false);
+      toast("Docente actualizado", "success");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "No se pudo guardar", "error");
+    }
+  };
+
+  return (
+    <Card>
+      <CardContent className="flex items-center gap-3 p-4">
+        <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+          <UserSquare2 className="size-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs text-muted-foreground">
+            Docente de la asignatura
+          </p>
+          {editing ? (
+            <div className="mt-1 flex items-center gap-2">
+              <Input
+                autoFocus
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                placeholder="Nombre del profesor"
+                className="h-9"
+                onKeyDown={(e) => e.key === "Enter" && save()}
+              />
+              <Button
+                size="icon"
+                variant="brand"
+                className="size-9 shrink-0"
+                onClick={save}
+                disabled={isPending}
+              >
+                {isPending ? <Spinner className="size-4" /> : <Check className="size-4" />}
+              </Button>
+            </div>
+          ) : (
+            <p className="truncate text-sm font-semibold">
+              {currentName ?? "Sin definir"}
+            </p>
+          )}
+        </div>
+        {!editing && (
+          <button
+            onClick={() => setEditing(true)}
+            className="shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-muted"
+            aria-label="Editar docente"
+          >
+            <Pencil className="size-4" />
+          </button>
+        )}
+      </CardContent>
+    </Card>
   );
 }

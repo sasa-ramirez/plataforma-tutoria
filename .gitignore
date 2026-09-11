@@ -12,3 +12,7 @@ dist-ssr
 supabase/.temp
 supabase/.branches
 npm-debug.log*
+
+# Informes de tutoría con datos personales de estudiantes (cédulas, firmas,
+# fotos) — de referencia local, nunca deben subirse al repo.
+imforme_tutoria_2026/

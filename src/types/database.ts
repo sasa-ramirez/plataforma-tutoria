@@ -56,6 +56,19 @@ export interface Course {
   join_code: string;
   subject_id: string | null;
   schedule: string | null;
+  professor_name: string | null;
+  created_at: string;
+}
+
+export type TutoringSessionType = "planificada" | "ocasional";
+
+export interface TutoringSession {
+  id: string;
+  course_id: string;
+  tutor_id: string;
+  session_date: string;
+  type: TutoringSessionType;
+  topic: string | null;
   created_at: string;
 }
 
