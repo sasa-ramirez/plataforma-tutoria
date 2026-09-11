@@ -110,6 +110,8 @@ export function CourseDetailPage() {
       {/* Cuadrar horario (tutor propone, alumnos votan) */}
       <ScheduleCard
         courseId={id}
+        courseTitle={course.title}
+        tutorName={profile?.full_name ?? ""}
         isTeacher={isTeacher}
         currentSchedule={course.schedule}
       />

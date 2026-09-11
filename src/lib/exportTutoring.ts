@@ -466,3 +466,85 @@ export async function exportSeguimientoExcel(params: {
     `seguimiento_${params.courseTitle}_${new Date().toISOString().slice(0, 10)}.xlsx`,
   );
 }
+
+// Mismos colores/encabezado del formato oficial "HORARIO DE TUTORIAS POR
+// GRUPO" (verde institucional). La plantilla real trae una cuadrícula por
+// día y franja horaria, pero la plataforma solo guarda UN horario ya
+// acordado (texto libre, resultado de la votación) — no datos sueltos
+// por día/hora — así que en vez de fingir esa cuadrícula se deja el
+// mismo encabezado y el horario acordado en una sola celda.
+const SCHEDULE_GREEN_TITLE = {
+  type: "pattern" as const,
+  pattern: "solid" as const,
+  fgColor: { argb: "FF00B050" },
+};
+const SCHEDULE_GREEN_LIGHT = {
+  type: "pattern" as const,
+  pattern: "solid" as const,
+  fgColor: { argb: "FF92D050" },
+};
+
+export async function exportScheduleExcel(params: {
+  courseTitle: string;
+  tutorName: string;
+  programName: string | null;
+  subjectName: string | null;
+  schedule: string | null;
+}) {
+  const Excel = await loadExcelJS();
+  const workbook = new Excel.Workbook();
+  const ws = workbook.addWorksheet("HORARIO");
+  ws.columns = Array.from({ length: 6 }, () => ({ width: 21 }));
+
+  ws.mergeCells(1, 1, 1, 6);
+  const title = ws.getCell(1, 1);
+  title.value = "HORARIO DE TUTORÍAS POR GRUPO";
+  title.font = { bold: true, size: 12, name: "Calibri" };
+  title.alignment = { horizontal: "center", vertical: "middle" };
+  title.fill = SCHEDULE_GREEN_TITLE;
+  ws.getRow(1).height = 20;
+  for (let c = 1; c <= 6; c++) ws.getCell(1, c).border = GRID_BORDER;
+
+  const headerPairs: [string, number, number][] = [
+    [`NOMBRE DEL TUTOR: ${params.tutorName}`, 1, 2],
+    [`PROGRAMA: ${params.programName ?? ""}`, 3, 4],
+    [`ASIGNATURA: ${params.subjectName ?? ""}`, 5, 6],
+  ];
+  for (const [text, from, to] of headerPairs) {
+    ws.mergeCells(2, from, 2, to);
+    const cell = ws.getCell(2, from);
+    cell.value = text;
+    cell.font = { bold: true, size: 11, name: "Calibri" };
+    cell.alignment = { horizontal: "left", vertical: "middle" };
+    cell.fill = SCHEDULE_GREEN_LIGHT;
+    for (let c = from; c <= to; c++) ws.getCell(2, c).border = GRID_BORDER;
+  }
+
+  ws.mergeCells(3, 1, 3, 6);
+  const grupoCell = ws.getCell(3, 1);
+  grupoCell.value = `GRUPO: ${params.courseTitle}`;
+  grupoCell.font = { bold: true, size: 12, name: "Calibri" };
+  grupoCell.alignment = { horizontal: "center", vertical: "middle" };
+  for (let c = 1; c <= 6; c++) ws.getCell(3, c).border = GRID_BORDER;
+
+  ws.mergeCells(5, 1, 5, 6);
+  const label = ws.getCell(5, 1);
+  label.value = "HORARIO ACORDADO (definido por votación de los estudiantes):";
+  label.font = { bold: true, size: 11, name: "Calibri" };
+  label.alignment = { horizontal: "left", vertical: "middle" };
+
+  ws.mergeCells(6, 1, 8, 6);
+  const value = ws.getCell(6, 1);
+  value.value = params.schedule || "Aún no se ha definido un horario.";
+  value.font = { size: 12, name: "Calibri" };
+  value.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+  for (let r = 6; r <= 8; r++) {
+    for (let c = 1; c <= 6; c++) ws.getCell(r, c).border = GRID_BORDER;
+  }
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  downloadWorkbook(
+    buffer,
+    `horario_${params.courseTitle}_${new Date().toISOString().slice(0, 10)}.xlsx`,
+  );
+}

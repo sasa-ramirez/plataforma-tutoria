@@ -1,11 +1,13 @@
 import { useState } from "react";
-import { CalendarClock, Plus, Trash2, Check } from "lucide-react";
+import { CalendarClock, Plus, Trash2, Check, FileDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/common/Spinner";
 import { useToast } from "@/components/ui/toast";
 import { useScheduleOptions, useScheduleMutations } from "@/hooks/useSchedule";
+import { useCourseProgramInfo } from "@/hooks/useCourses";
 import { cn } from "@/lib/utils";
 
 /**
@@ -14,17 +16,43 @@ import { cn } from "@/lib/utils";
  */
 export function ScheduleCard({
   courseId,
+  courseTitle,
+  tutorName,
   isTeacher,
   currentSchedule,
 }: {
   courseId: string;
+  courseTitle: string;
+  tutorName: string;
   isTeacher: boolean;
   currentSchedule: string | null;
 }) {
   const { toast } = useToast();
   const { data: options, isLoading } = useScheduleOptions(courseId);
+  const { data: programInfo } = useCourseProgramInfo(courseId, isTeacher);
   const { add, remove, vote, unvote } = useScheduleMutations(courseId);
   const [label, setLabel] = useState("");
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      // exportTutoring trae exceljs (pesado) y los logos embebidos, así que
+      // se carga solo al exportar, igual que en AttendanceCard.tsx.
+      const { exportScheduleExcel } = await import("@/lib/exportTutoring");
+      await exportScheduleExcel({
+        courseTitle,
+        tutorName,
+        programName: programInfo?.programName ?? null,
+        subjectName: programInfo?.subjectName ?? null,
+        schedule: currentSchedule,
+      });
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "No se pudo exportar", "error");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const maxVotes = Math.max(0, ...(options ?? []).map((o) => o.votes));
 
@@ -51,8 +79,16 @@ export function ScheduleCard({
   return (
     <Card>
       <CardContent className="space-y-3 p-4">
-        <div className="flex items-center gap-1.5 text-base font-bold">
-          <CalendarClock className="size-4 text-primary" /> Horario del grupo
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-base font-bold">
+            <CalendarClock className="size-4 text-primary" /> Horario del grupo
+          </div>
+          {isTeacher && (
+            <Button size="sm" variant="outline" onClick={handleExport} disabled={exporting}>
+              {exporting ? <Spinner className="size-4" /> : <FileDown className="size-4" />}
+              Excel
+            </Button>
+          )}
         </div>
 
         {currentSchedule ? (
