@@ -108,7 +108,7 @@ export async function submitForReview(
     } catch {
       /* si no se puede leer el cuerpo, queda error.message */
     }
-    return { ok: false, error: `IA: ${detail}` };
+    return { ok: false, error: friendlyReviewError(detail) };
   }
 
   // La función pudo responder 200 pero con ok:false (error controlado).
@@ -118,9 +118,21 @@ export async function submitForReview(
       .from("submissions")
       .update({ status: "error" })
       .eq("id", submissionId);
-    return { ok: false, error: result?.error ?? "La IA no pudo revisar." };
+    return { ok: false, error: friendlyReviewError(result?.error ?? "") };
   }
   return result;
+}
+
+/** El detalle técnico (JSON crudo de OpenRouter, stacktraces, etc.) es útil
+ * en consola pero no debe llegarle así a un estudiante — se cambia por un
+ * mensaje claro, distinguiendo el caso de "modelo gratis saturado" (que sí
+ * conviene reintentar en un rato) del resto. */
+function friendlyReviewError(detail: string): string {
+  if (detail) console.error("[ai-review]", detail);
+  if (/429|rate.?limit|saturad/i.test(detail)) {
+    return "La IA está saturada en este momento (mucha gente usándola a la vez). Vuelve a intentarlo en unos minutos.";
+  }
+  return "No se pudo revisar tu ejercicio con IA en este momento. Vuelve a intentarlo en un rato.";
 }
 
 export async function fetchFeedback(
