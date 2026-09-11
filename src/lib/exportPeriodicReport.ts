@@ -50,13 +50,14 @@ type ImageModuleCtor = new (opts: {
 }) => unknown;
 
 /**
- * Genera el Word del informe periódico usando la plantilla oficial real
- * (BS-F-17) sin cambiar su formato — solo se rellenan los campos
- * ({dia}, {lugar}, etc.) que se insertaron en el documento original.
- * Todas las librerías pesadas se cargan bajo demanda para no engordar
- * el paquete principal.
+ * Genera el Word del informe periódico (buffer en memoria) usando la
+ * plantilla oficial real (BS-F-17) sin cambiar su formato — solo se
+ * rellenan los campos ({dia}, {lugar}, etc.) que se insertaron en el
+ * documento original. Todas las librerías pesadas se cargan bajo demanda
+ * para no engordar el paquete principal. Se usa tanto para la descarga
+ * como para la vista previa (mismo documento, sin generarlo dos veces).
  */
-export async function downloadPeriodicReportDocx(report: PeriodicReport): Promise<void> {
+export async function renderPeriodicReportDocx(report: PeriodicReport): Promise<ArrayBuffer> {
   const [pizzipMod, docxtemplaterMod, imageModuleMod, { BS_F17_TEMPLATE_BASE64 }] =
     await Promise.all([
       import("pizzip"),
@@ -109,6 +110,10 @@ export async function downloadPeriodicReportDocx(report: PeriodicReport): Promis
     foto: photo ? "1" : "",
   });
 
-  const out = doc.getZip().generate({ type: "arraybuffer" });
+  return doc.getZip().generate({ type: "arraybuffer" });
+}
+
+export async function downloadPeriodicReportDocx(report: PeriodicReport): Promise<void> {
+  const out = await renderPeriodicReportDocx(report);
   downloadBlob(out, `informe_periodico_${report.report_date}.docx`);
 }

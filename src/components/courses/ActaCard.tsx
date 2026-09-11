@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ClipboardType, Plus, FileDown, Trash2 } from "lucide-react";
+import { ClipboardType, Plus, FileDown, Eye, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -18,7 +18,8 @@ import { Spinner } from "@/components/common/Spinner";
 import { useToast } from "@/components/ui/toast";
 import { useCourseProgramInfo } from "@/hooks/useCourses";
 import { useActas, useCreateActa, useDeleteActa } from "@/hooks/useActas";
-import { downloadActaDocx } from "@/lib/exportActa";
+import { downloadActaDocx, renderActaDocx } from "@/lib/exportActa";
+import { DocxPreviewDialog } from "@/components/common/DocxPreviewDialog";
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
@@ -35,6 +36,8 @@ export function ActaCard({
   const { mutateAsync: remove, isPending: removing } = useDeleteActa(courseId);
   const { toast } = useToast();
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  const previewActa = actas?.find((a) => a.id === previewId) ?? null;
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("¿Eliminar esta acta?")) return;
@@ -98,6 +101,13 @@ export function ActaCard({
                     {a.asunto || a.desarrollo}
                   </p>
                 </div>
+                <button
+                  onClick={() => setPreviewId(a.id)}
+                  className="shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-muted"
+                  aria-label="Vista previa"
+                >
+                  <Eye className="size-4" />
+                </button>
                 <Button
                   size="sm"
                   variant="outline"
@@ -124,6 +134,16 @@ export function ActaCard({
           </div>
         )}
       </CardContent>
+
+      {previewActa && (
+        <DocxPreviewDialog
+          open={!!previewActa}
+          onOpenChange={(v) => !v && setPreviewId(null)}
+          title="Acta de reunión"
+          filename={`acta_${previewActa.acta_date}.docx`}
+          getDocx={() => renderActaDocx(previewActa)}
+        />
+      )}
     </Card>
   );
 }

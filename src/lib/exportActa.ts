@@ -44,13 +44,14 @@ type DocxtemplaterCtor = new (
 type PizZipCtor = new (data: Uint8Array) => unknown;
 
 /**
- * Genera el Word del acta usando la plantilla oficial real (AD-F-01) sin
- * cambiar su formato — solo se rellenan los campos que se insertaron en
- * el documento original. Las firmas quedan en blanco para firmar a mano,
- * igual que en el informe periódico. Las librerías pesadas se cargan
- * bajo demanda para no engordar el paquete principal.
+ * Genera el Word del acta (buffer en memoria) usando la plantilla oficial
+ * real (AD-F-01) sin cambiar su formato — solo se rellenan los campos que
+ * se insertaron en el documento original. Las firmas quedan en blanco
+ * para firmar a mano, igual que en el informe periódico. Las librerías
+ * pesadas se cargan bajo demanda. Se usa tanto para la descarga como
+ * para la vista previa (mismo documento, sin generarlo dos veces).
  */
-export async function downloadActaDocx(acta: Acta): Promise<void> {
+export async function renderActaDocx(acta: Acta): Promise<ArrayBuffer> {
   const [pizzipMod, docxtemplaterMod, { AD_F01_TEMPLATE_BASE64 }] = await Promise.all([
     import("pizzip"),
     import("docxtemplater"),
@@ -79,6 +80,10 @@ export async function downloadActaDocx(acta: Acta): Promise<void> {
     programa: (acta.program_name ?? "").toUpperCase(),
   });
 
-  const out = doc.getZip().generate({ type: "arraybuffer" });
+  return doc.getZip().generate({ type: "arraybuffer" });
+}
+
+export async function downloadActaDocx(acta: Acta): Promise<void> {
+  const out = await renderActaDocx(acta);
   downloadBlob(out, `acta_${acta.acta_date}.docx`);
 }

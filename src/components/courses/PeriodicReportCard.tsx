@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { FileText, Plus, Camera, X, FileDown, Trash2 } from "lucide-react";
+import { FileText, Plus, Camera, X, FileDown, Eye, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -19,7 +19,8 @@ import { useToast } from "@/components/ui/toast";
 import { useCourseMembers, useCourseProgramInfo } from "@/hooks/useCourses";
 import { useTutoringSessions } from "@/hooks/useTutoring";
 import { useReports, useCreateReport, useDeleteReport } from "@/hooks/useReports";
-import { downloadPeriodicReportDocx } from "@/lib/exportPeriodicReport";
+import { downloadPeriodicReportDocx, renderPeriodicReportDocx } from "@/lib/exportPeriodicReport";
+import { DocxPreviewDialog } from "@/components/common/DocxPreviewDialog";
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
@@ -38,6 +39,8 @@ export function PeriodicReportCard({
   const { mutateAsync: remove, isPending: removing } = useDeleteReport(courseId);
   const { toast } = useToast();
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  const previewReport = reports?.find((r) => r.id === previewId) ?? null;
 
   const handleDelete = async (id: string) => {
     const report = reports?.find((r) => r.id === id);
@@ -108,6 +111,13 @@ export function PeriodicReportCard({
                     {r.topics || r.description}
                   </p>
                 </div>
+                <button
+                  onClick={() => setPreviewId(r.id)}
+                  className="shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-muted"
+                  aria-label="Vista previa"
+                >
+                  <Eye className="size-4" />
+                </button>
                 <Button
                   size="sm"
                   variant="outline"
@@ -134,6 +144,16 @@ export function PeriodicReportCard({
           </div>
         )}
       </CardContent>
+
+      {previewReport && (
+        <DocxPreviewDialog
+          open={!!previewReport}
+          onOpenChange={(v) => !v && setPreviewId(null)}
+          title="Informe periódico"
+          filename={`informe_periodico_${previewReport.report_date}.docx`}
+          getDocx={() => renderPeriodicReportDocx(previewReport)}
+        />
+      )}
     </Card>
   );
 }
