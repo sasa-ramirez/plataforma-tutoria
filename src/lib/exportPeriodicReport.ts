@@ -104,7 +104,9 @@ export async function downloadPeriodicReportDocx(report: PeriodicReport): Promis
     temas: report.topics ?? "",
     descripcion: report.description,
     observaciones: report.observations ?? "",
-    tieneFoto: !!photo,
+    // El módulo de imagen solo inserta la foto si este valor es "truthy";
+    // si no hay foto, el tag {%foto} se resuelve como texto vacío.
+    foto: photo ? "1" : "",
   });
 
   const out = doc.getZip().generate({ type: "arraybuffer" });
