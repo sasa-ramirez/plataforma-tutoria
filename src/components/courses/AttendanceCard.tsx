@@ -36,7 +36,6 @@ import {
   useSessionAttendance,
 } from "@/hooks/useTutoring";
 import { searchStudents, type StudentSearchResult } from "@/services/tutoring";
-import { exportAttendanceExcel, exportSeguimientoExcel } from "@/lib/exportTutoring";
 import { cn, initials } from "@/lib/utils";
 import type { TutoringSessionType } from "@/types/database";
 
@@ -58,10 +57,13 @@ export function AttendanceCard({
   const [openSession, setOpenSession] = useState<string | null>(null);
   const [exporting, setExporting] = useState<"asistencia" | "seguimiento" | null>(null);
 
+  // exportTutoring trae exceljs (pesado) y los logos embebidos, así que
+  // se carga solo al exportar — no debe engordar el paquete inicial.
   const handleExportAttendance = async () => {
     setExporting("asistencia");
     try {
-      await exportAttendanceExcel({ courseId, courseTitle, subjectName: null });
+      const { exportAttendanceExcel } = await import("@/lib/exportTutoring");
+      await exportAttendanceExcel({ courseId, courseTitle, tutorName, subjectName: null });
     } catch (e) {
       toast(e instanceof Error ? e.message : "No se pudo exportar", "error");
     } finally {
@@ -72,6 +74,7 @@ export function AttendanceCard({
   const handleExportSeguimiento = async () => {
     setExporting("seguimiento");
     try {
+      const { exportSeguimientoExcel } = await import("@/lib/exportTutoring");
       await exportSeguimientoExcel({
         courseId,
         courseTitle,
