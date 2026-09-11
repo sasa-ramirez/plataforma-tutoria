@@ -20,10 +20,20 @@ function splitName(fullName: string | null): { nombre: string; apellidos: string
   return { nombre: parts.slice(0, cut).join(" "), apellidos: parts.slice(cut).join(" ") };
 }
 
-function shortDate(iso: string): string {
-  const d = new Date(iso + "T00:00:00");
-  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
+const MESES = [
+  "ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO",
+  "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE",
+];
+
+/** "indigena" -> "I" (mismas letras/categorías del formato oficial). */
+const PRIORITY_LETTER: Record<string, "I" | "A" | "D" | "V" | "C" | "H"> = {
+  indigena: "I",
+  afro: "A",
+  discapacidad: "D",
+  victima: "V",
+  lgbtiq: "C",
+  frontera: "H",
+};
 
 /** exceljs se carga solo al exportar (import dinámico) para no engordar
  * el paquete que descarga todo el mundo con solo abrir la app. Vite
@@ -31,11 +41,10 @@ function shortDate(iso: string): string {
  * probamos `.default` primero y si no, el módulo tal cual. */
 async function loadExcelJS(): Promise<typeof ExcelJS> {
   const mod = await import("exceljs");
-  return ((mod as unknown as { default?: typeof ExcelJS }).default ??
-    mod) as typeof ExcelJS;
+  return ((mod as unknown as { default?: typeof ExcelJS }).default ?? mod) as typeof ExcelJS;
 }
 
-// ---------- Estilo (imitando el formato oficial de Bienestar) ----------
+// ---------- Estilo (mismo lenguaje visual del formato oficial de Bienestar) ----------
 const THIN = { style: "thin" as const, color: { argb: "FF000000" } };
 const MEDIUM = { style: "medium" as const, color: { argb: "FF000000" } };
 const GRID_BORDER = { top: THIN, left: THIN, bottom: THIN, right: THIN };
@@ -44,21 +53,17 @@ const HEADER_FILL = {
   pattern: "solid" as const,
   fgColor: { argb: "FFCFE2F3" },
 };
+const HEADER_FONT = { bold: true, size: 9, name: "Arial" };
+const HEADER_ALIGN = { horizontal: "center" as const, vertical: "middle" as const, wrapText: true };
 
-type Row = (string | number)[];
-
-/** Encabezado con los dos logos institucionales + título, como en las
- * plantillas oficiales. Devuelve la primera fila libre para seguir. */
-function addLetterhead(
-  ws: ExcelJS.Worksheet,
-  title: string,
-  subtitle: string,
-  lastCol: number,
-): number {
+/** Encabezado con los dos logos institucionales + título — igual que
+ * las plantillas oficiales (mismo texto de título, mismos logos, caja
+ * con borde grueso). Devuelve la primera fila libre para seguir. */
+function addLetterhead(ws: ExcelJS.Worksheet, title: string, lastCol: number): number {
   const titleRows = 3;
   ws.mergeCells(1, 1, titleRows, lastCol);
   const titleCell = ws.getCell(1, 1);
-  titleCell.value = `${title}\n${subtitle}`;
+  titleCell.value = title;
   titleCell.font = { bold: true, size: 13, name: "Arial" };
   titleCell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
   for (let r = 1; r <= titleRows; r++) {
@@ -85,25 +90,30 @@ function addLetterhead(
   return titleRows + 1;
 }
 
-function styleHeaderRow(ws: ExcelJS.Worksheet, rowIdx: number, colCount: number) {
-  const row = ws.getRow(rowIdx);
-  row.height = 42;
-  for (let c = 1; c <= colCount; c++) {
-    const cell = row.getCell(c);
-    cell.font = { bold: true, size: 9, name: "Arial" };
-    cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
-    cell.fill = HEADER_FILL;
-    cell.border = GRID_BORDER;
-  }
+function metaRow(ws: ExcelJS.Worksheet, rowIdx: number, text: string, lastCol: number) {
+  ws.mergeCells(rowIdx, 1, rowIdx, lastCol);
+  const cell = ws.getCell(rowIdx, 1);
+  cell.value = text;
+  cell.font = { bold: true, size: 10, name: "Calibri" };
+  cell.alignment = { horizontal: "left", vertical: "middle" };
+  ws.getRow(rowIdx).height = 18;
 }
 
-function styleDataRow(ws: ExcelJS.Worksheet, rowIdx: number, colCount: number) {
-  const row = ws.getRow(rowIdx);
-  for (let c = 1; c <= colCount; c++) {
-    const cell = row.getCell(c);
-    cell.border = GRID_BORDER;
+function styleCell(
+  ws: ExcelJS.Worksheet,
+  row: number,
+  col: number,
+  opts: { header?: boolean } = {},
+) {
+  const cell = ws.getCell(row, col);
+  cell.border = GRID_BORDER;
+  if (opts.header) {
+    cell.font = HEADER_FONT;
+    cell.alignment = HEADER_ALIGN;
+    cell.fill = HEADER_FILL;
+  } else {
     cell.font = { size: 9, name: "Calibri" };
-    cell.alignment = { vertical: "middle" };
+    cell.alignment = { vertical: "middle", horizontal: "center" };
   }
 }
 
@@ -121,25 +131,32 @@ function downloadWorkbook(buffer: ExcelJS.Buffer, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-const ROSTER_HEADER = [
-  "#",
-  "NOMBRES",
-  "APELLIDOS",
-  "IDENTIFICACIÓN",
-  "CÓDIGO ESTUDIANTIL",
-  "PROGRAMA ACADÉMICO",
-  "SEXO",
-  "GRUPO PRIORIZADO",
-  "ASIGNATURA",
-  "GRUPO",
+// Columnas simples (una fila de encabezado, ancho fijo) antes de las
+// casillas de sexo/grupo priorizado — mismos campos y orden del
+// formato oficial "REGISTRO Y CONTABILIZACIÓN DE ASISTENCIAS".
+const SIMPLE_COLS = [
+  { label: "#", width: 4 },
+  { label: "NOMBRES DEL ESTUDIANTE", width: 20 },
+  { label: "APELLIDOS DEL ESTUDIANTE", width: 20 },
+  { label: "IDENTIFICACIÓN", width: 14 },
+  { label: "CÓDIGO ESTUDIANTIL", width: 12 },
+  { label: "PROGRAMA ACADÉMICO", width: 22 },
 ];
-const ROSTER_WIDTHS = [4, 20, 20, 14, 12, 22, 7, 16, 22, 8];
+const SEX_COLS = ["F", "M"];
+const PRIORITY_COLS = ["I", "A", "D", "V", "C", "H"];
+const TAIL_COLS = [
+  { label: "ASIGNATURA", width: 22 },
+  { label: "GRUPO", width: 8 },
+  { label: "REP", width: 6 },
+];
 
 /**
  * Reporte de asistencia (dos hojas: planificadas y ocasionales), con el
- * mismo encabezado institucional del formato oficial y una columna por
- * cada fecha real de sesión registrada (en vez de la grilla de fechas
- * en blanco del original, que reserva el corte completo por adelantado).
+ * mismo encabezado institucional, las mismas casillas de SEXO (F/M) y
+ * GRUPO PRIORIZADO (I/A/D/V/C/H) del formato oficial, y una columna por
+ * cada fecha real de sesión registrada agrupada por mes — en vez de la
+ * grilla en blanco del original, que reserva el corte completo (con
+ * meses fijos, marzo-junio) por adelantado antes de que pase.
  */
 export async function exportAttendanceExcel(params: {
   courseId: string;
@@ -158,67 +175,167 @@ export async function exportAttendanceExcel(params: {
   const buildSheet = (
     type: TutoringSessionType,
     label: string,
+    title: string,
     sheetRoster: CourseRosterRow[],
   ) => {
     const entries = attendance.filter((a) => a.type === type);
     const dates = [...new Set(entries.map((e) => e.session_date))].sort();
     const totalSessions = dates.length;
 
-    const header = [...ROSTER_HEADER, ...dates.map(shortDate), "TOTAL ASISTENCIAS", "TUTORÍAS DICTADAS"];
-    const colCount = header.length;
+    // Agrupa las fechas reales por mes, para el encabezado de dos filas
+    // (mes arriba, fusionado; día del mes abajo) — mismo estilo visual
+    // que el formato oficial.
+    const monthGroups: { label: string; dates: string[] }[] = [];
+    for (const d of dates) {
+      const dt = new Date(d + "T00:00:00");
+      const label2 = `${MESES[dt.getMonth()]} ${dt.getFullYear()}`;
+      const last = monthGroups[monthGroups.length - 1];
+      if (last && last.label === label2) last.dates.push(d);
+      else monthGroups.push({ label: label2, dates: [d] });
+    }
+
+    const preCols = SIMPLE_COLS.length + SEX_COLS.length + PRIORITY_COLS.length + TAIL_COLS.length;
+    const colCount = preCols + dates.length + 2; // + totales
 
     const ws = workbook.addWorksheet(label);
-    ws.columns = [...ROSTER_WIDTHS, ...dates.map(() => 5), 13, 13].map((width) => ({ width }));
+    ws.columns = [
+      ...SIMPLE_COLS.map((c) => ({ width: c.width })),
+      ...SEX_COLS.map(() => ({ width: 4 })),
+      ...PRIORITY_COLS.map(() => ({ width: 4 })),
+      ...TAIL_COLS.map((c) => ({ width: c.width })),
+      ...dates.map(() => ({ width: 4.5 })),
+      { width: 12 },
+      { width: 12 },
+    ];
 
-    const firstDataRow = addLetterhead(
+    let row = addLetterhead(ws, title, colCount);
+    metaRow(
       ws,
-      "CONTROL DE ASISTENCIA DE TUTORÍAS",
-      `Responsable: ${params.tutorName}  ·  Grupo: ${params.courseTitle}  ·  Modalidad: ${
-        type === "planificada" ? "Planificada" : "Ocasional"
+      row,
+      `RESPONSABLE: ${params.tutorName}   ·   GRUPO: ${params.courseTitle}   ·   ASIGNATURA: ${
+        params.subjectName ?? ""
       }`,
       colCount,
     );
+    row += 1;
 
-    ws.getRow(firstDataRow).values = header;
-    styleHeaderRow(ws, firstDataRow, colCount);
-    ws.views = [{ state: "frozen", ySplit: firstDataRow }];
+    const headerRow1 = row;
+    const headerRow2 = row + 1;
 
+    // Columnas simples: una celda fusionada en las 2 filas de encabezado.
+    let col = 1;
+    for (const c of SIMPLE_COLS) {
+      ws.mergeCells(headerRow1, col, headerRow2, col);
+      ws.getCell(headerRow1, col).value = c.label;
+      styleCell(ws, headerRow1, col, { header: true });
+      styleCell(ws, headerRow2, col, { header: true });
+      col++;
+    }
+    // SEXO: título fusionado arriba, F/M abajo.
+    const sexStart = col;
+    ws.mergeCells(headerRow1, sexStart, headerRow1, sexStart + SEX_COLS.length - 1);
+    ws.getCell(headerRow1, sexStart).value = "SEXO";
+    for (let i = 0; i < SEX_COLS.length; i++) {
+      styleCell(ws, headerRow1, sexStart + i, { header: true });
+      ws.getCell(headerRow2, sexStart + i).value = SEX_COLS[i];
+      styleCell(ws, headerRow2, sexStart + i, { header: true });
+    }
+    col += SEX_COLS.length;
+    // GRUPO PRIORIZADO: título fusionado arriba, I/A/D/V/C/H abajo.
+    const prioStart = col;
+    ws.mergeCells(headerRow1, prioStart, headerRow1, prioStart + PRIORITY_COLS.length - 1);
+    ws.getCell(headerRow1, prioStart).value = "GRUPO PRIORIZADO";
+    for (let i = 0; i < PRIORITY_COLS.length; i++) {
+      styleCell(ws, headerRow1, prioStart + i, { header: true });
+      ws.getCell(headerRow2, prioStart + i).value = PRIORITY_COLS[i];
+      styleCell(ws, headerRow2, prioStart + i, { header: true });
+    }
+    col += PRIORITY_COLS.length;
+    // ASIGNATURA / GRUPO / REP.
+    for (const c of TAIL_COLS) {
+      ws.mergeCells(headerRow1, col, headerRow2, col);
+      ws.getCell(headerRow1, col).value = c.label;
+      styleCell(ws, headerRow1, col, { header: true });
+      styleCell(ws, headerRow2, col, { header: true });
+      col++;
+    }
+    // Fechas, agrupadas por mes.
+    for (const g of monthGroups) {
+      if (g.dates.length > 1) {
+        ws.mergeCells(headerRow1, col, headerRow1, col + g.dates.length - 1);
+      }
+      ws.getCell(headerRow1, col).value = g.label;
+      for (let i = 0; i < g.dates.length; i++) {
+        styleCell(ws, headerRow1, col + i, { header: true });
+        const dt = new Date(g.dates[i] + "T00:00:00");
+        ws.getCell(headerRow2, col + i).value = dt.getDate();
+        styleCell(ws, headerRow2, col + i, { header: true });
+      }
+      col += g.dates.length;
+    }
+    // Totales.
+    for (const c of ["TOTAL DE\nASISTENCIAS", "TUTORÍAS\nDICTADAS"]) {
+      ws.mergeCells(headerRow1, col, headerRow2, col);
+      ws.getCell(headerRow1, col).value = c;
+      styleCell(ws, headerRow1, col, { header: true });
+      styleCell(ws, headerRow2, col, { header: true });
+      col++;
+    }
+    ws.getRow(headerRow1).height = 20;
+    ws.getRow(headerRow2).height = 20;
+    ws.views = [{ state: "frozen", ySplit: headerRow2 }];
+
+    const firstDataRow = headerRow2 + 1;
     sheetRoster.forEach((s, i) => {
       const { nombre, apellidos } = splitName(s.full_name);
       const studentEntries = entries.filter((e) => e.student_id === s.student_id);
       const presentCount = studentEntries.filter((e) => e.present).length;
       const byDate = new Map(studentEntries.map((e) => [e.session_date, e.present]));
-      const row: Row = [
+      const letter = s.priority_group ? PRIORITY_LETTER[s.priority_group] : null;
+
+      const rowIdx = firstDataRow + i;
+      const values: (string | number)[] = [
         i + 1,
         nombre,
         apellidos,
         s.national_id ?? "",
         s.student_code ?? "",
         s.program_name ?? "",
-        s.sex ?? "",
-        s.priority_group ?? "",
+        s.sex === "F" ? "X" : "",
+        s.sex === "M" ? "X" : "",
+        letter === "I" ? "X" : "",
+        letter === "A" ? "X" : "",
+        letter === "D" ? "X" : "",
+        letter === "V" ? "X" : "",
+        letter === "C" ? "X" : "",
+        letter === "H" ? "X" : "",
         s.subject_name ?? params.subjectName ?? "",
         params.courseTitle,
+        "",
         ...dates.map((d) => {
           const present = byDate.get(d);
-          return present === undefined ? "" : present ? 1 : 0;
+          return present === undefined ? "" : present ? "X" : "";
         }),
         presentCount,
         totalSessions,
       ];
-      const rowIdx = firstDataRow + 1 + i;
-      ws.getRow(rowIdx).values = row;
-      styleDataRow(ws, rowIdx, colCount);
+      ws.getRow(rowIdx).values = values;
+      for (let c = 1; c <= colCount; c++) styleCell(ws, rowIdx, c);
     });
 
     if (sheetRoster.length === 0) {
-      const rowIdx = firstDataRow + 1;
+      const rowIdx = firstDataRow;
       ws.getRow(rowIdx).values = ["Sin estudiantes registrados en esta modalidad."];
       ws.mergeCells(rowIdx, 1, rowIdx, colCount);
     }
   };
 
-  buildSheet("planificada", "PLANIFICADAS", roster);
+  buildSheet(
+    "planificada",
+    "PLANIFICADAS",
+    "CONTROL DE ASISTENCIA DE TUTORÍAS PROGRAMADAS Y/O PLANIFICADAS",
+    roster,
+  );
 
   const ocasionalIds = [
     ...new Set(attendance.filter((a) => a.type === "ocasional").map((a) => a.student_id)),
@@ -226,7 +343,12 @@ export async function exportAttendanceExcel(params: {
   const ocasionalInfo = await fetchStudentsInfo(ocasionalIds);
   const rosterById = new Map(roster.map((r) => [r.student_id, r]));
   const ocasionalRoster = ocasionalInfo.map((info) => rosterById.get(info.student_id) ?? info);
-  buildSheet("ocasional", "OCASIONALES", ocasionalRoster);
+  buildSheet(
+    "ocasional",
+    "OCASIONALES",
+    "CONTROL DE ASISTENCIA DE TUTORÍAS OCASIONALES",
+    ocasionalRoster,
+  );
 
   const buffer = await workbook.xlsx.writeBuffer();
   downloadWorkbook(
@@ -235,6 +357,9 @@ export async function exportAttendanceExcel(params: {
   );
 }
 
+// Mismas 19 columnas, en el mismo orden, del "FORMATO SEGUIMIENTO NOTAS"
+// real — es una tabla plana (sin logos ni encabezado especial: el
+// archivo original tampoco los tiene, es un listado con autofiltro).
 const SEGUIMIENTO_HEADER = [
   "Nombre",
   "Apellidos",
@@ -245,6 +370,10 @@ const SEGUIMIENTO_HEADER = [
   "Grupos priorizados",
   "CODIGO DE LA MATERIA",
   "Materia",
+  "Notas 1er corte",
+  "Notas 2do corte",
+  "Nota 3er corte",
+  "Final",
   "Nombre del tutor",
   "Sede",
   "Semestre",
@@ -252,12 +381,25 @@ const SEGUIMIENTO_HEADER = [
   "Año",
   "Periodo",
 ];
-const SEGUIMIENTO_WIDTHS = [20, 20, 14, 12, 22, 7, 16, 16, 24, 20, 10, 9, 8, 7, 8];
+const SEGUIMIENTO_WIDTHS = [
+  22, 24, 14, 12, 22, 7, 16, 16, 24, 10, 10, 10, 8, 20, 10, 9, 8, 7, 8,
+];
+const PRIORITY_LABEL: Record<string, string> = {
+  indigena: "indigena",
+  afro: "afro",
+  discapacidad: "discapacidad",
+  victima: "victima",
+  lgbtiq: "lgtbiq",
+  frontera: "frontera",
+};
 
 /**
- * Reporte de seguimiento: mismas columnas del archivo institucional que
- * ya se llena a mano. "CÓDIGO DE LA MATERIA" y "Semestre" quedan en
- * blanco — la plataforma no guarda esos dos datos todavía.
+ * Reporte de seguimiento: mismas 19 columnas del Excel institucional
+ * que ya se llena a mano, en el mismo orden — sin encabezado ni logos,
+ * porque el archivo real tampoco los tiene. "CÓDIGO DE LA MATERIA" y
+ * "Semestre" quedan en blanco (la plataforma no guarda esos dos datos
+ * todavía); las notas por corte también quedan en blanco para que las
+ * llenes tú o la coordinación, como ya haces hoy.
  */
 export async function exportSeguimientoExcel(params: {
   courseId: string;
@@ -266,10 +408,7 @@ export async function exportSeguimientoExcel(params: {
   tutorName: string;
   createdAt: string;
 }) {
-  const [roster, Excel] = await Promise.all([
-    fetchCourseRoster(params.courseId),
-    loadExcelJS(),
-  ]);
+  const [roster, Excel] = await Promise.all([fetchCourseRoster(params.courseId), loadExcelJS()]);
 
   const created = new Date(params.createdAt);
   const year = created.getFullYear();
@@ -279,29 +418,34 @@ export async function exportSeguimientoExcel(params: {
   const ws = workbook.addWorksheet("SEGUIMIENTO");
   ws.columns = SEGUIMIENTO_WIDTHS.map((width) => ({ width }));
 
-  const firstDataRow = addLetterhead(
-    ws,
-    "FORMATO DE SEGUIMIENTO DE NOTAS",
-    `Tutor: ${params.tutorName}  ·  Grupo: ${params.courseTitle}  ·  ${year}-${period}`,
-    SEGUIMIENTO_HEADER.length,
-  );
-
-  ws.getRow(firstDataRow).values = SEGUIMIENTO_HEADER;
-  styleHeaderRow(ws, firstDataRow, SEGUIMIENTO_HEADER.length);
-  ws.views = [{ state: "frozen", ySplit: firstDataRow }];
+  const headerRow = ws.getRow(1);
+  headerRow.values = SEGUIMIENTO_HEADER;
+  headerRow.height = 32;
+  for (let c = 1; c <= SEGUIMIENTO_HEADER.length; c++) {
+    const cell = headerRow.getCell(c);
+    cell.font = { bold: true, size: 11, name: "Calibri" };
+    cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+    cell.border = GRID_BORDER;
+  }
+  ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: SEGUIMIENTO_HEADER.length } };
 
   roster.forEach((s, i) => {
     const { nombre, apellidos } = splitName(s.full_name);
-    const row: Row = [
+    const rowIdx = i + 2;
+    ws.getRow(rowIdx).values = [
       nombre,
       apellidos,
       s.national_id ?? "",
       s.student_code ?? "",
       s.program_name ?? "",
       s.sex ?? "",
-      s.priority_group ?? "",
+      s.priority_group ? PRIORITY_LABEL[s.priority_group] : "",
       "",
       s.subject_name ?? params.subjectName ?? "",
+      "",
+      "",
+      "",
+      "",
       params.tutorName,
       "MAICAO",
       "",
@@ -309,15 +453,11 @@ export async function exportSeguimientoExcel(params: {
       year,
       period,
     ];
-    const rowIdx = firstDataRow + 1 + i;
-    ws.getRow(rowIdx).values = row;
-    styleDataRow(ws, rowIdx, SEGUIMIENTO_HEADER.length);
   });
 
   if (roster.length === 0) {
-    const rowIdx = firstDataRow + 1;
-    ws.getRow(rowIdx).values = ["Sin estudiantes inscritos en este grupo."];
-    ws.mergeCells(rowIdx, 1, rowIdx, SEGUIMIENTO_HEADER.length);
+    ws.getRow(2).values = ["Sin estudiantes inscritos en este grupo."];
+    ws.mergeCells(2, 1, 2, SEGUIMIENTO_HEADER.length);
   }
 
   const buffer = await workbook.xlsx.writeBuffer();
