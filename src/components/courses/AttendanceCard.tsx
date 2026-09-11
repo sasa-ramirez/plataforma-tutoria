@@ -9,6 +9,7 @@ import {
   X,
   UserCheck,
   UserX as UserXIcon,
+  Download,
 } from "lucide-react";
 import {
   Dialog,
@@ -35,14 +36,55 @@ import {
   useSessionAttendance,
 } from "@/hooks/useTutoring";
 import { searchStudents, type StudentSearchResult } from "@/services/tutoring";
+import { exportAttendanceExcel, exportSeguimientoExcel } from "@/lib/exportTutoring";
 import { cn, initials } from "@/lib/utils";
 import type { TutoringSessionType } from "@/types/database";
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
-export function AttendanceCard({ courseId }: { courseId: string }) {
+export function AttendanceCard({
+  courseId,
+  courseTitle,
+  tutorName,
+  createdAt,
+}: {
+  courseId: string;
+  courseTitle: string;
+  tutorName: string;
+  createdAt: string;
+}) {
+  const { toast } = useToast();
   const { data: sessions, isLoading } = useTutoringSessions(courseId);
   const [openSession, setOpenSession] = useState<string | null>(null);
+  const [exporting, setExporting] = useState<"asistencia" | "seguimiento" | null>(null);
+
+  const handleExportAttendance = async () => {
+    setExporting("asistencia");
+    try {
+      await exportAttendanceExcel({ courseId, courseTitle, subjectName: null });
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "No se pudo exportar", "error");
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const handleExportSeguimiento = async () => {
+    setExporting("seguimiento");
+    try {
+      await exportSeguimientoExcel({
+        courseId,
+        courseTitle,
+        subjectName: null,
+        tutorName,
+        createdAt,
+      });
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "No se pudo exportar", "error");
+    } finally {
+      setExporting(null);
+    }
+  };
 
   return (
     <Card>
@@ -52,6 +94,35 @@ export function AttendanceCard({ courseId }: { courseId: string }) {
             <ClipboardCheck className="size-4 text-primary" /> Asistencia de tutorías
           </div>
           <NewSessionDialog courseId={courseId} />
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleExportAttendance}
+            disabled={exporting !== null}
+          >
+            {exporting === "asistencia" ? (
+              <Spinner className="size-4" />
+            ) : (
+              <Download className="size-4" />
+            )}
+            Exportar asistencia
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleExportSeguimiento}
+            disabled={exporting !== null}
+          >
+            {exporting === "seguimiento" ? (
+              <Spinner className="size-4" />
+            ) : (
+              <Download className="size-4" />
+            )}
+            Exportar seguimiento
+          </Button>
         </div>
 
         {isLoading ? (

@@ -20,6 +20,14 @@ export type ExamEvent =
   | "copy"
   | "fullscreen_exit";
 
+export type PriorityGroup =
+  | "indigena"
+  | "afro"
+  | "discapacidad"
+  | "victima"
+  | "lgbtiq"
+  | "frontera";
+
 export interface Profile {
   id: string;
   email: string;
@@ -31,6 +39,10 @@ export interface Profile {
   streak: number;
   xp: number;
   last_active: string | null;
+  national_id: string | null;
+  student_code: string | null;
+  sex: "F" | "M" | null;
+  priority_group: PriorityGroup | null;
   created_at: string;
   updated_at: string;
 }
@@ -70,6 +82,18 @@ export interface TutoringSession {
   type: TutoringSessionType;
   topic: string | null;
   created_at: string;
+}
+
+export interface CourseRosterRow {
+  student_id: string;
+  full_name: string | null;
+  email: string;
+  national_id: string | null;
+  student_code: string | null;
+  sex: "F" | "M" | null;
+  priority_group: PriorityGroup | null;
+  program_name: string | null;
+  subject_name: string | null;
 }
 
 // ---- Catálogo académico: Facultad → Carrera → Asignatura ----

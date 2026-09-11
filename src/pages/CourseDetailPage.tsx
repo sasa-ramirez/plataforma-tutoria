@@ -32,7 +32,7 @@ import { FullScreenLoader, Spinner } from "@/components/common/Spinner";
 
 export function CourseDetailPage() {
   const { id = "" } = useParams();
-  const { isTeacher } = useAuth();
+  const { isTeacher, profile } = useAuth();
   const { toast } = useToast();
   const { data: course, isLoading } = useCourse(id);
   const { data: members, isLoading: membersLoading } = useCourseMembers(
@@ -121,7 +121,14 @@ export function CourseDetailPage() {
       )}
 
       {/* Asistencia de tutorías */}
-      {isTeacher && <AttendanceCard courseId={id} />}
+      {isTeacher && (
+        <AttendanceCard
+          courseId={id}
+          courseTitle={course.title}
+          tutorName={profile?.full_name ?? ""}
+          createdAt={course.created_at}
+        />
+      )}
 
       {/* Tareas */}
       <Card>

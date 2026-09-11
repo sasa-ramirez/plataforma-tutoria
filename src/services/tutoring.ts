@@ -1,5 +1,9 @@
 import { supabase } from "@/lib/supabase";
-import type { TutoringSession, TutoringSessionType } from "@/types/database";
+import type {
+  CourseRosterRow,
+  TutoringSession,
+  TutoringSessionType,
+} from "@/types/database";
 
 export interface AttendanceRecord {
   student_id: string;
@@ -131,6 +135,67 @@ export async function searchStudents(
   });
   if (error) throw new Error(error.message);
   return (data ?? []) as StudentSearchResult[];
+}
+
+/** Roster de inscritos con datos institucionales, para los reportes. */
+export async function fetchCourseRoster(
+  courseId: string,
+): Promise<CourseRosterRow[]> {
+  const { data, error } = await supabase.rpc("course_roster", {
+    p_course: courseId,
+  });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as CourseRosterRow[];
+}
+
+/** Datos institucionales de estudiantes puntuales (no necesariamente
+ * inscritos) — para el reporte de tutorías ocasionales. */
+export async function fetchStudentsInfo(
+  ids: string[],
+): Promise<CourseRosterRow[]> {
+  if (ids.length === 0) return [];
+  const { data, error } = await supabase.rpc("students_info", {
+    p_ids: ids,
+  });
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as Omit<CourseRosterRow, "program_name" | "subject_name">[]).map(
+    (r) => ({ ...r, program_name: null, subject_name: null }),
+  );
+}
+
+export interface AttendanceEntry {
+  session_id: string;
+  session_date: string;
+  type: TutoringSessionType;
+  student_id: string;
+  present: boolean;
+}
+
+/** Toda la asistencia (todas las sesiones) de un curso, para exportar. */
+export async function fetchAllAttendance(
+  courseId: string,
+): Promise<AttendanceEntry[]> {
+  const { data, error } = await supabase
+    .from("tutoring_attendance")
+    .select(
+      "student_id, present, tutoring_sessions!inner(id, session_date, type, course_id)",
+    )
+    .eq("tutoring_sessions.course_id", courseId);
+  if (error) throw error;
+  return (data ?? []).map((row) => {
+    const r = row as unknown as {
+      student_id: string;
+      present: boolean;
+      tutoring_sessions: { id: string; session_date: string; type: TutoringSessionType };
+    };
+    return {
+      session_id: r.tutoring_sessions.id,
+      session_date: r.tutoring_sessions.session_date,
+      type: r.tutoring_sessions.type,
+      student_id: r.student_id,
+      present: r.present,
+    };
+  });
 }
 
 export async function updateProfessorName(
