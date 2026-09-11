@@ -14,6 +14,7 @@ import { AssignmentDetailPage } from "@/pages/AssignmentDetailPage";
 import { BoardPage } from "@/pages/BoardPage";
 import { JoinClassPage } from "@/pages/JoinClassPage";
 import { SolvePage } from "@/pages/SolvePage";
+import { PeriodicReportPrintPage } from "@/pages/PeriodicReportPrintPage";
 import { PracticePage } from "@/pages/PracticePage";
 import { SandboxPage } from "@/pages/SandboxPage";
 import { FreePracticePage } from "@/pages/FreePracticePage";
@@ -76,6 +77,16 @@ export default function App() {
         element={
           <ProtectedRoute>
             <SolvePage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Informe periódico para imprimir/guardar como PDF (fullscreen, sin layout) */}
+      <Route
+        path="/app/reports/:reportId/print"
+        element={
+          <ProtectedRoute>
+            <PeriodicReportPrintPage />
           </ProtectedRoute>
         }
       />

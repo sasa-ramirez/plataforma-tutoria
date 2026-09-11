@@ -19,6 +19,7 @@ import { AssignmentCard } from "@/components/assignments/AssignmentCard";
 import { CreateAssignmentDialog } from "@/components/assignments/CreateAssignmentDialog";
 import { ScheduleCard } from "@/components/courses/ScheduleCard";
 import { AttendanceCard } from "@/components/courses/AttendanceCard";
+import { PeriodicReportCard } from "@/components/courses/PeriodicReportCard";
 import { useToast } from "@/components/ui/toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -127,6 +128,16 @@ export function CourseDetailPage() {
           courseTitle={course.title}
           tutorName={profile?.full_name ?? ""}
           createdAt={course.created_at}
+        />
+      )}
+
+      {/* Informe periódico (BS-F-17) */}
+      {isTeacher && (
+        <PeriodicReportCard
+          courseId={id}
+          courseTitle={course.title}
+          tutorName={profile?.full_name ?? ""}
+          professorName={course.professor_name}
         />
       )}
 

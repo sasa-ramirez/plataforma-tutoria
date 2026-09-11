@@ -5,6 +5,7 @@ import {
   fetchStudentCourses,
   fetchCourse,
   fetchCourseMembers,
+  fetchCourseProgramInfo,
   createCourse,
   joinCourseByCode,
   softDeleteCourse,
@@ -30,6 +31,14 @@ export function useCourseMembers(courseId: string, enabled = true) {
   return useQuery({
     queryKey: courseKeys.members(courseId),
     queryFn: () => fetchCourseMembers(courseId),
+    enabled: !!courseId && enabled,
+  });
+}
+
+export function useCourseProgramInfo(courseId: string, enabled = true) {
+  return useQuery({
+    queryKey: ["courses", "program-info", courseId],
+    queryFn: () => fetchCourseProgramInfo(courseId),
     enabled: !!courseId && enabled,
   });
 }

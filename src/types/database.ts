@@ -74,6 +74,26 @@ export interface Course {
 
 export type TutoringSessionType = "planificada" | "ocasional";
 
+export interface PeriodicReport {
+  id: string;
+  course_id: string;
+  tutor_id: string;
+  tutor_name: string | null;
+  report_date: string;
+  place: string;
+  group_label: string | null;
+  participants_count: number | null;
+  program_name: string | null;
+  subject_name: string | null;
+  semester: string | null;
+  professor_name: string | null;
+  topics: string | null;
+  description: string;
+  observations: string | null;
+  photo_path: string | null;
+  created_at: string;
+}
+
 export interface TutoringSession {
   id: string;
   course_id: string;

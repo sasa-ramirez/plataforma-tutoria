@@ -110,6 +110,30 @@ export async function fetchCourseMembers(
     .filter((p): p is CourseMember => !!p);
 }
 
+export interface CourseProgramInfo {
+  subjectName: string | null;
+  programName: string | null;
+}
+
+/** Programa (carrera) y asignatura de un curso, vía Facultad→Carrera→Asignatura. */
+export async function fetchCourseProgramInfo(
+  courseId: string,
+): Promise<CourseProgramInfo> {
+  const { data, error } = await supabase
+    .from("courses")
+    .select("subjects(name, careers(name))")
+    .eq("id", courseId)
+    .single();
+  if (error) throw error;
+  const row = data as unknown as {
+    subjects: { name: string; careers: { name: string } | null } | null;
+  };
+  return {
+    subjectName: row.subjects?.name ?? null,
+    programName: row.subjects?.careers?.name ?? null,
+  };
+}
+
 export async function softDeleteCourse(courseId: string): Promise<void> {
   const { error } = await supabase
     .from("courses")
