@@ -56,6 +56,7 @@ import {
   fetchTemplateInfo,
   uploadTemplate,
   deleteTemplate,
+  findMissingTags,
   type TemplateKey,
   type TemplateInfo,
 } from "@/services/documentTemplates";
@@ -894,28 +895,63 @@ function TeacherReport({ teacher }: { teacher: CoordTeacher }) {
 }
 
 /**
- * Plantillas oficiales (BS-F-17, AD-F-01): reemplazables sin tocar código.
- * Si la universidad cambia el formato, se sube el .docx ya re-etiquetado
- * aquí; si no hay ninguno subido, los generadores usan la plantilla que
- * viene incluida en la app de fábrica.
+ * Formatos oficiales de Bienestar. Los dos primeros (BS-F-17, AD-F-01)
+ * son plantillas activas — la app las rellena automático al generar el
+ * informe/acta de cada curso, y valida que traigan los campos correctos
+ * antes de aceptar un reemplazo. El resto quedan guardados aquí como
+ * copia de referencia del formato vigente, para que el equipo siempre
+ * tenga a mano la versión actual.
  */
 function Plantillas() {
   return (
-    <div className="space-y-4">
-      <p className="text-xs text-muted-foreground">
-        Si la universidad cambia el formato oficial, sube aquí el .docx nuevo (ya con los
-        campos marcados) — no hace falta tocar código ni esperar una actualización.
-      </p>
-      <TemplateSlot
-        templateKey="bs-f17"
-        title="Informe periódico (BS-F-17)"
-        description="Se usa al generar el Word desde “Informe periódico” en cada curso."
-      />
-      <TemplateSlot
-        templateKey="ad-f01"
-        title="Acta de reunión (AD-F-01)"
-        description="Se usa al generar el Word desde “Actas de reunión” en cada curso."
-      />
+    <div className="space-y-5">
+      <div className="space-y-3">
+        <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+          Plantillas activas
+        </p>
+        <TemplateSlot
+          templateKey="bs-f17"
+          title="Informe periódico (BS-F-17)"
+          description="Se usa al generar el Word desde “Informe periódico” en cada curso."
+          accept=".docx"
+        />
+        <TemplateSlot
+          templateKey="ad-f01"
+          title="Acta de reunión (AD-F-01)"
+          description="Se usa al generar el Word desde “Actas de reunión” en cada curso."
+          accept=".docx"
+        />
+      </div>
+
+      <div className="space-y-3">
+        <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+          Otros formatos (de referencia)
+        </p>
+        <TemplateSlot
+          templateKey="bs-f51"
+          title="Asistencia planificada (BS-F-51)"
+          description="Hoja de firmas en papel — se guarda aquí para tenerla siempre a mano."
+          accept=".docx"
+        />
+        <TemplateSlot
+          templateKey="bs-f75"
+          title="Asistencia ocasional (BS-F-75)"
+          description="Hoja de firmas en papel — se guarda aquí para tenerla siempre a mano."
+          accept=".docx"
+        />
+        <TemplateSlot
+          templateKey="seguimiento-xlsx"
+          title="Formato seguimiento de notas"
+          description="Copia de referencia — el Excel que exporta la app se arma aparte."
+          accept=".xlsx"
+        />
+        <TemplateSlot
+          templateKey="registro-asistencias-xlsx"
+          title="Registro y contabilización de asistencias"
+          description="Copia de referencia — el Excel que exporta la app se arma aparte."
+          accept=".xlsx"
+        />
+      </div>
     </div>
   );
 }
@@ -924,10 +960,12 @@ function TemplateSlot({
   templateKey,
   title,
   description,
+  accept,
 }: {
   templateKey: TemplateKey;
   title: string;
   description: string;
+  accept: string;
 }) {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -938,7 +976,7 @@ function TemplateSlot({
     try {
       setInfo(await fetchTemplateInfo(templateKey));
     } catch (e) {
-      toast(e instanceof Error ? e.message : "No se pudo consultar la plantilla", "error");
+      toast(e instanceof Error ? e.message : "No se pudo consultar el archivo", "error");
       setInfo(null);
     }
   };
@@ -950,14 +988,22 @@ function TemplateSlot({
 
   const handleFile = async (file: File | null) => {
     if (!file) return;
-    if (!file.name.toLowerCase().endsWith(".docx")) {
-      toast("Debe ser un archivo .docx", "error");
+    if (!file.name.toLowerCase().endsWith(accept)) {
+      toast(`Debe ser un archivo ${accept}`, "error");
       return;
     }
     setBusy(true);
     try {
+      const missing = await findMissingTags(templateKey, file);
+      if (missing.length > 0) {
+        toast(
+          `Ese archivo no tiene los campos que necesita la app (falta: ${missing.join(", ")}). No se subió — probablemente es el formato sin etiquetar.`,
+          "error",
+        );
+        return;
+      }
       await uploadTemplate(templateKey, file);
-      toast("Plantilla actualizada", "success");
+      toast("Archivo actualizado", "success");
       await load();
     } catch (e) {
       toast(e instanceof Error ? e.message : "No se pudo subir", "error");
@@ -968,14 +1014,14 @@ function TemplateSlot({
   };
 
   const handleReset = async () => {
-    if (!window.confirm("¿Volver a la plantilla incluida de fábrica?")) return;
+    if (!window.confirm("¿Quitar este archivo?")) return;
     setBusy(true);
     try {
       await deleteTemplate(templateKey);
-      toast("Se volvió a la plantilla de fábrica", "success");
+      toast("Archivo eliminado", "success");
       await load();
     } catch (e) {
-      toast(e instanceof Error ? e.message : "No se pudo restablecer", "error");
+      toast(e instanceof Error ? e.message : "No se pudo eliminar", "error");
     } finally {
       setBusy(false);
     }
@@ -996,22 +1042,22 @@ function TemplateSlot({
           <Skeleton className="h-10 w-full" />
         ) : info ? (
           <div className="rounded-xl border border-success/30 bg-success/5 px-3 py-2 text-xs">
-            <span className="font-semibold text-success">Personalizada</span>
+            <span className="font-semibold text-success">Subido</span>
             <span className="text-muted-foreground">
               {" "}
-              · actualizada {timeAgo(info.updatedAt)} · {(info.sizeBytes / 1024).toFixed(0)} KB
+              · actualizado {timeAgo(info.updatedAt)} · {(info.sizeBytes / 1024).toFixed(0)} KB
             </span>
           </div>
         ) : (
           <p className="rounded-xl border px-3 py-2 text-xs text-muted-foreground">
-            Usando la plantilla incluida de fábrica.
+            Nadie ha subido nada todavía.
           </p>
         )}
 
         <input
           ref={fileInputRef}
           type="file"
-          accept=".docx"
+          accept={accept}
           className="hidden"
           onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
         />
@@ -1023,11 +1069,11 @@ function TemplateSlot({
             disabled={busy}
           >
             {busy ? <Spinner className="size-4" /> : <FileUp className="size-4" />}
-            Subir nueva
+            Subir nuevo
           </Button>
           {info && (
             <Button size="sm" variant="outline" onClick={handleReset} disabled={busy}>
-              <RotateCcw className="size-4" /> Volver a la de fábrica
+              <RotateCcw className="size-4" /> Quitar
             </Button>
           )}
         </div>
