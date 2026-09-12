@@ -35,8 +35,13 @@ interface FieldSpec {
   /** "inline": el valor va en el mismo párrafo, justo después del anchor.
    *  "next-nonempty": el valor está en el primer párrafo con texto que
    *  sigue al párrafo del anchor (para secciones tipo "DESARROLLO" con
-   *  el contenido en la línea de abajo). */
-  mode: "inline" | "next-nonempty";
+   *  el contenido en la línea de abajo).
+   *  "offset": el valor está exactamente `offset` párrafos después del
+   *  anchor (0 = el mismo párrafo del anchor, completo) — para tablas
+   *  con estructura fija (fecha) o una celda que ya trae un texto guía
+   *  fijo (la celda de la foto dice literalmente "(imagen)"). */
+  mode: "inline" | "next-nonempty" | "offset";
+  offset?: number;
   /** Texto completo a insertar si no es simplemente "{tag}" (ej. "{grupo}."). */
   tagText?: string;
 }
@@ -53,8 +58,14 @@ const BS_F17_SPECS: FieldSpec[] = [
   { tag: "temas", anchor: "Temas desarrollados:", mode: "inline" },
   { tag: "descripcion", anchor: "Descripción:", mode: "inline" },
   { tag: "observaciones", anchor: "Observaciones:", mode: "inline" },
-  // dia/mes/anio (tabla de fecha) y %foto (celda de imagen) no tienen un
-  // anchor de texto confiable -> quedan siempre para revisión manual.
+  // Tabla de fecha: "Día"/"Mes"/"Año" son el encabezado; el valor está
+  // exactamente 3 párrafos después (la celda correspondiente de la fila
+  // de abajo).
+  { tag: "dia", anchor: "Día", mode: "offset", offset: 3 },
+  { tag: "mes", anchor: "Mes", mode: "offset", offset: 3 },
+  { tag: "anio", anchor: "Año", mode: "offset", offset: 3 },
+  // La celda de la foto ya trae un texto guía fijo "(imagen)".
+  { tag: "foto", anchor: "(imagen)", mode: "offset", offset: 0, tagText: "{%foto}" },
 ];
 
 const AD_F01_SPECS: FieldSpec[] = [
@@ -240,10 +251,21 @@ function applySpecs(documentXml: string, specs: FieldSpec[]): {
       }
       xml = xml.slice(0, paras[targetIdx].start) + newParaXml + xml.slice(paras[targetIdx].end);
       applied.push(spec.tag);
-    } else {
+    } else if (spec.mode === "next-nonempty") {
       let j = targetIdx + 1;
       while (j < paras.length && paragraphText(paras[j].xml).trim() === "") j++;
       if (j >= paras.length) {
+        missing.push(spec.tag);
+        continue;
+      }
+      const newParaXml = replaceWholeBody(paras[j].xml, tagText);
+      xml = xml.slice(0, paras[j].start) + newParaXml + xml.slice(paras[j].end);
+      applied.push(spec.tag);
+    } else {
+      // "offset": párrafo objetivo a una distancia fija del anchor
+      // (0 = el mismo párrafo). Se reemplaza completo, esté vacío o no.
+      const j = targetIdx + (spec.offset ?? 0);
+      if (j < 0 || j >= paras.length) {
         missing.push(spec.tag);
         continue;
       }
