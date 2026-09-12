@@ -57,9 +57,12 @@ import {
   uploadTemplate,
   deleteTemplate,
   findMissingTags,
+  findMissingTagsInBuffer,
+  requiredTagsFor,
   type TemplateKey,
   type TemplateInfo,
 } from "@/services/documentTemplates";
+import { autoTagTemplate } from "@/lib/autoTagTemplate";
 
 type Tab = "resumen" | "grupos" | "estudiantes" | "tutores" | "plantillas";
 
@@ -994,14 +997,42 @@ function TemplateSlot({
     }
     setBusy(true);
     try {
-      const missing = await findMissingTags(templateKey, file);
-      if (missing.length > 0) {
+      const requiredTags = requiredTagsFor(templateKey);
+      let missing = await findMissingTags(templateKey, file);
+
+      if (missing.length > 0 && requiredTags) {
+        // No trae los campos: antes de rechazarlo, se intenta etiquetar
+        // solo buscando las etiquetas fijas conocidas ("Lugar:", etc.) —
+        // funciona cuando el cambio es de texto/diseño, no de estructura.
+        const original = await file.arrayBuffer();
+        const autoTagged = await autoTagTemplate(templateKey, original);
+        if (autoTagged && autoTagged.applied.length > 0) {
+          const stillMissing = await findMissingTagsInBuffer(autoTagged.buffer, requiredTags);
+          if (stillMissing.length === 0) {
+            const fixedFile = new File([autoTagged.buffer], file.name, { type: file.type });
+            await uploadTemplate(templateKey, fixedFile);
+            toast(
+              `Archivo actualizado — se etiquetó solo (${autoTagged.applied.length} campos encontrados), no hizo falta nada más.`,
+              "success",
+            );
+            await load();
+            return;
+          }
+          missing = stillMissing;
+        }
+
         toast(
-          `Ese archivo no tiene los campos que necesita la app (falta: ${missing.join(", ")}). No se subió — probablemente es el formato sin etiquetar.`,
+          `Ese archivo no tiene los campos que necesita la app (falta: ${missing.join(", ")}). No se subió — mándale este archivo a Claude para que lo etiquete.`,
           "error",
         );
         return;
       }
+
+      if (missing.length > 0) {
+        toast(`Ese archivo no tiene los campos que necesita la app (falta: ${missing.join(", ")}).`, "error");
+        return;
+      }
+
       await uploadTemplate(templateKey, file);
       toast("Archivo actualizado", "success");
       await load();

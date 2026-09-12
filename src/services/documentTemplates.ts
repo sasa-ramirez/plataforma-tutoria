@@ -97,22 +97,20 @@ function cjsDefault<T>(mod: unknown): T {
   return ((mod as { default?: T }).default ?? mod) as T;
 }
 
-/**
- * Para bs-f17/ad-f01: revisa que el .docx traiga todos los {tag} que la
- * app necesita para rellenarlo, ANTES de subirlo — así, si alguien sube
- * el formato crudo sin etiquetar (o quedó mal etiquetado), se avisa ahí
- * mismo en vez de romper el documento de un estudiante después.
- * Devuelve la lista de tags que faltan (vacía si está todo bien).
- */
-export async function findMissingTags(key: TemplateKey, file: File): Promise<string[]> {
-  const requiredTags = TEMPLATES[key].requiredTags;
-  if (!requiredTags) return [];
+/** Los {tag} que necesita bs-f17/ad-f01, o null si esta clave es solo de
+ * referencia (no tiene tags que validar). */
+export function requiredTagsFor(key: TemplateKey): string[] | null {
+  return TEMPLATES[key].requiredTags ?? null;
+}
 
-  const [PizZipMod, buffer] = await Promise.all([import("pizzip"), file.arrayBuffer()]);
+/** Revisa qué {tag} de `requiredTags` faltan en el .docx (buffer). */
+export async function findMissingTagsInBuffer(
+  buffer: ArrayBuffer,
+  requiredTags: string[],
+): Promise<string[]> {
   const PizZip = cjsDefault<new (data: ArrayBuffer) => { file(name: string): { asText(): string } | null }>(
-    PizZipMod,
+    await import("pizzip"),
   );
-
   let text: string;
   try {
     const zip = new PizZip(buffer);
@@ -123,8 +121,20 @@ export async function findMissingTags(key: TemplateKey, file: File): Promise<str
     // Si ni siquiera se puede abrir como zip/docx, faltan "todos" los tags.
     return requiredTags;
   }
-
   return requiredTags.filter((tag) => !text.includes(tag));
+}
+
+/**
+ * Para bs-f17/ad-f01: revisa que el .docx traiga todos los {tag} que la
+ * app necesita para rellenarlo, ANTES de subirlo — así, si alguien sube
+ * el formato crudo sin etiquetar (o quedó mal etiquetado), se avisa ahí
+ * mismo en vez de romper el documento de un estudiante después.
+ * Devuelve la lista de tags que faltan (vacía si está todo bien).
+ */
+export async function findMissingTags(key: TemplateKey, file: File): Promise<string[]> {
+  const requiredTags = TEMPLATES[key].requiredTags;
+  if (!requiredTags) return [];
+  return findMissingTagsInBuffer(await file.arrayBuffer(), requiredTags);
 }
 
 export async function uploadTemplate(key: TemplateKey, file: File): Promise<void> {
