@@ -5,6 +5,7 @@ import {
   createSessionWithAttendance,
   deleteSession,
   updateProfessorName,
+  setScheduleManually,
 } from "@/services/tutoring";
 import { courseKeys } from "@/hooks/useCourses";
 import type { TutoringSessionType } from "@/types/database";
@@ -54,6 +55,16 @@ export function useUpdateProfessorName(courseId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (name: string) => updateProfessorName(courseId, name),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: courseKeys.detail(courseId) });
+    },
+  });
+}
+
+export function useSetScheduleManually(courseId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (schedule: string) => setScheduleManually(courseId, schedule),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: courseKeys.detail(courseId) });
     },

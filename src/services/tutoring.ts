@@ -208,3 +208,18 @@ export async function updateProfessorName(
     .eq("id", courseId);
   if (error) throw error;
 }
+
+/** Fija el horario a mano (sin depender de la votación) — para cuando
+ * nadie vota o el tutor prefiere decidirlo directamente. Si luego entran
+ * votos nuevos, el trigger de recompute_schedule lo vuelve a calcular
+ * según la votación, como siempre. */
+export async function setScheduleManually(
+  courseId: string,
+  schedule: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("courses")
+    .update({ schedule: schedule.trim() || null })
+    .eq("id", courseId);
+  if (error) throw error;
+}

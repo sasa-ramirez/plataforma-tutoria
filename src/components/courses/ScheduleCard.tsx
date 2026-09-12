@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CalendarClock, Plus, Trash2, Check, FileDown } from "lucide-react";
+import { CalendarClock, Plus, Trash2, Check, FileDown, Pencil } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Spinner } from "@/components/common/Spinner";
 import { useToast } from "@/components/ui/toast";
 import { useScheduleOptions, useScheduleMutations } from "@/hooks/useSchedule";
 import { useCourseProgramInfo } from "@/hooks/useCourses";
+import { useSetScheduleManually } from "@/hooks/useTutoring";
 import { cn } from "@/lib/utils";
 
 /**
@@ -31,8 +32,22 @@ export function ScheduleCard({
   const { data: options, isLoading } = useScheduleOptions(courseId);
   const { data: programInfo } = useCourseProgramInfo(courseId, isTeacher);
   const { add, remove, vote, unvote } = useScheduleMutations(courseId);
+  const { mutateAsync: setManually, isPending: settingManually } =
+    useSetScheduleManually(courseId);
   const [label, setLabel] = useState("");
   const [exporting, setExporting] = useState(false);
+  const [editingManually, setEditingManually] = useState(false);
+  const [manualValue, setManualValue] = useState(currentSchedule ?? "");
+
+  const saveManual = async () => {
+    try {
+      await setManually(manualValue);
+      setEditingManually(false);
+      toast("Horario actualizado", "success");
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Error", "error");
+    }
+  };
 
   const handleExport = async () => {
     setExporting(true);
@@ -91,17 +106,67 @@ export function ScheduleCard({
           )}
         </div>
 
-        {currentSchedule ? (
-          <div className="rounded-xl border border-success/30 bg-success/5 px-3 py-2 text-sm">
-            <span className="text-muted-foreground">Horario actual: </span>
-            <span className="font-semibold text-success">{currentSchedule}</span>
+        {editingManually ? (
+          <div className="space-y-2">
+            <Input
+              autoFocus
+              value={manualValue}
+              onChange={(e) => setManualValue(e.target.value)}
+              placeholder="Ej. Lun y Mié 2–4pm, Aula 301"
+              onKeyDown={(e) => e.key === "Enter" && saveManual()}
+            />
+            <div className="flex gap-2">
+              <Button size="sm" variant="brand" onClick={saveManual} disabled={settingManually}>
+                {settingManually ? <Spinner className="size-4" /> : "Guardar"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setEditingManually(false)}
+                disabled={settingManually}
+              >
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        ) : currentSchedule ? (
+          <div className="flex items-center gap-2 rounded-xl border border-success/30 bg-success/5 px-3 py-2 text-sm">
+            <div className="min-w-0 flex-1">
+              <span className="text-muted-foreground">Horario actual: </span>
+              <span className="font-semibold text-success">{currentSchedule}</span>
+            </div>
+            {isTeacher && (
+              <button
+                onClick={() => {
+                  setManualValue(currentSchedule ?? "");
+                  setEditingManually(true);
+                }}
+                className="shrink-0 rounded-lg p-1.5 text-muted-foreground hover:bg-muted"
+                aria-label="Editar horario"
+              >
+                <Pencil className="size-4" />
+              </button>
+            )}
           </div>
         ) : (
-          <p className="text-xs text-muted-foreground">
-            {isTeacher
-              ? "Propón opciones de horario; tus estudiantes votarán y el más votado queda fijado."
-              : "Aún no hay horario. Vota las opciones que puedas cuando tu tutor las proponga."}
-          </p>
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              {isTeacher
+                ? "Propón opciones de horario; tus estudiantes votarán y el más votado queda fijado."
+                : "Aún no hay horario. Vota las opciones que puedas cuando tu tutor las proponga."}
+            </p>
+            {isTeacher && (
+              <button
+                onClick={() => {
+                  setManualValue("");
+                  setEditingManually(true);
+                }}
+                className="text-xs font-semibold text-primary hover:underline"
+              >
+                ¿Nadie votó o prefieres definirlo tú? Ponlo a mano.
+              </button>
+            )}
+          </div>
         )}
 
         {/* Tutor: agregar opción */}
