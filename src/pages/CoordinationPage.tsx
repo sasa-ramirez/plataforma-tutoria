@@ -1022,14 +1022,14 @@ function TemplateSlot({
         }
 
         toast(
-          `Ese archivo no tiene los campos que necesita la app (falta: ${missing.join(", ")}). No se subió — mándale este archivo a Claude para que lo etiquete.`,
+          `No se subió: al archivo le faltan estos campos — ${missing.join(", ")}.`,
           "error",
         );
         return;
       }
 
       if (missing.length > 0) {
-        toast(`Ese archivo no tiene los campos que necesita la app (falta: ${missing.join(", ")}).`, "error");
+        toast(`No se subió: al archivo le faltan estos campos — ${missing.join(", ")}.`, "error");
         return;
       }
 
