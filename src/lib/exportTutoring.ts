@@ -12,7 +12,7 @@ import type ExcelJS from "exceljs";
  * (redondeando arriba) porque así calzan casi todos los nombres
  * colombianos de 2+2 o 2+1 palabras. Puede fallar en casos raros —
  * son editables a mano en el Excel resultante. */
-function splitName(fullName: string | null): { nombre: string; apellidos: string } {
+export function splitName(fullName: string | null): { nombre: string; apellidos: string } {
   const parts = (fullName ?? "").trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return { nombre: "", apellidos: "" };
   if (parts.length === 1) return { nombre: parts[0], apellidos: "" };

@@ -308,3 +308,15 @@ export async function autoTagTemplate(
   zip.file("word/document.xml", xml);
   return { buffer: zip.generate({ type: "arraybuffer" }), applied, missing };
 }
+
+// Expuestas solo para pruebas unitarias (operan sobre XML en memoria, sin
+// necesitar pizzip ni un .docx real) — no son parte de la API pública.
+export const _internal = {
+  applySpecs,
+  tagInline,
+  replaceWholeBody,
+  splitParagraphs,
+  paragraphText,
+  BS_F17_SPECS,
+  AD_F01_SPECS,
+};
