@@ -11,6 +11,7 @@ import {
   Radio,
   GraduationCap,
   BookOpen,
+  AlarmClock,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -22,6 +23,7 @@ import { cn } from "@/lib/utils";
 const TYPE_ICON: Record<string, typeof Bell> = {
   graded: CheckCircle2,
   assignment: FileText,
+  reminder: AlarmClock,
   teacher_approved: UserCheck,
   live: Radio,
   group_tutor: GraduationCap,
