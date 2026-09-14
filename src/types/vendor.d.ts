@@ -15,3 +15,10 @@ declare module "docxtemplater-image" {
     });
   }
 }
+
+// Build "bare" de exceljs (sin polyfills de core-js) — mismo código que
+// el paquete normal, solo cambia el bundle; reusa sus mismos tipos.
+declare module "exceljs/dist/exceljs.bare.min.js" {
+  import ExcelJS from "exceljs";
+  export default ExcelJS;
+}

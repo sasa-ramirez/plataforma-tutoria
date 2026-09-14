@@ -36,11 +36,13 @@ const PRIORITY_LETTER: Record<string, "I" | "A" | "D" | "V" | "C" | "H"> = {
 };
 
 /** exceljs se carga solo al exportar (import dinámico) para no engordar
- * el paquete que descarga todo el mundo con solo abrir la app. Vite
+ * el paquete que descarga todo el mundo con solo abrir la app. Se usa el
+ * build "bare" (sin los polyfills de core-js para navegadores viejos que
+ * este proyecto no necesita) — mismo código, ~9% más liviano. Vite
  * empaqueta su export CJS de formas distintas según el entorno, así que
  * probamos `.default` primero y si no, el módulo tal cual. */
 async function loadExcelJS(): Promise<typeof ExcelJS> {
-  const mod = await import("exceljs");
+  const mod = await import("exceljs/dist/exceljs.bare.min.js");
   return ((mod as unknown as { default?: typeof ExcelJS }).default ?? mod) as typeof ExcelJS;
 }
 
