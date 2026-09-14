@@ -1,5 +1,6 @@
 import { Component, type ReactNode } from "react";
 import { OctagonAlert } from "lucide-react";
+import { reportError } from "@/lib/sentry";
 
 interface State {
   error: Error | null;
@@ -19,6 +20,7 @@ export class ErrorBoundary extends Component<
   componentDidCatch(error: Error, info: unknown) {
     // Visible en la consola del navegador para diagnóstico.
     console.error("[ErrorBoundary]", error, info);
+    reportError(error, { info });
   }
 
   render() {

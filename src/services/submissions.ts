@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { reportError } from "@/lib/sentry";
 import type {
   AIFeedback,
   ExamEvent,
@@ -130,8 +131,11 @@ export async function submitForReview(
 function friendlyReviewError(detail: string): string {
   if (detail) console.error("[ai-review]", detail);
   if (/429|rate.?limit|saturad/i.test(detail)) {
+    // Esperado cuando hay mucha gente usando el modelo gratis a la vez —
+    // no se reporta a Sentry para no llenar la cuota con ruido.
     return "La IA está saturada en este momento (mucha gente usándola a la vez). Vuelve a intentarlo en unos minutos.";
   }
+  reportError(new Error(`[ai-review] ${detail}`));
   return "No se pudo revisar tu ejercicio con IA en este momento. Vuelve a intentarlo en un rato.";
 }
 

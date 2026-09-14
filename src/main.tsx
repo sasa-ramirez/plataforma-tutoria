@@ -7,8 +7,11 @@ import { ToastProvider } from "@/components/ui/toast";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { ConfigError } from "@/components/common/ConfigError";
 import { isSupabaseConfigured } from "@/lib/supabase";
+import { initSentry } from "@/lib/sentry";
 import App from "@/App";
 import "@/index.css";
+
+initSentry();
 
 const queryClient = new QueryClient({
   defaultOptions: {
