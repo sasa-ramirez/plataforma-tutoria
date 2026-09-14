@@ -44,6 +44,20 @@ CÓDIGO DEL ESTUDIANTE:
 ${opts.code}
 \`\`\`
 
+CRITERIO DE CALIFICACIÓN (en este orden de importancia):
+1. Lo más importante: si el código FUNCIONA y produce el resultado correcto para lo que pide el
+   enunciado. Si la lógica es correcta y resuelve el problema, la nota base debe ser alta
+   (85-100) aunque el código no sea perfecto.
+2. Errores que impiden que el código corra o que dan un resultado incorrecto sí bajan la nota
+   de forma importante, proporcional a qué tan grave es el error.
+3. Detalles menores que NO afectan el resultado (nombres de variables poco descriptivos,
+   falta de comentarios, estilo, pequeños errores de tipeo que no cambian el resultado) NO
+   deben bajar la nota más que unos pocos puntos — menciónalos en "suggestions", no los trates
+   como "errors" graves.
+4. No seas exigente con el estilo o la forma si la lógica y el resultado son correctos. Un
+   estudiante principiante que resuelve bien el problema merece una nota alta, aunque su código
+   no sea el más elegante.
+
 Responde ÚNICAMENTE con un JSON válido (sin markdown, sin texto extra) con esta forma exacta:
 {
   "score": <entero 1-100>,
@@ -70,7 +84,9 @@ ${opts.rubric ? `RÚBRICA / CRITERIOS DE EVALUACIÓN:\n${opts.rubric}\n` : ""}
 RESPUESTA DEL ESTUDIANTE:
 ${opts.answer}
 
-Califica según la rúbrica (o, si no hay, según corrección, claridad y completitud).
+Califica según la rúbrica (o, si no hay, según corrección, claridad y completitud). Lo más
+importante es si la IDEA de fondo es correcta — no bajes la nota mucho por errores de
+redacción, ortografía u orden de las palabras si el estudiante demuestra que entendió el tema.
 Responde ÚNICAMENTE con un JSON válido (sin markdown, sin texto extra) con esta forma exacta:
 {
   "score": <entero 1-100>,
