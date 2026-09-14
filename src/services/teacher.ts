@@ -13,6 +13,7 @@ export interface SubmissionRow {
   status: SubmissionStatus;
   score: number | null;
   attempt: number;
+  started_at: string | null;
   submitted_at: string | null;
   code: string;
   language: ProgLanguage;
@@ -29,7 +30,7 @@ export async function fetchSubmissionsForExercise(
   const { data, error } = await supabase
     .from("submissions")
     .select(
-      "id, student_id, status, score, attempt, submitted_at, code, language, answer, profiles(full_name), ai_feedback(*), exam_logs(event_type)",
+      "id, student_id, status, score, attempt, started_at, submitted_at, code, language, answer, profiles(full_name), ai_feedback(*), exam_logs(event_type)",
     )
     .eq("exercise_id", exerciseId)
     .neq("status", "draft")
@@ -44,6 +45,7 @@ export async function fetchSubmissionsForExercise(
       status: SubmissionStatus;
       score: number | null;
       attempt: number;
+      started_at: string | null;
       submitted_at: string | null;
       code: string;
       language: ProgLanguage;
@@ -61,6 +63,7 @@ export async function fetchSubmissionsForExercise(
       status: r.status,
       score: r.score,
       attempt: r.attempt,
+      started_at: r.started_at,
       submitted_at: r.submitted_at,
       code: r.code ?? "",
       language: r.language,

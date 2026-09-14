@@ -9,6 +9,7 @@ import {
   Clock,
   Code2,
   BookOpen,
+  Timer,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +29,18 @@ function formatAnswer(answer: Record<string, unknown>): string {
   }
   if (answer.value != null) return `Valor: ${answer.value}`;
   return JSON.stringify(answer);
+}
+
+/** "1h 12m", "8m", "menos de 1m" — duración entre entrar y entregar. */
+function formatDuration(startedAt: string | null, submittedAt: string | null): string | null {
+  if (!startedAt || !submittedAt) return null;
+  const diff = new Date(submittedAt).getTime() - new Date(startedAt).getTime();
+  if (diff <= 0) return null;
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m`;
+  return "menos de 1m";
 }
 
 const EVENT_LABEL: Record<string, string> = {
@@ -97,7 +110,13 @@ function AttemptRow({ s, open, onToggle }: { s: SubmissionRow; open: boolean; on
         </span>
         {s.submitted_at && (
           <span className="text-xs text-muted-foreground">
-            · {new Date(s.submitted_at).toLocaleDateString()}
+            ·{" "}
+            {new Date(s.submitted_at).toLocaleString("es-CO", {
+              day: "2-digit",
+              month: "short",
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
           </span>
         )}
         <span className="flex-1" />
@@ -150,6 +169,41 @@ function AttemptRow({ s, open, onToggle }: { s: SubmissionRow; open: boolean; on
 
               {/* Feedback de la IA */}
               {s.feedback && <AIFeedbackPanel feedback={s.feedback} />}
+
+              {/* Cuándo entró, cuándo entregó, cuánto se demoró */}
+              {(s.started_at || s.submitted_at) && (
+                <div className="flex flex-wrap gap-x-4 gap-y-1 rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+                  {s.started_at && (
+                    <span>
+                      <span className="font-semibold">Entró:</span>{" "}
+                      {new Date(s.started_at).toLocaleString("es-CO", {
+                        day: "2-digit",
+                        month: "short",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  )}
+                  {s.submitted_at && (
+                    <span>
+                      <span className="font-semibold">Entregó:</span>{" "}
+                      {new Date(s.submitted_at).toLocaleString("es-CO", {
+                        day: "2-digit",
+                        month: "short",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  )}
+                  {formatDuration(s.started_at, s.submitted_at) && (
+                    <span className="flex items-center gap-1">
+                      <Timer className="size-3.5" />
+                      <span className="font-semibold">Se demoró:</span>{" "}
+                      {formatDuration(s.started_at, s.submitted_at)}
+                    </span>
+                  )}
+                </div>
+              )}
 
               {/* Anti-trampa */}
               <div className="flex gap-3 text-xs text-muted-foreground">
