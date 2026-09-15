@@ -1,6 +1,12 @@
 // Supabase Edge Function: send-push
-// Envía una notificación Web Push a todos los dispositivos de un usuario.
-// La invoca un Database Webhook de Supabase al INSERTAR en `notifications`.
+// Modo SONDEO (polling): algo de afuera (ver .github/workflows/push-poller.yml)
+// la llama cada pocos minutos. Ella misma busca en `notifications` las que
+// no se han mandado (pushed_at is null) y les manda Web Push a todos los
+// dispositivos suscritos de cada usuario.
+//
+// Por qué así y no con un Database Webhook: pg_net (adentro de la base de
+// datos de este proyecto) no puede resolver su propio dominio *.supabase.co,
+// así que la base de datos nunca puede llamarse a sí misma. Ver 0030_push_polling.sql.
 //
 // Despliegue:
 //   supabase functions deploy send-push --no-verify-jwt
@@ -9,9 +15,7 @@
 //   supabase secrets set VAPID_SUBJECT=mailto:tucorreo@dominio.com
 //   supabase secrets set PUSH_WEBHOOK_SECRET=<un-secreto-largo>
 //
-// Webhook (Dashboard → Database → Webhooks): tabla notifications, evento
-// INSERT, tipo HTTP Request → URL de esta función, cabecera:
-//   x-push-secret: <el mismo PUSH_WEBHOOK_SECRET>
+// Quien llame debe mandar la cabecera: x-push-secret: <PUSH_WEBHOOK_SECRET>
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
@@ -23,9 +27,16 @@ const PUSH_WEBHOOK_SECRET = Deno.env.get("PUSH_WEBHOOK_SECRET") ?? "";
 
 webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
+interface NotificationRow {
+  id: string;
+  user_id: string;
+  title: string;
+  body: string | null;
+  link: string | null;
+}
+
 Deno.serve(async (req) => {
   try {
-    // Protección: solo acepta llamadas con el secreto compartido del webhook.
     if (
       PUSH_WEBHOOK_SECRET &&
       req.headers.get("x-push-secret") !== PUSH_WEBHOOK_SECRET
@@ -36,61 +47,87 @@ Deno.serve(async (req) => {
       });
     }
 
-    const body = await req.json();
-    // El webhook de Supabase manda { type, table, record, old_record }.
-    const record = body.record ?? body;
-    const userId: string | undefined = record.user_id;
-    const title: string = record.title ?? "Kódea";
-    const text: string | null = record.body ?? null;
-    const link: string | null = record.link ?? null;
-    if (!userId) throw new Error("falta user_id");
-
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const { data: subs } = await admin
-      .from("push_subscriptions")
-      .select("id, endpoint, p256dh, auth")
-      .eq("user_id", userId);
+    // Lote razonable por corrida — el poller vuelve a llamar cada pocos
+    // minutos, así que no hace falta procesar miles de una vez.
+    const { data: pending, error: fetchErr } = await admin
+      .from("notifications")
+      .select("id, user_id, title, body, link")
+      .is("pushed_at", null)
+      .order("created_at", { ascending: true })
+      .limit(200);
+    if (fetchErr) throw fetchErr;
 
-    if (!subs || subs.length === 0) {
-      return new Response(JSON.stringify({ ok: true, sent: 0 }), {
+    const notifications = (pending ?? []) as NotificationRow[];
+    if (notifications.length === 0) {
+      return new Response(JSON.stringify({ ok: true, processed: 0, sent: 0 }), {
         headers: { "Content-Type": "application/json" },
       });
     }
 
-    const payload = JSON.stringify({ title, body: text, link });
+    const userIds = [...new Set(notifications.map((n) => n.user_id))];
+    const { data: subs } = await admin
+      .from("push_subscriptions")
+      .select("id, user_id, endpoint, p256dh, auth")
+      .in("user_id", userIds);
+
+    const subsByUser = new Map<string, typeof subs>();
+    for (const s of subs ?? []) {
+      const list = subsByUser.get(s.user_id) ?? [];
+      list.push(s);
+      subsByUser.set(s.user_id, list);
+    }
+
     let sent = 0;
-    const stale: string[] = [];
+    const staleIds: string[] = [];
 
     await Promise.all(
-      subs.map(async (s) => {
-        try {
-          await webpush.sendNotification(
-            {
-              endpoint: s.endpoint,
-              keys: { p256dh: s.p256dh, auth: s.auth },
-            },
-            payload,
-          );
-          sent++;
-        } catch (e) {
-          // 404/410 = suscripción caducada → la borramos.
-          const code = (e as { statusCode?: number }).statusCode;
-          if (code === 404 || code === 410) stale.push(s.id);
-        }
+      notifications.map(async (n) => {
+        const userSubs = subsByUser.get(n.user_id) ?? [];
+        const payload = JSON.stringify({
+          title: n.title,
+          body: n.body,
+          link: n.link,
+        });
+        await Promise.all(
+          userSubs.map(async (s) => {
+            try {
+              await webpush.sendNotification(
+                { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+                payload,
+              );
+              sent++;
+            } catch (e) {
+              const code = (e as { statusCode?: number }).statusCode;
+              if (code === 404 || code === 410) staleIds.push(s.id);
+            }
+          }),
+        );
       }),
     );
 
-    if (stale.length > 0) {
-      await admin.from("push_subscriptions").delete().in("id", stale);
+    if (staleIds.length > 0) {
+      await admin.from("push_subscriptions").delete().in("id", staleIds);
     }
 
-    return new Response(JSON.stringify({ ok: true, sent }), {
-      headers: { "Content-Type": "application/json" },
-    });
+    // Se marcan como procesadas aunque el usuario no tuviera ninguna
+    // suscripción activa — ya se intentó, no hay nada más que reintentar.
+    await admin
+      .from("notifications")
+      .update({ pushed_at: new Date().toISOString() })
+      .in(
+        "id",
+        notifications.map((n) => n.id),
+      );
+
+    return new Response(
+      JSON.stringify({ ok: true, processed: notifications.length, sent }),
+      { headers: { "Content-Type": "application/json" } },
+    );
   } catch (err) {
     const message = err instanceof Error ? err.message : "error";
     return new Response(JSON.stringify({ ok: false, error: message }), {

@@ -1,0 +1,21 @@
+name: Push notification poller
+
+# La base de datos de Supabase no puede llamarse a sí misma (pg_net no
+# resuelve *.supabase.co del propio proyecto), así que este workflow hace
+# el papel de avisarle "revisa si hay notificaciones nuevas" cada pocos
+# minutos, desde afuera. Ver supabase/functions/send-push/index.ts.
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Llamar a send-push
+        run: |
+          curl -sf -X POST "https://npnndpgkfragpdvksrlv.supabase.co/functions/v1/send-push" \
+            -H "x-push-secret: ${{ secrets.PUSH_WEBHOOK_SECRET }}" \
+            -H "Content-Type: application/json"
