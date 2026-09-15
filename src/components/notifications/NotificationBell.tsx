@@ -130,12 +130,12 @@ export function NotificationBell() {
                 >
                   {pushStatus === "enabled" && (
                     <>
-                      <BellRing className="size-3.5" /> Notificaciones push activadas
+                      <BellRing className="size-3.5" /> Notificaciones activadas
                     </>
                   )}
                   {pushStatus === "disabled" && (
                     <>
-                      <Bell className="size-3.5" /> Activar notificaciones push
+                      <Bell className="size-3.5" /> Activar notificaciones
                     </>
                   )}
                   {pushStatus === "denied" && (
