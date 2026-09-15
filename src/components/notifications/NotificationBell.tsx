@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Bell,
+  BellRing,
+  BellOff,
   CheckCheck,
   CheckCircle2,
   FileText,
@@ -17,7 +19,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNotifications } from "@/hooks/useNotifications";
 import { markAllRead, markRead } from "@/services/notifications";
 import { ensureNotifyPermission } from "@/lib/notify";
-import { enablePush } from "@/lib/push";
+import { enablePush, getPushStatus, type PushStatus } from "@/lib/push";
 import { cn } from "@/lib/utils";
 
 const TYPE_ICON: Record<string, typeof Bell> = {
@@ -34,11 +36,20 @@ const TYPE_ICON: Record<string, typeof Bell> = {
 export function NotificationBell() {
   const { data } = useNotifications();
   const [open, setOpen] = useState(false);
+  const [pushStatus, setPushStatus] = useState<PushStatus>("disabled");
   const navigate = useNavigate();
   const qc = useQueryClient();
 
   const items = data ?? [];
   const unread = items.filter((n) => !n.read).length;
+
+  const refreshPushStatus = () => {
+    getPushStatus().then(setPushStatus);
+  };
+
+  useEffect(() => {
+    refreshPushStatus();
+  }, []);
 
   const toggle = async () => {
     const next = !open;
@@ -46,13 +57,21 @@ export function NotificationBell() {
     // Al abrir, aprovechamos el gesto para pedir permiso y suscribir push.
     if (next) {
       ensureNotifyPermission().then((ok) => {
-        if (ok) enablePush();
+        if (ok) enablePush().then(refreshPushStatus);
+        else refreshPushStatus();
       });
     }
     if (next && unread > 0) {
       await markAllRead();
       qc.invalidateQueries({ queryKey: ["notifications"] });
     }
+  };
+
+  const enablePushManually = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const ok = await ensureNotifyPermission();
+    if (ok) await enablePush();
+    refreshPushStatus();
   };
 
   const openItem = async (id: string, link: string | null) => {
@@ -94,6 +113,39 @@ export function NotificationBell() {
                 <span className="text-sm font-bold">Notificaciones</span>
                 <CheckCheck className="size-4 text-muted-foreground" />
               </div>
+
+              {pushStatus !== "unsupported" && (
+                <button
+                  onClick={pushStatus === "disabled" ? enablePushManually : undefined}
+                  disabled={pushStatus !== "disabled"}
+                  className={cn(
+                    "mb-1.5 flex w-full items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-semibold transition-colors",
+                    pushStatus === "enabled" &&
+                      "border-success/30 bg-success/5 text-success",
+                    pushStatus === "disabled" &&
+                      "border-primary/30 bg-primary/5 text-primary hover:bg-primary/10",
+                    pushStatus === "denied" &&
+                      "border-destructive/30 bg-destructive/5 text-destructive",
+                  )}
+                >
+                  {pushStatus === "enabled" && (
+                    <>
+                      <BellRing className="size-3.5" /> Notificaciones push activadas
+                    </>
+                  )}
+                  {pushStatus === "disabled" && (
+                    <>
+                      <Bell className="size-3.5" /> Activar notificaciones push
+                    </>
+                  )}
+                  {pushStatus === "denied" && (
+                    <>
+                      <BellOff className="size-3.5" /> Bloqueadas — actívalas desde tu navegador
+                    </>
+                  )}
+                </button>
+              )}
+
               {items.length === 0 ? (
                 <p className="px-2 py-6 text-center text-sm text-muted-foreground">
                   No tienes notificaciones aún.

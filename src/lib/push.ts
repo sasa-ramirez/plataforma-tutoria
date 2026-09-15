@@ -17,6 +17,24 @@ export function isPushSupported(): boolean {
   );
 }
 
+export type PushStatus = "unsupported" | "enabled" | "denied" | "disabled";
+
+/** Para mostrar el estado real en la UI: si de verdad hay una suscripción
+ * activa (no solo "el navegador dio permiso" — puede haberlo dado y
+ * fallar el registro del service worker, por ejemplo). */
+export async function getPushStatus(): Promise<PushStatus> {
+  if (!isPushSupported()) return "unsupported";
+  if (Notification.permission === "denied") return "denied";
+  if (Notification.permission !== "granted") return "disabled";
+  try {
+    const reg = await navigator.serviceWorker.getRegistration("/sw.js");
+    const sub = await reg?.pushManager.getSubscription();
+    return sub ? "enabled" : "disabled";
+  } catch {
+    return "disabled";
+  }
+}
+
 function urlBase64ToUint8Array(base64: string): Uint8Array {
   const padding = "=".repeat((4 - (base64.length % 4)) % 4);
   const b64 = (base64 + padding).replace(/-/g, "+").replace(/_/g, "/");
