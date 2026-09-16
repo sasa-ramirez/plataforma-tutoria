@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import type { Session } from "@supabase/supabase-js";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import type { Profile, UserRole } from "@/types/database";
 
@@ -37,6 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   const loadProfile = useCallback(async (userId: string) => {
     try {
@@ -155,7 +157,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
     setProfile(null);
-  }, []);
+    // Evita que quede en caché data de la cuenta anterior (ej. notificaciones)
+    // si alguien inicia sesión con otra cuenta en la misma pestaña.
+    queryClient.clear();
+  }, [queryClient]);
 
   const refreshProfile = useCallback(async () => {
     if (session?.user) await loadProfile(session.user.id);
