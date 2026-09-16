@@ -101,8 +101,14 @@ Deno.serve(async (req) => {
                 payload,
               );
               sent++;
+              console.log(`OK envio a ${s.endpoint.slice(0, 60)}...`);
             } catch (e) {
               const code = (e as { statusCode?: number }).statusCode;
+              const body = (e as { body?: string }).body;
+              const message = e instanceof Error ? e.message : String(e);
+              console.error(
+                `FALLO envio a ${s.endpoint.slice(0, 60)}... status=${code} message=${message} body=${body}`,
+              );
               if (code === 404 || code === 410) staleIds.push(s.id);
             }
           }),

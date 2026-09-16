@@ -67,15 +67,19 @@ export function useExamGuard({
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("blur", onBlur);
     window.addEventListener("focus", onFocus);
-    document.addEventListener("paste", onPaste);
-    document.addEventListener("copy", onCopy);
+    // Captura (no burbuja): el editor Monaco maneja el portapapeles en su
+    // propio textarea interno y detiene la propagación, así que un listener
+    // normal en document nunca se entera. En fase de captura sí se ve el
+    // evento, porque corre antes de que Monaco lo procese.
+    document.addEventListener("paste", onPaste, true);
+    document.addEventListener("copy", onCopy, true);
 
     return () => {
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("blur", onBlur);
       window.removeEventListener("focus", onFocus);
-      document.removeEventListener("paste", onPaste);
-      document.removeEventListener("copy", onCopy);
+      document.removeEventListener("paste", onPaste, true);
+      document.removeEventListener("copy", onCopy, true);
     };
   }, [enabled, submissionId, record, onWarning]);
 

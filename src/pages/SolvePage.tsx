@@ -46,9 +46,38 @@ export function SolvePage() {
 
   const isExam = !!assignment?.is_exam;
 
+  // ----- Cronómetro: límite de tiempo y/o fecha de cierre -----
+  const deadlineMs = useMemo(() => {
+    if (!assignment) return null;
+    const c: number[] = [];
+    if (assignment.closes_at) c.push(new Date(assignment.closes_at).getTime());
+    if (assignment.time_limit_min && submission?.started_at) {
+      c.push(
+        new Date(submission.started_at).getTime() +
+          assignment.time_limit_min * 60_000,
+      );
+    }
+    return c.length ? Math.min(...c) : null;
+  }, [assignment, submission?.started_at]);
+
+  const [clockNow, setClockNow] = useState(Date.now());
+  useEffect(() => {
+    if (!deadlineMs) return;
+    const t = setInterval(() => setClockNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [deadlineMs]);
+
+  const remainingMs = deadlineMs ? deadlineMs - clockNow : null;
+  const timeUp = remainingMs !== null && remainingMs <= 0;
+  const closedByDate =
+    !!assignment && !isAssignmentOpen(assignment);
+  // Modo examen: un solo intento — si la entrega ya se envió, se bloquea.
+  const attemptUsed = isExam && !!submission && submission.status !== "draft";
+  const locked = timeUp || closedByDate || attemptUsed;
+
   const { exitCount, pasteCount } = useExamGuard({
     submissionId: submission?.id ?? null,
-    enabled: isExam,
+    enabled: isExam && !locked,
     onWarning: (event) => {
       if (event === "window_hidden")
         toast("Saliste de la pantalla. Quedó registrado.", "error");
@@ -121,35 +150,6 @@ export function SolvePage() {
   const handleReset = useCallback(() => {
     if (exercise) setCode(exercise.starter_code);
   }, [exercise]);
-
-  // ----- Cronómetro: límite de tiempo y/o fecha de cierre -----
-  const deadlineMs = useMemo(() => {
-    if (!assignment) return null;
-    const c: number[] = [];
-    if (assignment.closes_at) c.push(new Date(assignment.closes_at).getTime());
-    if (assignment.time_limit_min && submission?.started_at) {
-      c.push(
-        new Date(submission.started_at).getTime() +
-          assignment.time_limit_min * 60_000,
-      );
-    }
-    return c.length ? Math.min(...c) : null;
-  }, [assignment, submission?.started_at]);
-
-  const [clockNow, setClockNow] = useState(Date.now());
-  useEffect(() => {
-    if (!deadlineMs) return;
-    const t = setInterval(() => setClockNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, [deadlineMs]);
-
-  const remainingMs = deadlineMs ? deadlineMs - clockNow : null;
-  const timeUp = remainingMs !== null && remainingMs <= 0;
-  const closedByDate =
-    !!assignment && !isAssignmentOpen(assignment);
-  // Modo examen: un solo intento — si la entrega ya se envió, se bloquea.
-  const attemptUsed = isExam && !!submission && submission.status !== "draft";
-  const locked = timeUp || closedByDate || attemptUsed;
 
   // Auto-envío al agotarse el tiempo (una sola vez)
   const autoSent = useRef(false);
