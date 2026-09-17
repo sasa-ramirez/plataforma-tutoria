@@ -139,6 +139,22 @@ export function BoardPage() {
     if (board && isTeacher) saveStroke(board.id, s);
   };
 
+  // Apaga la transmisión sola si el profe sale del tablero sin apagarla a
+  // mano (si no, quedaba "en vivo" para siempre y la próxima vez que
+  // transmitía no avisaba, porque para la BD nunca dejó de estar en vivo).
+  const isLiveRef = useRef(isLive);
+  useEffect(() => {
+    isLiveRef.current = isLive;
+  }, [isLive]);
+
+  useEffect(() => {
+    if (!isTeacher || !board) return;
+    const boardId = board.id;
+    return () => {
+      if (isLiveRef.current) setBoardLive(boardId, false).catch(() => {});
+    };
+  }, [isTeacher, board]);
+
   const toggleLive = () => {
     if (!board) return;
     const next = !isLive;
