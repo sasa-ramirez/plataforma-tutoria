@@ -15,6 +15,8 @@ export interface PseintResult {
   ok: boolean;
   stdout: string;
   error: string | null;
+  /** Modo interactivo: el programa se detuvo en un «Leer» esperando un dato. */
+  waiting: boolean;
 }
 
 class PseError extends Error {
@@ -27,6 +29,18 @@ class PseError extends Error {
 }
 class ReturnSignal {
   constructor(public value: Value | undefined) {}
+}
+class InputRequired {}
+
+function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }
 
 // ---------------------------------------------------------------- Utilidades
@@ -828,7 +842,10 @@ class Scope {
   types = new Map<string, VarType>();
 }
 
-const BUILTINS: Record<string, (a: Value[], fail: (m: string) => never) => Value> = {};
+const BUILTINS: Record<
+  string,
+  (a: Value[], fail: (m: string) => never, rng: () => number) => Value
+> = {};
 
 function num(v: Value | undefined, fail: (m: string) => never): number {
   if (typeof v === "number") return v;
@@ -865,11 +882,11 @@ function defineBuiltins() {
   n1("atan", Math.atan);
   n1("exp", Math.exp);
   n1("ln", Math.log, (x) => (x <= 0 ? "El logaritmo solo existe para números mayores que 0." : null));
-  b.azar = (a, fail) => Math.floor(Math.random() * num(a[0], fail));
-  b.aleatorio = (a, fail) => {
+  b.azar = (a, fail, rng) => Math.floor(rng() * num(a[0], fail));
+  b.aleatorio = (a, fail, rng) => {
     const lo = num(a[0], fail);
     const hi = num(a[1], fail);
-    return lo + Math.floor(Math.random() * (hi - lo + 1));
+    return lo + Math.floor(rng() * (hi - lo + 1));
   };
   b.longitud = (a, fail) => str(a[0], fail).length;
   b.mayusculas = (a, fail) => str(a[0], fail).toUpperCase();
@@ -888,6 +905,10 @@ defineBuiltins();
 interface Options {
   maxSteps: number;
   maxOutput: number;
+  /** Si es true, un «Leer» sin dato pendiente pausa el programa en vez de fallar. */
+  interactive: boolean;
+  /** Semilla de Azar/Aleatorio (misma semilla = mismos números al re-ejecutar). */
+  seed: number;
 }
 
 class Interpreter {
@@ -897,12 +918,21 @@ class Interpreter {
   private inputPos = 0;
   private curLine = 1;
   private depth = 0;
+  private rng: () => number;
 
   constructor(
     private prog: Program,
     private inputs: string[],
     private opts: Options,
-  ) {}
+  ) {
+    this.rng = mulberry32(opts.seed);
+  }
+
+  private emit(text: string) {
+    this.outLen += text.length;
+    if (this.outLen > this.opts.maxOutput) this.fail("El programa escribió demasiado texto.");
+    this.out.push(text);
+  }
 
   run(): string {
     this.exec(this.prog.main!, new Scope());
@@ -955,19 +985,20 @@ class Interpreter {
       case "write": {
         let text = s.args.map((a) => toText(this.eval(a, scope))).join("");
         if (s.newline) text += "\n";
-        this.outLen += text.length;
-        if (this.outLen > this.opts.maxOutput) f("El programa escribió demasiado texto.");
-        this.out.push(text);
+        this.emit(text);
         return;
       }
       case "read":
         for (const t of s.targets) {
           if (this.inputPos >= this.inputs.length) {
+            if (this.opts.interactive) throw new InputRequired();
             f(
               `El programa pide un dato con «Leer ${t.raw}» pero ya no hay más entradas. Agrégalas en «Agregar entrada», una por línea.`,
             );
           }
           const raw = this.inputs[this.inputPos++];
+          // En la consola interactiva el dato escrito queda visible, como en PSeInt.
+          if (this.opts.interactive) this.emit(raw + "\n");
           this.assign(t, this.parseInput(raw, scope.types.get(t.name)), scope);
         }
         return;
@@ -1194,6 +1225,7 @@ class Interpreter {
       return bi(
         argExprs.map((a) => this.eval(a, scope)),
         (m) => this.fail(m),
+        this.rng,
       );
     }
     if (argExprs.length !== def.params.length) {
@@ -1249,29 +1281,45 @@ export function runPseint(
   inputs: string[] = [],
   opts: Partial<Options> = {},
 ): PseintResult {
-  const options: Options = { maxSteps: 3_000_000, maxOutput: 200_000, ...opts };
+  const options: Options = {
+    maxSteps: 3_000_000,
+    maxOutput: 200_000,
+    interactive: false,
+    seed: Math.floor(Math.random() * 2 ** 31),
+    ...opts,
+  };
   let interp: Interpreter | null = null;
   try {
     const prog = new Parser(splitStatements(source)).parseProgram();
     interp = new Interpreter(prog, inputs, options);
     const stdout = interp.run();
-    return { ok: true, stdout: stdout.replace(/\n+$/, ""), error: null };
+    return { ok: true, stdout: stdout.replace(/\n+$/, ""), error: null, waiting: false };
   } catch (e) {
     const partial = interp ? interp.partialOutput().replace(/\n+$/, "") : "";
+    if (e instanceof InputRequired) {
+      return { ok: true, stdout: partial, error: null, waiting: true };
+    }
     if (e instanceof PseError) {
-      return { ok: false, stdout: partial, error: `Error en la línea ${e.line}: ${e.message}` };
+      return {
+        ok: false,
+        stdout: partial,
+        error: `Error en la línea ${e.line}: ${e.message}`,
+        waiting: false,
+      };
     }
     if (e instanceof RangeError) {
       return {
         ok: false,
         stdout: partial,
         error: "Error: demasiadas llamadas anidadas (¿recursión sin fin?).",
+        waiting: false,
       };
     }
     return {
       ok: false,
       stdout: partial,
       error: `Error inesperado: ${e instanceof Error ? e.message : String(e)}`,
+      waiting: false,
     };
   }
 }

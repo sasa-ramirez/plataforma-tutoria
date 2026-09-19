@@ -196,6 +196,42 @@ describe("PSeInt: errores y límites", () => {
   });
 });
 
+describe("PSeInt: modo interactivo", () => {
+  const code = `Algoritmo Suma
+    Escribir "Primer numero:" Sin Saltar
+    Leer a
+    Escribir "Segundo numero:" Sin Saltar
+    Leer b
+    Escribir "Suma: ", a + b
+  FinAlgoritmo`;
+  const inter = (inputs: string[]) => runPseint(code, inputs, { interactive: true, seed: 1 });
+
+  it("se detiene en cada Leer esperando el dato", () => {
+    const r0 = inter([]);
+    expect(r0.waiting).toBe(true);
+    expect(r0.ok).toBe(true);
+    expect(r0.stdout).toBe("Primer numero:");
+
+    const r1 = inter(["4"]);
+    expect(r1.waiting).toBe(true);
+    expect(r1.stdout).toBe("Primer numero:4\nSegundo numero:");
+  });
+
+  it("termina cuando ya están todos los datos y muestra lo escrito", () => {
+    const r = inter(["4", "5"]);
+    expect(r.waiting).toBe(false);
+    expect(r.ok).toBe(true);
+    expect(r.stdout).toBe("Primer numero:4\nSegundo numero:5\nSuma: 9");
+  });
+
+  it("Azar da lo mismo al re-ejecutar con la misma semilla", () => {
+    const azar = `Algoritmo Z\n x <- Azar(1000)\n Leer y\n Escribir x\nFinAlgoritmo`;
+    const a = runPseint(azar, ["1"], { interactive: true, seed: 42 });
+    const b = runPseint(azar, ["1"], { interactive: true, seed: 42 });
+    expect(a.stdout).toBe(b.stdout);
+  });
+});
+
 describe("PSeInt: ejercicio de compra y financiación", () => {
   const code = `Algoritmo Compra
     Definir presupuesto, precio, edad Como Real

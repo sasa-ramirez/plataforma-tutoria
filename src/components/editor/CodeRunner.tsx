@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, Terminal, CheckCircle2, XCircle, Keyboard } from "lucide-react";
+import { Play, Terminal, CheckCircle2, XCircle, Keyboard, CornerDownLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/common/Spinner";
 import { runCode, isRunnable, type RunResult } from "@/services/runner";
+import { runPseint } from "@/lib/pseint";
 import type { ProgLanguage } from "@/types/database";
 
 /** Botón "Ejecutar" + consola de salida. Python/Java (servidor) y PSeInt (local). */
@@ -20,9 +22,45 @@ export function CodeRunner({
   const [stdin, setStdin] = useState("");
   const [showInput, setShowInput] = useState(false);
 
+  // PSeInt: consola interactiva. Cada respuesta se agrega a la lista y el
+  // programa se vuelve a correr desde el inicio con la misma semilla al azar.
+  const isPse = language === "pseint";
+  const [answers, setAnswers] = useState<string[]>([]);
+  const [seed, setSeed] = useState(0);
+  const [waiting, setWaiting] = useState(false);
+  const [answer, setAnswer] = useState("");
+  const answerRef = useRef<HTMLInputElement>(null);
+
+  // Si editan el código a mitad de una ejecución, esa ejecución ya no vale.
+  useEffect(() => {
+    setWaiting(false);
+  }, [code]);
+  useEffect(() => {
+    if (waiting) answerRef.current?.focus();
+  }, [waiting, answers.length]);
+
   if (!isRunnable(language)) return null;
 
+  const runPse = (nextAnswers: string[], nextSeed: number) => {
+    const r = runPseint(code, nextAnswers, { interactive: true, seed: nextSeed });
+    setResult({ ok: r.ok, stdout: r.stdout, stderr: r.error ?? "" });
+    setWaiting(r.waiting);
+    setAnswers(nextAnswers);
+    setSeed(nextSeed);
+  };
+
+  const submitAnswer = (e: FormEvent) => {
+    e.preventDefault();
+    runPse([...answers, answer], seed);
+    setAnswer("");
+  };
+
   const run = async () => {
+    if (isPse) {
+      setAnswer("");
+      runPse([], Math.floor(Math.random() * 2 ** 31));
+      return;
+    }
     setRunning(true);
     setResult(null);
     try {
@@ -41,16 +79,18 @@ export function CodeRunner({
   return (
     <div className="space-y-2">
       {/* Entrada (stdin): para programas con Scanner / input() */}
-      <button
-        type="button"
-        onClick={() => setShowInput((v) => !v)}
-        className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
-      >
-        <Keyboard className="size-3.5" />
-        {showInput ? "Ocultar entrada" : "¿Tu programa pide datos? Agregar entrada"}
-      </button>
+      {!isPse && (
+        <button
+          type="button"
+          onClick={() => setShowInput((v) => !v)}
+          className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+        >
+          <Keyboard className="size-3.5" />
+          {showInput ? "Ocultar entrada" : "¿Tu programa pide datos? Agregar entrada"}
+        </button>
+      )}
       <AnimatePresence>
-        {showInput && (
+        {showInput && !isPse && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
@@ -64,16 +104,8 @@ export function CodeRunner({
               className="min-h-[70px] font-mono text-xs"
             />
             <p className="mt-1 text-[11px] text-muted-foreground">
-              {language === "pseint" ? (
-                <>
-                  Cada línea es una respuesta a un <code>Leer</code>, en orden.
-                </>
-              ) : (
-                <>
-                  Cada línea es una respuesta a un <code>Scanner</code> /{" "}
-                  <code>input()</code>.
-                </>
-              )}
+              Cada línea es una respuesta a un <code>Scanner</code> /{" "}
+              <code>input()</code>.
             </p>
           </motion.div>
         )}
@@ -111,13 +143,28 @@ export function CodeRunner({
               <pre className="max-h-60 overflow-auto whitespace-pre-wrap break-words font-mono text-xs text-white/90">
                 {result.stderr ? (
                   <>
-                    {language === "pseint" && result.stdout ? `${result.stdout}\n\n` : ""}
+                    {isPse && result.stdout ? `${result.stdout}\n\n` : ""}
                     <span className="text-red-400">{result.stderr}</span>
                   </>
                 ) : (
-                  result.stdout || "(sin salida)"
+                  result.stdout || (waiting ? "" : "(sin salida)")
                 )}
               </pre>
+              {isPse && waiting && (
+                <form onSubmit={submitAnswer} className="mt-2 flex items-center gap-2">
+                  <Input
+                    ref={answerRef}
+                    value={answer}
+                    onChange={(e) => setAnswer(e.target.value)}
+                    placeholder="El programa espera un dato…"
+                    autoComplete="off"
+                    className="h-9 flex-1 border-white/20 bg-white/5 font-mono text-xs text-white placeholder:text-white/40"
+                  />
+                  <Button type="submit" size="sm" variant="brand" className="h-9">
+                    <CornerDownLeft className="size-3.5" /> Enviar dato
+                  </Button>
+                </form>
+              )}
             </div>
           </motion.div>
         )}
