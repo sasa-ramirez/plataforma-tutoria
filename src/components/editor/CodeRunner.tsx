@@ -7,7 +7,7 @@ import { Spinner } from "@/components/common/Spinner";
 import { runCode, isRunnable, type RunResult } from "@/services/runner";
 import type { ProgLanguage } from "@/types/database";
 
-/** Botón "Ejecutar" + consola de salida. Solo para Python/Java. */
+/** Botón "Ejecutar" + consola de salida. Python/Java (servidor) y PSeInt (local). */
 export function CodeRunner({
   language,
   code,
@@ -64,8 +64,16 @@ export function CodeRunner({
               className="min-h-[70px] font-mono text-xs"
             />
             <p className="mt-1 text-[11px] text-muted-foreground">
-              Cada línea es una respuesta a un <code>Scanner</code> /{" "}
-              <code>input()</code>.
+              {language === "pseint" ? (
+                <>
+                  Cada línea es una respuesta a un <code>Leer</code>, en orden.
+                </>
+              ) : (
+                <>
+                  Cada línea es una respuesta a un <code>Scanner</code> /{" "}
+                  <code>input()</code>.
+                </>
+              )}
             </p>
           </motion.div>
         )}
@@ -102,7 +110,10 @@ export function CodeRunner({
               </div>
               <pre className="max-h-60 overflow-auto whitespace-pre-wrap break-words font-mono text-xs text-white/90">
                 {result.stderr ? (
-                  <span className="text-red-400">{result.stderr}</span>
+                  <>
+                    {language === "pseint" && result.stdout ? `${result.stdout}\n\n` : ""}
+                    <span className="text-red-400">{result.stderr}</span>
+                  </>
                 ) : (
                   result.stdout || "(sin salida)"
                 )}

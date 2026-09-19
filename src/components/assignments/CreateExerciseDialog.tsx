@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/common/Spinner";
+import { CodeRunner } from "@/components/editor/CodeRunner";
 import { useToast } from "@/components/ui/toast";
 import { useCreateExercise } from "@/hooks/useAssignments";
 import { STARTER_CODE } from "@/lib/constants";
@@ -217,6 +218,9 @@ export function CreateExerciseDialog({
                   className="font-mono text-xs"
                   placeholder="Opcional"
                 />
+                {solution.trim() && (
+                  <CodeRunner language={assignment.language} code={solution} />
+                )}
               </div>
             </>
           )}

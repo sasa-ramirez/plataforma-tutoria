@@ -1,4 +1,5 @@
 import type { ProgLanguage } from "@/types/database";
+import { runPseint } from "@/lib/pseint";
 
 // Ejecución de código ROBUSTA: dos motores gratis (sin API key, con CORS).
 // Wandbox es el primario; si está caído/saturado, cae automáticamente a
@@ -17,7 +18,7 @@ const JUDGE0_LANG: Partial<Record<ProgLanguage, number>> = {
 };
 
 export function isRunnable(language: ProgLanguage): boolean {
-  return language in WANDBOX_COMPILER;
+  return language === "pseint" || language in WANDBOX_COMPILER;
 }
 
 /**
@@ -167,6 +168,14 @@ export async function runCode(
 ): Promise<RunResult> {
   if (!isRunnable(language)) {
     return { ok: false, stdout: "", stderr: "Este lenguaje no se puede ejecutar." };
+  }
+
+  // PSeInt se interpreta aquí mismo, en el navegador (no hay servidor externo).
+  if (language === "pseint") {
+    const lines = stdin.split(/\r?\n/);
+    while (lines.length && lines[lines.length - 1] === "") lines.pop();
+    const r = runPseint(code, lines);
+    return { ok: r.ok, stdout: r.stdout, stderr: r.error ?? "" };
   }
 
   // Primario: Wandbox. Si está caído/saturado → Judge0.

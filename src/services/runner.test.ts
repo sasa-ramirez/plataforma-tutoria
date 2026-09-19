@@ -2,9 +2,10 @@ import { describe, it, expect } from "vitest";
 import { isRunnable, detectLanguage } from "./runner";
 
 describe("isRunnable", () => {
-  it("python y java se pueden ejecutar", () => {
+  it("python, java y pseint se pueden ejecutar", () => {
     expect(isRunnable("python")).toBe(true);
     expect(isRunnable("java")).toBe(true);
+    expect(isRunnable("pseint")).toBe(true);
   });
 });
 
