@@ -514,7 +514,7 @@ export function BoardPage() {
                 />
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-xs text-muted-foreground">Ejecutar como:</span>
-                  {(["python", "java"] as ProgLanguage[]).map((l) => (
+                  {(["python", "java", "pseint"] as ProgLanguage[]).map((l) => (
                     <button
                       key={l}
                       onClick={() => pickLang(l, "live")}
@@ -566,7 +566,7 @@ export function BoardPage() {
                 />
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-xs text-muted-foreground">Ejecutar como:</span>
-                  {(["python", "java"] as ProgLanguage[]).map((l) => (
+                  {(["python", "java", "pseint"] as ProgLanguage[]).map((l) => (
                     <button
                       key={l}
                       onClick={() => pickLang(l, "personal")}

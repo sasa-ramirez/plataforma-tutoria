@@ -20,6 +20,11 @@ describe("detectLanguage", () => {
     expect(detectLanguage(code)).toBe("java");
   });
 
+  it("detecta PSeInt por «Algoritmo Nombre»", () => {
+    expect(detectLanguage(`Algoritmo Suma\n  Escribir "hola"\nFinAlgoritmo`)).toBe("pseint");
+    expect(detectLanguage(`Proceso Prueba\n  x <- 1\nFinProceso`)).toBe("pseint");
+  });
+
   it("por defecto asume Python si no hay señales claras", () => {
     expect(detectLanguage("")).toBe("python");
     expect(detectLanguage("x = 1")).toBe("python");

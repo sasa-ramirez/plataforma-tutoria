@@ -26,8 +26,9 @@ export function isRunnable(language: ProgLanguage): boolean {
  * Útil en el tablero, donde el texto no tiene lenguaje asociado.
  * Por defecto cae en Python (más común en principiantes).
  */
-export function detectLanguage(code: string): "python" | "java" {
+export function detectLanguage(code: string): "python" | "java" | "pseint" {
   const c = code ?? "";
+  if (/^\s*(algoritmo|proceso)\s+\w+/im.test(c)) return "pseint";
   const javaHints = [
     /\bpublic\s+class\b/,
     /\bSystem\.out\.print/,
