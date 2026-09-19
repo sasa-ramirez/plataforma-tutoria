@@ -162,6 +162,107 @@ async function runJudge0(
   };
 }
 
+// ---------- Modo interactivo (pide los datos uno a uno) ----------
+// Los motores externos no se pueden pausar, así que se re-ejecuta el programa
+// con las respuestas acumuladas; cuando pide un dato que aún no existe, el
+// motor responde "fin de la entrada" y ahí se muestra la casilla de escritura.
+
+// Hace que input() repita en la salida lo que se escribió (como en una terminal)
+// y fija la semilla de random para que las re-ejecuciones den los mismos números.
+// Va en UNA sola línea al inicio (por eso los números de línea se corrigen).
+const PY_ECHO =
+  'import builtins as _b;_o=_b.input;_b.input=lambda p="":(lambda v:(print(v),v)[1])(_o(p))';
+
+function patchPython(code: string, seed: number) {
+  // «from __future__» debe ser lo primero del archivo: ahí no se toca el código.
+  if (/^\s*from\s+__future__\b/m.test(code)) return { code, shifted: false };
+  return {
+    code: `${PY_ECHO};import random as _r;_r.seed(${seed})\n${code}`,
+    shifted: true,
+  };
+}
+
+// Entrada estándar que entrega una línea por vez y la repite en la salida.
+// (10 = salto de línea; se usa el número para no depender de escapes.)
+const JAVA_ECHO_CLASS = `
+class __EchoIn extends java.io.InputStream {
+  static final __EchoIn IN = new __EchoIn();
+  private byte[] buf = new byte[0];
+  private int pos = 0;
+  public int available() { return buf.length - pos; }
+  public int read() throws java.io.IOException {
+    byte[] one = new byte[1];
+    int n = read(one, 0, 1);
+    return n < 0 ? -1 : (one[0] & 0xff);
+  }
+  public int read(byte[] b, int off, int len) throws java.io.IOException {
+    if (pos >= buf.length) {
+      java.io.ByteArrayOutputStream line = new java.io.ByteArrayOutputStream();
+      int c;
+      while ((c = System.in.read()) != -1) { line.write(c); if (c == 10) break; }
+      if (line.size() == 0) return -1;
+      buf = line.toByteArray();
+      pos = 0;
+      System.out.print(new String(buf));
+    }
+    int n = Math.min(len, buf.length - pos);
+    System.arraycopy(buf, pos, b, off, n);
+    pos += n;
+    return n;
+  }
+}
+`;
+
+function patchJava(code: string): string {
+  if (!/\bSystem\.in\b/.test(code)) return code;
+  return code.replace(/\bSystem\.in\b/g, "__EchoIn.IN") + "\n" + JAVA_ECHO_CLASS;
+}
+
+export interface InteractiveResult extends RunResult {
+  /** El programa se detuvo esperando un dato (falta una respuesta). */
+  waiting: boolean;
+}
+
+/** Ejecuta con las respuestas dadas; si el programa pide una más, devuelve waiting. */
+export async function runCodeInteractive(
+  language: ProgLanguage,
+  code: string,
+  answers: string[],
+  seed: number,
+): Promise<InteractiveResult> {
+  if (language === "pseint") {
+    const r = runPseint(code, answers, { interactive: true, seed });
+    return { ok: r.ok, stdout: r.stdout, stderr: r.error ?? "", waiting: r.waiting };
+  }
+  if (!isRunnable(language)) {
+    return { ok: false, stdout: "", stderr: "Este lenguaje no se puede ejecutar.", waiting: false };
+  }
+
+  const stdin = answers.length ? answers.join("\n") + "\n" : "";
+  let source = code;
+  let shifted = false;
+  if (language === "python") {
+    const p = patchPython(code, seed);
+    source = p.code;
+    shifted = p.shifted;
+  } else if (language === "java") {
+    source = patchJava(code);
+  }
+
+  const r = await runCode(language, source, stdin);
+  const endOfInput =
+    language === "python"
+      ? /EOFError/.test(r.stderr)
+      : /NoSuchElementException/.test(r.stderr);
+  if (endOfInput) return { ok: true, stdout: r.stdout, stderr: "", waiting: true };
+
+  // La línea extra del parche corre los números de línea de los errores de Python.
+  const stderr = shifted
+    ? r.stderr.replace(/(line )(\d+)/g, (_m, a: string, n: string) => a + Math.max(1, Number(n) - 1))
+    : r.stderr;
+  return { ...r, stderr, waiting: false };
+}
+
 export async function runCode(
   language: ProgLanguage,
   code: string,
