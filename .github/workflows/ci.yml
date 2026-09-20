@@ -1,0 +1,41 @@
+name: Verificar
+
+# Corre en cada subida a main y en cada Pull Request: revisa el código, corre
+# las pruebas y comprueba que el proyecto compila. Si algo falla, GitHub lo
+# marca en rojo y avisa por correo.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Si llega una subida nueva mientras la anterior aún corre, se cancela la vieja.
+concurrency:
+  group: verificar-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Revisar el código (lint)
+        run: npm run lint
+
+      - name: Pruebas
+        run: npm test
+
+      # Incluye el chequeo de tipos (tsc -b). No necesita las claves del
+      # proyecto: solo comprueba que compila.
+      - name: Compilar
+        run: npm run build
