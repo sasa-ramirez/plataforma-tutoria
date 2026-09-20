@@ -20,6 +20,9 @@ import {
   FileUp,
   RotateCcw,
   FileText,
+  MailWarning,
+  CheckCircle2,
+  Trash2,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -43,7 +46,11 @@ import {
   useCoordTeacherGroups,
   useAddStudents,
   useRemoveStudent,
+  useUnconfirmedAccounts,
+  useConfirmAccounts,
+  useDeleteUnconfirmed,
 } from "@/hooks/useCoordinator";
+import { suggestEmailDomain } from "@/lib/emailDomain";
 import {
   fetchStudents,
   fetchTeachers,
@@ -64,7 +71,7 @@ import {
 } from "@/services/documentTemplates";
 import { autoTagTemplate } from "@/lib/autoTagTemplate";
 
-type Tab = "resumen" | "grupos" | "estudiantes" | "tutores" | "plantillas";
+type Tab = "resumen" | "grupos" | "estudiantes" | "tutores" | "sinconfirmar" | "plantillas";
 
 /** "hace un momento / hace 3 días / 12 feb 2026" a partir de un timestamp. */
 function timeAgo(iso: string | null): string {
@@ -197,13 +204,14 @@ export function CoordinationPage() {
         subtitle="Monitorea estudiantes, tutores y grupos. Estadísticas y reportes."
       />
 
-      <div className="mb-5 grid grid-cols-3 gap-2 rounded-xl bg-muted/50 p-1 sm:grid-cols-5">
+      <div className="mb-5 grid grid-cols-3 gap-2 rounded-xl bg-muted/50 p-1 sm:grid-cols-6">
         {(
           [
             ["resumen", "Resumen"],
             ["grupos", "Grupos"],
             ["estudiantes", "Estudiantes"],
             ["tutores", "Tutores"],
+            ["sinconfirmar", "Sin confirmar"],
             ["plantillas", "Plantillas"],
           ] as [Tab, string][]
         ).map(([id, label]) => (
@@ -224,7 +232,139 @@ export function CoordinationPage() {
       {tab === "grupos" && <Grupos />}
       {tab === "estudiantes" && <Estudiantes />}
       {tab === "tutores" && <Tutores />}
+      {tab === "sinconfirmar" && <SinConfirmar />}
       {tab === "plantillas" && <Plantillas />}
+    </div>
+  );
+}
+
+/** Cuentas que se registraron pero nunca confirmaron el correo. */
+function SinConfirmar() {
+  const { toast } = useToast();
+  const { data, isLoading, isError, error } = useUnconfirmedAccounts();
+  const { mutateAsync: confirm, isPending: confirming } = useConfirmAccounts();
+  const { mutateAsync: remove } = useDeleteUnconfirmed();
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const rows = (data ?? []).map((r) => ({ ...r, suggestion: suggestEmailDomain(r.email) }));
+  const okRows = rows.filter((r) => !r.suggestion);
+
+  const run = async (id: string | null, fn: () => Promise<void>) => {
+    setBusyId(id);
+    try {
+      await fn();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "No se pudo completar", "error");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const confirmOne = (id: string, email: string) =>
+    run(id, async () => {
+      await confirm([id]);
+      toast(`Cuenta confirmada: ${email}`, "success");
+    });
+
+  const confirmAllOk = () =>
+    run("all", async () => {
+      const n = await confirm(okRows.map((r) => r.user_id));
+      toast(`${n} cuenta${n === 1 ? "" : "s"} confirmada${n === 1 ? "" : "s"}`, "success");
+    });
+
+  const removeOne = (id: string, email: string) => {
+    if (
+      !window.confirm(
+        `¿Borrar la cuenta ${email}? Nunca se confirmó, así que no tiene datos. No se puede deshacer.`,
+      )
+    )
+      return;
+    return run(id, async () => {
+      await remove(id);
+      toast("Cuenta borrada", "success");
+    });
+  };
+
+  if (isLoading) return <Skeleton className="h-40 w-full" />;
+
+  if (isError)
+    return (
+      <Card className="p-6 text-center text-sm text-destructive">
+        No se pudo cargar la lista: {error instanceof Error ? error.message : "error desconocido"}
+        <span className="mt-1 block text-xs text-muted-foreground">
+          Si dice que la función no existe, falta aplicar la migración 0032 en Supabase.
+        </span>
+      </Card>
+    );
+
+  if (rows.length === 0)
+    return (
+      <Card className="p-6 text-center text-sm text-muted-foreground">
+        No hay cuentas pendientes de confirmar.
+      </Card>
+    );
+
+  return (
+    <div className="space-y-3">
+      <Card className="space-y-2 p-4">
+        <p className="flex items-center gap-2 text-sm font-bold">
+          <MailWarning className="size-4 text-warning" />
+          {rows.length} cuenta{rows.length === 1 ? "" : "s"} sin confirmar
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Se registraron pero no pueden entrar porque no confirmaron su correo. Muchos
+          correos institucionales bloquean ese mensaje. Puedes confirmarlas tú. Si el
+          correo parece mal escrito, mejor pídele a la persona que se registre de nuevo
+          con el correo correcto y borra la cuenta vieja.
+        </p>
+        {okRows.length > 0 && (
+          <Button size="sm" variant="brand" onClick={confirmAllOk} disabled={confirming}>
+            {busyId === "all" ? <Spinner className="size-4" /> : <CheckCircle2 className="size-4" />}
+            Confirmar las {okRows.length} sin sospecha
+          </Button>
+        )}
+      </Card>
+
+      <div className="space-y-1.5">
+        {rows.map((r) => (
+          <div
+            key={r.user_id}
+            className={cn(
+              "flex items-center gap-2 rounded-xl border px-3 py-2",
+              r.suggestion && "border-warning/50 bg-warning/5",
+            )}
+          >
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium">{r.full_name ?? "Sin nombre"}</p>
+              <p className="truncate text-xs text-muted-foreground">{r.email}</p>
+              {r.suggestion && (
+                <p className="mt-0.5 text-xs font-medium text-warning">
+                  ¿Mal escrito? Quizá es {r.suggestion}
+                </p>
+              )}
+              <p className="text-[11px] text-muted-foreground/70">
+                Se registró {timeAgo(r.created_at)}
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant={r.suggestion ? "outline" : "brand"}
+              onClick={() => confirmOne(r.user_id, r.email)}
+              disabled={busyId === r.user_id || confirming}
+            >
+              {busyId === r.user_id ? <Spinner className="size-4" /> : "Confirmar"}
+            </Button>
+            <button
+              onClick={() => removeOne(r.user_id, r.email)}
+              disabled={busyId === r.user_id}
+              className="shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+              aria-label={`Borrar la cuenta ${r.email}`}
+            >
+              <Trash2 className="size-4" />
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

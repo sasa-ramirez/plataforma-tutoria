@@ -16,6 +16,9 @@ import {
   createGroup,
   addStudents,
   removeStudent,
+  fetchUnconfirmed,
+  confirmAccounts,
+  deleteUnconfirmed,
 } from "@/services/coordinator";
 
 export function useCoordOverview() {
@@ -109,5 +112,25 @@ export function useRemoveStudent(courseId: string) {
       qc.invalidateQueries({ queryKey: ["coord", "group-students", courseId] });
       qc.invalidateQueries({ queryKey: ["coord", "students"] });
     },
+  });
+}
+
+export function useUnconfirmedAccounts() {
+  return useQuery({ queryKey: ["coord", "unconfirmed"], queryFn: fetchUnconfirmed });
+}
+
+export function useConfirmAccounts() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: string[]) => confirmAccounts(ids),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["coord", "unconfirmed"] }),
+  });
+}
+
+export function useDeleteUnconfirmed() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteUnconfirmed(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["coord", "unconfirmed"] }),
   });
 }

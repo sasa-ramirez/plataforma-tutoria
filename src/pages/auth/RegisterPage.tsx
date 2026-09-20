@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { GraduationCap, BookUser, Laptop, MailCheck } from "lucide-react";
+import { GraduationCap, BookUser, Laptop, MailCheck, MailWarning } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { requestTeacherRole } from "@/services/admin";
+import { suggestEmailDomain } from "@/lib/emailDomain";
 import { useToast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,12 +19,21 @@ export function RegisterPage() {
   const navigate = useNavigate();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [confirmEmail, setConfirmEmail] = useState("");
+  // Correo que el usuario aceptó tal cual aunque el dominio parezca errado.
+  const [acceptedAsIs, setAcceptedAsIs] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<UserRole>("student");
   const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
+
+  const cleanEmail = email.trim().toLowerCase();
+  const suggestion = suggestEmailDomain(cleanEmail);
+  const showSuggestion = !!suggestion && acceptedAsIs !== cleanEmail;
+  const mismatch =
+    confirmEmail.trim() !== "" && confirmEmail.trim().toLowerCase() !== cleanEmail;
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,11 +42,19 @@ export function RegisterPage() {
       setError("Debes aceptar los Términos y la Política de Privacidad.");
       return;
     }
+    if (confirmEmail.trim().toLowerCase() !== cleanEmail) {
+      setError("Los dos correos no coinciden. Revísalos: a ese correo llegará tu confirmación.");
+      return;
+    }
+    if (showSuggestion) {
+      setError(`Revisa tu correo: ¿quisiste decir ${suggestion}? Elige una opción arriba para continuar.`);
+      return;
+    }
     setLoading(true);
     try {
       // El backend siempre crea estudiantes; el rol no lo decide el cliente.
       const { needsConfirmation } = await signUp({
-        email,
+        email: cleanEmail,
         password,
         fullName,
         role,
@@ -44,7 +62,7 @@ export function RegisterPage() {
 
       if (needsConfirmation) {
         // No hay sesión: hay que confirmar el correo antes de entrar.
-        setSentTo(email);
+        setSentTo(cleanEmail);
         return;
       }
 
@@ -113,7 +131,9 @@ export function RegisterPage() {
             </Button>
           </div>
           <p className="mt-4 text-xs text-muted-foreground/70">
-            ¿No llega? Revisa spam o vuelve a intentar en unos minutos.
+            ¿No llega? Revisa Spam (y Cuarentena si usas correo institucional) o
+            espera unos minutos. Si sigue sin llegar, pídele a tu coordinador que
+            confirme tu cuenta.
           </p>
         </motion.div>
       </div>
@@ -204,8 +224,59 @@ export function RegisterPage() {
               placeholder="tucorreo@uni.edu"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
               required
             />
+            {showSuggestion && (
+              <div className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-xs">
+                <p className="flex items-start gap-1.5 font-medium text-foreground">
+                  <MailWarning className="mt-0.5 size-4 shrink-0 text-warning" />
+                  <span>
+                    ¿Quisiste decir <strong>{suggestion}</strong>? Con un correo mal
+                    escrito no te llega la confirmación y no podrás entrar.
+                  </span>
+                </p>
+                <div className="mt-2 flex gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="brand"
+                    onClick={() => {
+                      setEmail(suggestion!);
+                      setConfirmEmail("");
+                    }}
+                  >
+                    Sí, corregir
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setAcceptedAsIs(cleanEmail)}
+                  >
+                    No, está bien
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="confirmEmail">Repite tu correo</Label>
+            <Input
+              id="confirmEmail"
+              type="email"
+              inputMode="email"
+              placeholder="Escríbelo de nuevo"
+              value={confirmEmail}
+              onChange={(e) => setConfirmEmail(e.target.value)}
+              // Se escribe a mano a propósito: pegar copiaría el mismo error.
+              onPaste={(e) => e.preventDefault()}
+              autoComplete="off"
+              required
+            />
+            {mismatch && (
+              <p className="text-xs text-destructive">Los correos no coinciden todavía.</p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Contraseña</Label>

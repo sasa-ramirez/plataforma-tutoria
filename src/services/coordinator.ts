@@ -242,3 +242,35 @@ export async function removeStudent(
   });
   if (error) throw new Error(error.message);
 }
+
+// ---------- Cuentas sin confirmar ----------
+
+export interface CoordUnconfirmed {
+  user_id: string;
+  email: string;
+  full_name: string | null;
+  created_at: string;
+}
+
+export async function fetchUnconfirmed(): Promise<CoordUnconfirmed[]> {
+  const { data, error } = await supabase.rpc("coord_unconfirmed_accounts");
+  if (error) throw new Error(error.message);
+  return (data ?? []) as CoordUnconfirmed[];
+}
+
+/** Confirma el correo de las cuentas indicadas. Devuelve cuántas se confirmaron. */
+export async function confirmAccounts(userIds: string[]): Promise<number> {
+  const { data, error } = await supabase.rpc("coord_confirm_accounts", {
+    p_users: userIds,
+  });
+  if (error) throw new Error(error.message);
+  return (data as number) ?? 0;
+}
+
+/** Borra una cuenta que NUNCA se confirmó (p. ej. con el correo mal escrito). */
+export async function deleteUnconfirmed(userId: string): Promise<void> {
+  const { error } = await supabase.rpc("coord_delete_unconfirmed", {
+    p_user: userId,
+  });
+  if (error) throw new Error(error.message);
+}
