@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -10,9 +10,10 @@ import {
   UserSquare2,
   Pencil,
   Check,
+  Trash2,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { useCourse, useCourseMembers } from "@/hooks/useCourses";
+import { useCourse, useCourseMembers, useDeleteCourse } from "@/hooks/useCourses";
 import { useAssignments } from "@/hooks/useAssignments";
 import { useUpdateProfessorName } from "@/hooks/useTutoring";
 import { AssignmentCard } from "@/components/assignments/AssignmentCard";
@@ -43,6 +44,25 @@ export function CourseDetailPage() {
   );
   const { data: assignments, isLoading: assignmentsLoading } =
     useAssignments(id);
+  const { mutateAsync: deleteCourse, isPending: deleting } = useDeleteCourse();
+  const navigate = useNavigate();
+
+  const handleDelete = async () => {
+    if (!course) return;
+    const ok = window.confirm(
+      `¿Eliminar el curso "${course.title}"?\n\n` +
+        "Desaparece para ti y para tus estudiantes. Sus tareas, entregas y notas NO se borran: " +
+        "quedan guardadas y se pueden recuperar.",
+    );
+    if (!ok) return;
+    try {
+      await deleteCourse(course.id);
+      toast("Curso eliminado. Sus datos quedaron guardados.", "success");
+      navigate("/app/courses");
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "No se pudo eliminar el curso", "error");
+    }
+  };
 
   if (isLoading) return <FullScreenLoader />;
   if (!course)
@@ -230,6 +250,26 @@ export function CourseDetailPage() {
             )}
           </CardContent>
         </Card>
+      )}
+
+      {/* Eliminar curso (solo su tutor). Es un borrado suave: no se pierde nada. */}
+      {isTeacher && course.teacher_id === profile?.id && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-destructive/20 px-4 py-3">
+          <p className="text-xs text-muted-foreground">
+            ¿Ya no vas a usar este curso? Puedes eliminarlo. Sus tareas, entregas y
+            notas se conservan guardadas.
+          </p>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onClick={handleDelete}
+            disabled={deleting}
+          >
+            {deleting ? <Spinner className="size-4" /> : <Trash2 className="size-4" />}
+            Eliminar curso
+          </Button>
+        </div>
       )}
     </div>
   );
