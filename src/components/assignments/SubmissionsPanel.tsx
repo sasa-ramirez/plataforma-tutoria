@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronDown,
@@ -10,12 +10,22 @@ import {
   Code2,
   BookOpen,
   Timer,
+  UserCheck,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/common/Spinner";
+import { useToast } from "@/components/ui/toast";
 import { AIFeedbackPanel } from "@/components/ai/AIFeedbackPanel";
-import { fetchSubmissionsForExercise, fetchExamLogs } from "@/services/teacher";
+import {
+  fetchSubmissionsForExercise,
+  fetchExamLogs,
+  setTeacherGrade,
+} from "@/services/teacher";
 import type { SubmissionRow } from "@/services/teacher";
 import { initials, cn } from "@/lib/utils";
 
@@ -96,8 +106,95 @@ function ExamTimeline({ submissionId }: { submissionId: string }) {
   );
 }
 
+/** El tutor corrige la nota de la IA (o califica si la IA no pudo) y comenta. */
+function GradeEditor({ s, exerciseId }: { s: SubmissionRow; exerciseId: string }) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const [score, setScore] = useState(String(s.score ?? s.feedback?.score ?? ""));
+  const [comment, setComment] = useState(s.teacher_comment ?? "");
+  const manual = !!s.teacher_graded_at;
+
+  const n = Number(score);
+  const valid = score.trim() !== "" && Number.isInteger(n) && n >= 0 && n <= 100;
+
+  const save = useMutation({
+    mutationFn: () => setTeacherGrade(s.id, n, comment),
+    onSuccess: () => {
+      toast("Nota guardada. Se le avisó al estudiante.", "success");
+      qc.invalidateQueries({ queryKey: ["submissions", exerciseId] });
+    },
+    onError: (e) =>
+      toast((e as { message?: string }).message ?? "No se pudo guardar la nota", "error"),
+  });
+
+  return (
+    <div className="space-y-2 rounded-xl border border-primary/30 bg-primary/5 p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="flex items-center gap-1.5 text-xs font-bold text-primary">
+          <UserCheck className="size-3.5" /> Tu calificación
+        </p>
+        {manual && (
+          <span className="text-[11px] text-muted-foreground">
+            · ya calificada por ti
+            {s.feedback ? ` (la IA había puesto ${s.feedback.score})` : ""}
+          </span>
+        )}
+        {!manual && s.feedback && (
+          <span className="text-[11px] text-muted-foreground">
+            · la IA sugirió {s.feedback.score}; puedes ajustarla
+          </span>
+        )}
+      </div>
+      <div className="flex items-start gap-2">
+        <div className="w-24 shrink-0">
+          <Input
+            type="number"
+            inputMode="numeric"
+            min={0}
+            max={100}
+            value={score}
+            onChange={(e) => setScore(e.target.value)}
+            placeholder="0–100"
+            aria-label="Nota de 0 a 100"
+            className="h-9 text-center font-bold"
+          />
+        </div>
+        <Textarea
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          placeholder="Comentario para el estudiante (opcional)"
+          aria-label="Comentario para el estudiante"
+          className="min-h-[36px] flex-1 text-sm"
+          rows={2}
+        />
+      </div>
+      <div className="flex justify-end">
+        <Button
+          size="sm"
+          variant="brand"
+          onClick={() => save.mutate()}
+          disabled={!valid || save.isPending}
+        >
+          {save.isPending ? <Spinner className="size-4" /> : null}
+          {manual ? "Actualizar nota" : "Guardar nota"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 /** Un intento individual dentro de la tarjeta del estudiante. */
-function AttemptRow({ s, open, onToggle }: { s: SubmissionRow; open: boolean; onToggle: () => void }) {
+function AttemptRow({
+  s,
+  exerciseId,
+  open,
+  onToggle,
+}: {
+  s: SubmissionRow;
+  exerciseId: string;
+  open: boolean;
+  onToggle: () => void;
+}) {
   const flagged = s.exit_count > 0 || s.paste_count > 0;
   return (
     <div className="rounded-lg border bg-background">
@@ -124,6 +221,11 @@ function AttemptRow({ s, open, onToggle }: { s: SubmissionRow; open: boolean; on
           <Badge variant="destructive">
             <ShieldAlert className="mr-1 size-3" /> {s.exit_count + s.paste_count}
           </Badge>
+        )}
+        {s.teacher_graded_at && (
+          <span title="Nota puesta por el tutor" className="text-primary">
+            <UserCheck className="size-3.5" />
+          </span>
         )}
         {s.status === "graded" && s.score != null ? (
           <Badge variant={s.score >= 60 ? "success" : "warning"}>{s.score}</Badge>
@@ -169,6 +271,9 @@ function AttemptRow({ s, open, onToggle }: { s: SubmissionRow; open: boolean; on
 
               {/* Feedback de la IA */}
               {s.feedback && <AIFeedbackPanel feedback={s.feedback} />}
+
+              {/* Nota manual del tutor */}
+              <GradeEditor s={s} exerciseId={exerciseId} />
 
               {/* Cuándo entró, cuándo entregó, cuánto se demoró */}
               {(s.started_at || s.submitted_at) && (
@@ -347,6 +452,7 @@ export function SubmissionsPanel({
                         <AttemptRow
                           key={s.id}
                           s={s}
+                          exerciseId={exerciseId}
                           open={expandedAttempt === s.id}
                           onToggle={() =>
                             setExpandedAttempt(

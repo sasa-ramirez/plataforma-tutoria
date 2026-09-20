@@ -211,6 +211,10 @@ export interface Submission {
   started_at: string | null;
   submitted_at: string | null;
   created_at: string;
+  /** Nota manual del tutor (migración 0031): si existe, `score` es la del tutor. */
+  teacher_comment?: string | null;
+  teacher_graded_at?: string | null;
+  teacher_graded_by?: string | null;
 }
 
 export interface AIError {

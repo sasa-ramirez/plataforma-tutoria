@@ -6,6 +6,7 @@ import {
   Info,
   Lightbulb,
   ThumbsUp,
+  UserCheck,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -25,6 +26,38 @@ const SEVERITY: Record<
   warning: { icon: AlertTriangle, cls: "text-warning" },
   info: { icon: Info, cls: "text-primary" },
 };
+
+/** Nota final puesta por el tutor (reemplaza a la de la IA) + su comentario. */
+export function TeacherGradeCard({
+  score,
+  comment,
+  aiScore,
+}: {
+  score: number;
+  comment: string | null;
+  aiScore?: number | null;
+}) {
+  return (
+    <Card className="overflow-hidden border-primary/40 bg-primary/5">
+      <div className="flex items-start gap-4 p-4">
+        <div className="grid size-14 shrink-0 place-items-center rounded-2xl bg-primary/15">
+          <span className={cn("text-2xl font-extrabold", scoreColor(score))}>{score}</span>
+        </div>
+        <div className="min-w-0">
+          <p className="flex items-center gap-1.5 text-sm font-bold text-primary">
+            <UserCheck className="size-4" /> Nota final de tu tutor
+          </p>
+          {comment && <p className="mt-1 whitespace-pre-wrap text-sm">{comment}</p>}
+          {aiScore != null && aiScore !== score && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              La IA había sugerido {aiScore}; tu tutor la revisó y ajustó.
+            </p>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+}
 
 export function AIFeedbackPanel({ feedback }: { feedback: AIFeedback }) {
   return (

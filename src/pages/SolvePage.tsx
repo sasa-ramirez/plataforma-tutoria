@@ -8,7 +8,7 @@ import { useToast } from "@/components/ui/toast";
 import { CodeEditor } from "@/components/editor/CodeEditor";
 import { CodeRunner } from "@/components/editor/CodeRunner";
 import { AnswerExercise } from "@/components/assignments/AnswerExercise";
-import { AIFeedbackPanel } from "@/components/ai/AIFeedbackPanel";
+import { AIFeedbackPanel, TeacherGradeCard } from "@/components/ai/AIFeedbackPanel";
 import { MathText } from "@/components/common/MathText";
 import { ExamModeBanner } from "@/components/exam/ExamModeBanner";
 import { Button } from "@/components/ui/button";
@@ -291,6 +291,15 @@ export function SolvePage() {
             {/* Ejecutar (Python/Java) — pruébalo antes de enviar */}
             <CodeRunner language={exercise.language} code={code} />
           </>
+        )}
+
+        {/* Nota final del tutor (si la corrigió o la puso él) */}
+        {submission?.teacher_graded_at && submission.score != null && (
+          <TeacherGradeCard
+            score={submission.score}
+            comment={submission.teacher_comment ?? null}
+            aiScore={feedback?.score}
+          />
         )}
 
         {/* Estado de revisión */}
