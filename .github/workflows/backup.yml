@@ -1,0 +1,82 @@
+name: Respaldo de la base de datos
+
+# Copia diaria de la base de datos de Supabase (el plan gratuito no guarda
+# copias con restauración). Guarda:
+#   - public.dump : todas las tablas de la app (cursos, tareas, entregas, notas…)
+#   - auth.dump   : cuentas de usuario (auth.users y auth.identities)
+# El repositorio es PÚBLICO y el respaldo tiene datos personales, así que el
+# archivo se CIFRA antes de subirlo. Sin la frase (BACKUP_PASSPHRASE) no se abre:
+# guárdala también fuera de GitHub, o los respaldos no sirven.
+#
+# NO incluye los archivos de Storage (fotos, plantillas subidas): esas se
+# vuelven a subir a mano.
+#
+# Abrir un respaldo (descargado desde Actions → esta corrida → Artifacts):
+#   openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 \
+#     -in respaldo-FECHA.tar.enc -out respaldo.tar
+#   tar -xf respaldo.tar
+# Restaurar: en un proyecto NUEVO de Supabase, primero auth.dump y luego
+# public.dump con pg_restore (--no-owner). Conviene hacer un ensayo de
+# restauración en un proyecto de prueba antes de necesitarlo de verdad.
+
+on:
+  schedule:
+    - cron: "0 8 * * *" # 08:00 UTC = 03:00 en Colombia
+  workflow_dispatch: {}
+
+jobs:
+  respaldo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+    steps:
+      - name: Comprobar que están los secretos
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ] || [ -z "$BACKUP_PASSPHRASE" ]; then
+            echo "Faltan los secretos SUPABASE_DB_URL y/o BACKUP_PASSPHRASE (Settings → Secrets and variables → Actions)."
+            exit 1
+          fi
+
+      # pg_dump debe ser de una versión igual o mayor que la del servidor.
+      - name: Instalar cliente de PostgreSQL 17
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(. /etc/os-release && echo "$VERSION_CODENAME")-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+
+      - name: Copiar la base de datos
+        run: |
+          PGDUMP=/usr/lib/postgresql/17/bin/pg_dump
+          $PGDUMP "$SUPABASE_DB_URL" -Fc --no-owner --no-privileges -n public -f public.dump
+          $PGDUMP "$SUPABASE_DB_URL" -Fc --no-owner --no-privileges --data-only -t auth.users -t auth.identities -f auth.dump
+
+      - name: Comprobar que la copia sirve
+        run: |
+          RESTORE=/usr/lib/postgresql/17/bin/pg_restore
+          $RESTORE --list public.dump > public.list
+          $RESTORE --list auth.dump > auth.list
+          for t in profiles courses enrollments assignments exercises submissions ai_feedback; do
+            grep -q "TABLE DATA public $t " public.list || { echo "Falta la tabla $t en la copia"; exit 1; }
+          done
+          grep -q "TABLE DATA auth users " auth.list || { echo "Faltan las cuentas (auth.users) en la copia"; exit 1; }
+          rm public.list auth.list
+          echo "Tamaños (bytes):"; wc -c public.dump auth.dump
+
+      - name: Cifrar
+        run: |
+          FILE="respaldo-$(date -u +%F).tar.enc"
+          tar -cf respaldo.tar public.dump auth.dump
+          openssl enc -aes-256-cbc -pbkdf2 -iter 600000 -salt -pass env:BACKUP_PASSPHRASE -in respaldo.tar -out "$FILE"
+          rm -f public.dump auth.dump respaldo.tar
+          echo "FILE=$FILE" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: respaldo-${{ github.run_id }}
+          path: ${{ env.FILE }}
+          retention-days: 60
+          if-no-files-found: error
