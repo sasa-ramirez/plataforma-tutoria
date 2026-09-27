@@ -2,6 +2,7 @@ import { useState } from "react";
 import { CalendarClock, Plus, Trash2, Check, FileDown, Pencil } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/common/Spinner";
@@ -108,13 +109,16 @@ export function ScheduleCard({
 
         {editingManually ? (
           <div className="space-y-2">
-            <Input
+            <Textarea
               autoFocus
               value={manualValue}
               onChange={(e) => setManualValue(e.target.value)}
-              placeholder="Ej. Lun y Mié 2–4pm, Aula 301"
-              onKeyDown={(e) => e.key === "Enter" && saveManual()}
+              placeholder={"Un horario por línea, por ejemplo:\nLunes 2–4pm, Aula 301\nMiércoles 4–6pm, Aula 301"}
+              className="min-h-[76px] text-sm"
             />
+            <p className="text-[11px] text-muted-foreground">
+              ¿Tienen más de un horario a la semana? Escribe cada uno en su propia línea.
+            </p>
             <div className="flex gap-2">
               <Button size="sm" variant="brand" onClick={saveManual} disabled={settingManually}>
                 {settingManually ? <Spinner className="size-4" /> : "Guardar"}
@@ -133,7 +137,9 @@ export function ScheduleCard({
           <div className="flex items-center gap-2 rounded-xl border border-success/30 bg-success/5 px-3 py-2 text-sm">
             <div className="min-w-0 flex-1">
               <span className="text-muted-foreground">Horario actual: </span>
-              <span className="font-semibold text-success">{currentSchedule}</span>
+              <span className="whitespace-pre-wrap font-semibold text-success">
+                {currentSchedule}
+              </span>
             </div>
             {isTeacher && (
               <button
