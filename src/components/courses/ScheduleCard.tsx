@@ -12,6 +12,14 @@ import { useCourseProgramInfo } from "@/hooks/useCourses";
 import { useSetScheduleManually } from "@/hooks/useTutoring";
 import { cn } from "@/lib/utils";
 
+/** El horario se guarda como texto plano, un renglón por horario. */
+function scheduleLines(schedule: string): string[] {
+  return schedule
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+}
+
 /**
  * Cuadrar horario: el tutor propone opciones y los estudiantes votan las que
  * pueden. El horario del grupo queda automáticamente en la MÁS votada.
@@ -134,25 +142,33 @@ export function ScheduleCard({
             </div>
           </div>
         ) : currentSchedule ? (
-          <div className="flex items-center gap-2 rounded-xl border border-success/30 bg-success/5 px-3 py-2 text-sm">
-            <div className="min-w-0 flex-1">
-              <span className="text-muted-foreground">Horario actual: </span>
-              <span className="whitespace-pre-wrap font-semibold text-success">
-                {currentSchedule}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-muted-foreground">
+                Horario actual
               </span>
+              {isTeacher && (
+                <button
+                  onClick={() => {
+                    setManualValue(currentSchedule ?? "");
+                    setEditingManually(true);
+                  }}
+                  className="flex items-center gap-1 rounded-lg px-1.5 py-0.5 text-xs font-medium text-muted-foreground hover:bg-muted"
+                  aria-label="Editar horario"
+                >
+                  <Pencil className="size-3.5" /> Editar
+                </button>
+              )}
             </div>
-            {isTeacher && (
-              <button
-                onClick={() => {
-                  setManualValue(currentSchedule ?? "");
-                  setEditingManually(true);
-                }}
-                className="shrink-0 rounded-lg p-1.5 text-muted-foreground hover:bg-muted"
-                aria-label="Editar horario"
+            {scheduleLines(currentSchedule).map((line, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-2 rounded-xl border border-success/30 bg-success/5 px-3 py-2 text-sm"
               >
-                <Pencil className="size-4" />
-              </button>
-            )}
+                <CalendarClock className="size-4 shrink-0 text-success" />
+                <span className="min-w-0 flex-1 font-semibold text-success">{line}</span>
+              </div>
+            ))}
           </div>
         ) : (
           <div className="space-y-2">
