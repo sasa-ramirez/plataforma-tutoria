@@ -470,11 +470,7 @@ export async function exportSeguimientoExcel(params: {
 }
 
 // Mismos colores/encabezado del formato oficial "HORARIO DE TUTORIAS POR
-// GRUPO" (verde institucional). La plantilla real trae una cuadrícula por
-// día y franja horaria, pero la plataforma solo guarda UN horario ya
-// acordado (texto libre, resultado de la votación) — no datos sueltos
-// por día/hora — así que en vez de fingir esa cuadrícula se deja el
-// mismo encabezado y el horario acordado en una sola celda.
+// GRUPO" (verde institucional).
 const SCHEDULE_GREEN_TITLE = {
   type: "pattern" as const,
   pattern: "solid" as const,
@@ -485,6 +481,72 @@ const SCHEDULE_GREEN_LIGHT = {
   pattern: "solid" as const,
   fgColor: { argb: "FF92D050" },
 };
+const SCHEDULE_ROW_FILL = {
+  type: "pattern" as const,
+  pattern: "solid" as const,
+  fgColor: { argb: "FFE2EFDA" },
+};
+
+const WEEK_DAYS = [
+  "Lunes",
+  "Martes",
+  "Miércoles",
+  "Jueves",
+  "Viernes",
+  "Sábado",
+  "Domingo",
+];
+
+// "lunes", "lun", "miércoles", "mié"… → "Lunes" / "Miércoles"…
+const DAY_ALIASES: Record<string, string> = {
+  lunes: "Lunes",
+  lun: "Lunes",
+  martes: "Martes",
+  mar: "Martes",
+  miercoles: "Miércoles",
+  miércoles: "Miércoles",
+  mie: "Miércoles",
+  mié: "Miércoles",
+  jueves: "Jueves",
+  jue: "Jueves",
+  viernes: "Viernes",
+  vie: "Viernes",
+  sabado: "Sábado",
+  sábado: "Sábado",
+  sabados: "Sábado",
+  sábados: "Sábado",
+  sab: "Sábado",
+  sáb: "Sábado",
+  domingo: "Domingo",
+  dom: "Domingo",
+};
+
+/**
+ * El horario se guarda como texto libre, un renglón por horario (p. ej.
+ * "Lunes 2–4pm, Aula 301"). Si el renglón empieza con el nombre de un día
+ * (completo o abreviado), se ubica en ese día del cuadro; si no se
+ * reconoce el día, se lista aparte para no perder esa información.
+ */
+export function parseScheduleByDay(
+  schedule: string | null,
+): { byDay: Map<string, string[]>; other: string[] } {
+  const byDay = new Map<string, string[]>();
+  const other: string[] = [];
+  for (const raw of (schedule ?? "").split("\n")) {
+    const line = raw.trim();
+    if (!line) continue;
+    const m = /^([a-záéíóúñ]+)\.?\s*[:\-–—]?\s*(.*)$/i.exec(line);
+    const day = m ? DAY_ALIASES[m[1].toLowerCase()] : undefined;
+    if (day) {
+      const list = byDay.get(day) ?? [];
+      list.push(m![2].trim() || line);
+      byDay.set(day, list);
+    } else {
+      other.push(line);
+    }
+  }
+  return { byDay, other };
+}
 
 export async function exportScheduleExcel(params: {
   courseTitle: string;
@@ -531,17 +593,77 @@ export async function exportScheduleExcel(params: {
 
   ws.mergeCells(5, 1, 5, 6);
   const label = ws.getCell(5, 1);
-  label.value = "HORARIO ACORDADO (definido por votación de los estudiantes):";
+  label.value = "HORARIO ACORDADO:";
   label.font = { bold: true, size: 11, name: "Calibri" };
   label.alignment = { horizontal: "left", vertical: "middle" };
 
-  ws.mergeCells(6, 1, 8, 6);
-  const value = ws.getCell(6, 1);
-  value.value = params.schedule || "Aún no se ha definido un horario.";
-  value.font = { size: 12, name: "Calibri" };
-  value.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
-  for (let r = 6; r <= 8; r++) {
-    for (let c = 1; c <= 6; c++) ws.getCell(r, c).border = GRID_BORDER;
+  const { byDay, other } = parseScheduleByDay(params.schedule);
+  let row = 6;
+
+  if (params.schedule) {
+    // Cabecera de la tabla: DÍA | HORARIO
+    const dayHeader = ws.getCell(row, 1);
+    ws.mergeCells(row, 1, row, 2);
+    dayHeader.value = "DÍA";
+    const timeHeader = ws.getCell(row, 3);
+    ws.mergeCells(row, 3, row, 6);
+    timeHeader.value = "HORARIO";
+    for (const cell of [dayHeader, timeHeader]) {
+      cell.font = { bold: true, size: 10, name: "Calibri" };
+      cell.alignment = { horizontal: "center", vertical: "middle" };
+      cell.fill = SCHEDULE_GREEN_LIGHT;
+    }
+    for (let c = 1; c <= 6; c++) ws.getCell(row, c).border = GRID_BORDER;
+    row++;
+
+    // Una fila por día de la semana, con lo que se haya reconocido para ese día.
+    for (const day of WEEK_DAYS) {
+      const times = byDay.get(day);
+      const dayCell = ws.getCell(row, 1);
+      ws.mergeCells(row, 1, row, 2);
+      dayCell.value = day;
+      dayCell.font = { bold: true, size: 11, name: "Calibri" };
+      dayCell.alignment = { horizontal: "center", vertical: "middle" };
+
+      const timeCell = ws.getCell(row, 3);
+      ws.mergeCells(row, 3, row, 6);
+      timeCell.value = times?.length ? times.join(" y ") : "—";
+      timeCell.font = {
+        size: 11,
+        name: "Calibri",
+        color: times?.length ? undefined : { argb: "FFA6A6A6" },
+      };
+      timeCell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+
+      if (times?.length) {
+        dayCell.fill = SCHEDULE_ROW_FILL;
+        timeCell.fill = SCHEDULE_ROW_FILL;
+      }
+      for (let c = 1; c <= 6; c++) ws.getCell(row, c).border = GRID_BORDER;
+      row++;
+    }
+
+    // Horarios que no se pudieron ubicar en un día (texto libre que no
+    // empezaba con un nombre de día reconocible) — se listan aparte para
+    // no perder esa información.
+    if (other.length) {
+      ws.mergeCells(row, 1, row, 6);
+      const otherCell = ws.getCell(row, 1);
+      otherCell.value = `Otros horarios: ${other.join(" · ")}`;
+      otherCell.font = { italic: true, size: 10, name: "Calibri" };
+      otherCell.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+      for (let c = 1; c <= 6; c++) ws.getCell(row, c).border = GRID_BORDER;
+      row++;
+    }
+  } else {
+    ws.mergeCells(row, 1, row + 2, 6);
+    const value = ws.getCell(row, 1);
+    value.value = "Aún no se ha definido un horario.";
+    value.font = { size: 12, name: "Calibri" };
+    value.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+    for (let r = row; r <= row + 2; r++) {
+      for (let c = 1; c <= 6; c++) ws.getCell(r, c).border = GRID_BORDER;
+    }
   }
 
   const buffer = await workbook.xlsx.writeBuffer();
