@@ -559,6 +559,10 @@ export async function exportScheduleExcel(params: {
   const workbook = new Excel.Workbook();
   const ws = workbook.addWorksheet("HORARIO");
   ws.columns = Array.from({ length: 6 }, () => ({ width: 21 }));
+  ws.pageSetup.orientation = "landscape";
+  ws.pageSetup.fitToPage = true;
+  ws.pageSetup.fitToWidth = 1;
+  ws.pageSetup.fitToHeight = 0;
 
   ws.mergeCells(1, 1, 1, 6);
   const title = ws.getCell(1, 1);
