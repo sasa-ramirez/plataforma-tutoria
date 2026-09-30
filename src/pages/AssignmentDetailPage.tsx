@@ -21,6 +21,7 @@ import {
 import { useCourseProgramInfo } from "@/hooks/useCourses";
 import { useToast } from "@/components/ui/toast";
 import { CreateExerciseDialog } from "@/components/assignments/CreateExerciseDialog";
+import { StartQuizDialog } from "@/components/assignments/StartQuizDialog";
 import { SubmissionsPanel } from "@/components/assignments/SubmissionsPanel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -76,6 +77,7 @@ export function AssignmentDetailPage() {
     );
 
   const lang = assignmentBadge(a.language, programInfo?.subjectName, programInfo?.facultyName);
+  const hasMultipleChoice = !!exercises?.some((ex) => ex.type === "multiple_choice");
   const diff = DIFFICULTY_META[a.difficulty];
   const open = isAssignmentOpen(a);
   const locked = !open && !isTeacher;
@@ -160,14 +162,17 @@ export function AssignmentDetailPage() {
 
       {/* Ejercicios */}
       <div>
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-3 flex items-center justify-between gap-2">
           <h2 className="font-bold">Ejercicios</h2>
-          {isTeacher && (
-            <CreateExerciseDialog
-              assignment={a}
-              nextIndex={(exercises?.length ?? 0) + 1}
-            />
-          )}
+          <div className="flex items-center gap-2">
+            {isTeacher && hasMultipleChoice && <StartQuizDialog assignmentId={a.id} />}
+            {isTeacher && (
+              <CreateExerciseDialog
+                assignment={a}
+                nextIndex={(exercises?.length ?? 0) + 1}
+              />
+            )}
+          </div>
         </div>
 
         {exLoading ? (

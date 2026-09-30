@@ -14,6 +14,7 @@ import { AssignmentDetailPage } from "@/pages/AssignmentDetailPage";
 import { BoardPage } from "@/pages/BoardPage";
 import { JoinClassPage } from "@/pages/JoinClassPage";
 import { SolvePage } from "@/pages/SolvePage";
+import { QuizSessionPage } from "@/pages/QuizSessionPage";
 import { PracticePage } from "@/pages/PracticePage";
 import { SandboxPage } from "@/pages/SandboxPage";
 import { FreePracticePage } from "@/pages/FreePracticePage";
@@ -76,6 +77,16 @@ export default function App() {
         element={
           <ProtectedRoute>
             <SolvePage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Quiz en vivo (fullscreen, sin layout) */}
+      <Route
+        path="/app/quiz/:sessionId"
+        element={
+          <ProtectedRoute>
+            <QuizSessionPage />
           </ProtectedRoute>
         }
       />

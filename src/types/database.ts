@@ -198,6 +198,32 @@ export interface Exercise {
   created_at: string;
 }
 
+export type QuizMode = "sync" | "pace";
+export type QuizStatus = "lobby" | "active" | "ended";
+
+export interface QuizSession {
+  id: string;
+  assignment_id: string;
+  course_id: string;
+  mode: QuizMode;
+  status: QuizStatus;
+  current_index: number;
+  started_at: string | null;
+  ended_at: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface QuizParticipant {
+  id: string;
+  session_id: string;
+  student_id: string;
+  score: number;
+  current_index: number;
+  joined_at: string;
+  full_name?: string | null;
+}
+
 export interface Submission {
   id: string;
   exercise_id: string;
