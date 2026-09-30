@@ -13,7 +13,12 @@ import {
   Trash2,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { useCourse, useCourseMembers, useDeleteCourse } from "@/hooks/useCourses";
+import {
+  useCourse,
+  useCourseMembers,
+  useDeleteCourse,
+  useCourseProgramInfo,
+} from "@/hooks/useCourses";
 import { useAssignments } from "@/hooks/useAssignments";
 import { useUpdateProfessorName } from "@/hooks/useTutoring";
 import { AssignmentCard } from "@/components/assignments/AssignmentCard";
@@ -44,6 +49,9 @@ export function CourseDetailPage() {
   );
   const { data: assignments, isLoading: assignmentsLoading } =
     useAssignments(id);
+  // Para mostrar la asignatura del curso en las tareas de "Lógica" (no-código)
+  // en vez del ícono genérico. Visible para profesor y estudiante.
+  const { data: programInfo } = useCourseProgramInfo(id);
   const { mutateAsync: deleteCourse, isPending: deleting } = useDeleteCourse();
   const navigate = useNavigate();
 
@@ -189,7 +197,13 @@ export function CourseDetailPage() {
           ) : assignments && assignments.length > 0 ? (
             <div className="space-y-3">
               {assignments.map((a, i) => (
-                <AssignmentCard key={a.id} assignment={a} index={i} />
+                <AssignmentCard
+                  key={a.id}
+                  assignment={a}
+                  index={i}
+                  subjectName={programInfo?.subjectName}
+                  facultyName={programInfo?.facultyName}
+                />
               ))}
             </div>
           ) : (

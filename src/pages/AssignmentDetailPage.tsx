@@ -18,6 +18,7 @@ import {
   useExercises,
   useDeleteAssignment,
 } from "@/hooks/useAssignments";
+import { useCourseProgramInfo } from "@/hooks/useCourses";
 import { useToast } from "@/components/ui/toast";
 import { CreateExerciseDialog } from "@/components/assignments/CreateExerciseDialog";
 import { SubmissionsPanel } from "@/components/assignments/SubmissionsPanel";
@@ -27,7 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/common/EmptyState";
 import { FullScreenLoader } from "@/components/common/Spinner";
-import { LANGUAGE_META, DIFFICULTY_META } from "@/lib/constants";
+import { assignmentBadge, DIFFICULTY_META } from "@/lib/constants";
 import { isAssignmentOpen, timeLeft } from "@/lib/utils";
 
 export function AssignmentDetailPage() {
@@ -39,6 +40,7 @@ export function AssignmentDetailPage() {
   const { data: exercises, isLoading: exLoading } = useExercises(id);
   const { mutateAsync: deleteAssignment, isPending: deleting } =
     useDeleteAssignment(a?.course_id ?? "");
+  const { data: programInfo } = useCourseProgramInfo(a?.course_id ?? "");
   const [openEntregas, setOpenEntregas] = useState<string | null>(null);
 
   const handleDelete = async () => {
@@ -73,7 +75,7 @@ export function AssignmentDetailPage() {
       />
     );
 
-  const lang = LANGUAGE_META[a.language];
+  const lang = assignmentBadge(a.language, programInfo?.subjectName, programInfo?.facultyName);
   const diff = DIFFICULTY_META[a.difficulty];
   const open = isAssignmentOpen(a);
   const locked = !open && !isTeacher;

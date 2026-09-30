@@ -113,24 +113,29 @@ export async function fetchCourseMembers(
 export interface CourseProgramInfo {
   subjectName: string | null;
   programName: string | null;
+  facultyName: string | null;
 }
 
-/** Programa (carrera) y asignatura de un curso, vía Facultad→Carrera→Asignatura. */
+/** Facultad, programa (carrera) y asignatura de un curso, vía Facultad→Carrera→Asignatura. */
 export async function fetchCourseProgramInfo(
   courseId: string,
 ): Promise<CourseProgramInfo> {
   const { data, error } = await supabase
     .from("courses")
-    .select("subjects(name, careers(name))")
+    .select("subjects(name, careers(name, faculties(name)))")
     .eq("id", courseId)
     .single();
   if (error) throw error;
   const row = data as unknown as {
-    subjects: { name: string; careers: { name: string } | null } | null;
+    subjects: {
+      name: string;
+      careers: { name: string; faculties: { name: string } | null } | null;
+    } | null;
   };
   return {
     subjectName: row.subjects?.name ?? null,
     programName: row.subjects?.careers?.name ?? null,
+    facultyName: row.subjects?.careers?.faculties?.name ?? null,
   };
 }
 

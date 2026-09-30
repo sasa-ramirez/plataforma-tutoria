@@ -23,6 +23,7 @@ import {
 import { Spinner } from "@/components/common/Spinner";
 import { useToast } from "@/components/ui/toast";
 import { useCreateAssignment } from "@/hooks/useAssignments";
+import { useCourseProgramInfo } from "@/hooks/useCourses";
 import { LANGUAGE_META, DIFFICULTY_META } from "@/lib/constants";
 import type { Difficulty, ProgLanguage } from "@/types/database";
 
@@ -37,6 +38,7 @@ const toLocalInput = (d: Date) => {
 export function CreateAssignmentDialog({ courseId }: { courseId: string }) {
   const [open, setOpen] = useState(false);
   const { mutateAsync, isPending } = useCreateAssignment(courseId);
+  const { data: programInfo } = useCourseProgramInfo(courseId, open);
   const { toast } = useToast();
 
   const [form, setForm] = useState({
@@ -172,6 +174,13 @@ export function CreateAssignmentDialog({ courseId }: { courseId: string }) {
                   ))}
                 </SelectContent>
               </Select>
+              {form.language === "logic" && (
+                <p className="text-[11px] text-muted-foreground">
+                  {programInfo?.subjectName
+                    ? `Se mostrará como "${programInfo.subjectName}" (la asignatura del curso), no como código.`
+                    : "Para no-código: este curso no tiene asignatura asignada, así que se mostrará como \"Lógica\"."}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Dificultad</Label>

@@ -1,4 +1,16 @@
-import { Coffee, NotebookPen, Puzzle, Terminal, type LucideIcon } from "lucide-react";
+import {
+  Coffee,
+  Cog,
+  FlaskConical,
+  GraduationCap,
+  Landmark,
+  NotebookPen,
+  Puzzle,
+  Stethoscope,
+  Terminal,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
 import type { Difficulty, ProgLanguage } from "@/types/database";
 
 export const LANGUAGE_META: Record<
@@ -10,6 +22,36 @@ export const LANGUAGE_META: Record<
   python: { label: "Python", monaco: "python", icon: Terminal },
   logic: { label: "Lógica", monaco: "plaintext", icon: Puzzle },
 };
+
+// Ícono por FACULTAD (no por cada una de las ~20 carreras del catálogo: con
+// 6 facultades ya se cubre todo, y una carrera nueva que agregue la
+// universidad hereda el ícono de su facultad sin tocar código).
+const FACULTY_ICON: Record<string, LucideIcon> = {
+  "Facultad de Ingeniería": Cog,
+  "Facultad de Ciencias Económicas y Administrativas": Landmark,
+  "Facultad de Ciencias de la Educación": GraduationCap,
+  "Facultad de Ciencias Básicas y Aplicadas": FlaskConical,
+  "Facultad de Ciencias Sociales y Humanas": Users,
+  "Facultad de Ciencias de la Salud": Stethoscope,
+};
+
+/**
+ * Insignia de una tarea: si NO es de código ("Lógica") y el curso tiene
+ * asignatura en el catálogo, se muestra esa asignatura (p. ej. "Derecho
+ * Civil") con el ícono de su facultad, en vez del ícono/etiqueta genérico
+ * de "Lógica" — así una tarea de Derecho o Psicología no se ve como si
+ * fuera de programación.
+ */
+export function assignmentBadge(
+  language: ProgLanguage,
+  subjectName?: string | null,
+  facultyName?: string | null,
+): { icon: LucideIcon; label: string } {
+  if (language === "logic" && subjectName) {
+    return { icon: FACULTY_ICON[facultyName ?? ""] ?? GraduationCap, label: subjectName };
+  }
+  return LANGUAGE_META[language];
+}
 
 export const DIFFICULTY_META: Record<
   Difficulty,

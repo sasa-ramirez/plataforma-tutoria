@@ -3,18 +3,22 @@ import { motion } from "framer-motion";
 import { Clock, Lock, ShieldAlert, Trophy } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { LANGUAGE_META, DIFFICULTY_META } from "@/lib/constants";
+import { assignmentBadge, DIFFICULTY_META } from "@/lib/constants";
 import { cn, isAssignmentOpen, timeLeft } from "@/lib/utils";
 import type { Assignment } from "@/types/database";
 
 export function AssignmentCard({
   assignment,
   index = 0,
+  subjectName,
+  facultyName,
 }: {
   assignment: Assignment;
   index?: number;
+  subjectName?: string | null;
+  facultyName?: string | null;
 }) {
-  const lang = LANGUAGE_META[assignment.language];
+  const lang = assignmentBadge(assignment.language, subjectName, facultyName);
   const diff = DIFFICULTY_META[assignment.difficulty];
   const open = isAssignmentOpen(assignment);
   const remaining = timeLeft(assignment.closes_at);
