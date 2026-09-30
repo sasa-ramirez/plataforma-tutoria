@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, ShieldCheck } from "lucide-react";
 import {
   Dialog,
@@ -56,6 +56,19 @@ export function CreateAssignmentDialog({ courseId }: { courseId: string }) {
   });
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
+
+  // Si el curso tiene asignatura del catálogo (Derecho, Psicología...),
+  // asume que la tarea no es de código y lo propone solo — el tutor no
+  // tiene que saber que existe la opción "Lógica" para que no le salga
+  // un ícono de programación. Si el tutor ya tocó el selector a mano, no
+  // se lo pisamos.
+  const [languageTouched, setLanguageTouched] = useState(false);
+  useEffect(() => {
+    if (!languageTouched && programInfo?.subjectName) {
+      set("language", "logic");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [programInfo?.subjectName, languageTouched]);
 
   // Botones rápidos de cierre (minutos desde ahora).
   const setCloseIn = (minutes: number) =>
@@ -138,7 +151,11 @@ export function CreateAssignmentDialog({ courseId }: { courseId: string }) {
               id="t"
               value={form.title}
               onChange={(e) => set("title", e.target.value)}
-              placeholder="Ej. Condicionales en Java"
+              placeholder={
+                form.language === "logic"
+                  ? "Ej. Análisis del caso planteado"
+                  : "Ej. Condicionales en Java"
+              }
               required
               autoFocus
             />
@@ -156,10 +173,13 @@ export function CreateAssignmentDialog({ courseId }: { courseId: string }) {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label>Lenguaje</Label>
+              <Label>Lenguaje o materia</Label>
               <Select
                 value={form.language}
-                onValueChange={(v) => set("language", v as ProgLanguage)}
+                onValueChange={(v) => {
+                  setLanguageTouched(true);
+                  set("language", v as ProgLanguage);
+                }}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -168,17 +188,19 @@ export function CreateAssignmentDialog({ courseId }: { courseId: string }) {
                   {Object.entries(LANGUAGE_META).map(([k, v]) => (
                     <SelectItem key={k} value={k}>
                       <span className="flex items-center gap-2">
-                        <v.icon className="size-4" /> {v.label}
+                        <v.icon className="size-4" />
+                        {k === "logic" && programInfo?.subjectName
+                          ? programInfo.subjectName
+                          : v.label}
                       </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {form.language === "logic" && (
+              {form.language === "logic" && !programInfo?.subjectName && (
                 <p className="text-[11px] text-muted-foreground">
-                  {programInfo?.subjectName
-                    ? `Se mostrará como "${programInfo.subjectName}" (la asignatura del curso), no como código.`
-                    : "Para no-código: este curso no tiene asignatura asignada, así que se mostrará como \"Lógica\"."}
+                  Este curso no tiene asignatura del catálogo (se elige al
+                  crear el curso), así que se mostrará como "Lógica".
                 </p>
               )}
             </div>
