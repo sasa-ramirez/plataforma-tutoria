@@ -27,6 +27,7 @@ import { ScheduleCard } from "@/components/courses/ScheduleCard";
 import { AttendanceCard } from "@/components/courses/AttendanceCard";
 import { PeriodicReportCard } from "@/components/courses/PeriodicReportCard";
 import { ActaCard } from "@/components/courses/ActaCard";
+import { MaterialsCard } from "@/components/courses/MaterialsCard";
 import { useToast } from "@/components/ui/toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -180,6 +181,9 @@ export function CourseDetailPage() {
           professorName={course.professor_name}
         />
       )}
+
+      {/* Materiales educativos (para que estudien): el tutor sube, todos ven */}
+      <MaterialsCard courseId={id} isTeacher={isTeacher} />
 
       {/* Tareas */}
       <Card>
