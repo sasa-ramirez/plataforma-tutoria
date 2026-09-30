@@ -22,6 +22,7 @@ import { useCourseProgramInfo } from "@/hooks/useCourses";
 import { useToast } from "@/components/ui/toast";
 import { CreateExerciseDialog } from "@/components/assignments/CreateExerciseDialog";
 import { StartQuizDialog } from "@/components/assignments/StartQuizDialog";
+import { GenerateQuizDialog } from "@/components/assignments/GenerateQuizDialog";
 import { SubmissionsPanel } from "@/components/assignments/SubmissionsPanel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -162,10 +163,13 @@ export function AssignmentDetailPage() {
 
       {/* Ejercicios */}
       <div>
-        <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-bold">Ejercicios</h2>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {isTeacher && hasMultipleChoice && <StartQuizDialog assignmentId={a.id} />}
+            {isTeacher && (
+              <GenerateQuizDialog assignment={a} subjectName={programInfo?.subjectName} />
+            )}
             {isTeacher && (
               <CreateExerciseDialog
                 assignment={a}

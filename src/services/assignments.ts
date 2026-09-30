@@ -149,6 +149,64 @@ export async function createExercise(
   return exercise;
 }
 
+export interface GenerateQuizInput {
+  assignmentId: string;
+  language: ProgLanguage;
+  topic: string;
+  count: number;
+  difficulty: Difficulty;
+  subjectHint?: string | null;
+}
+
+/**
+ * Le pide a la IA un lote de preguntas de opción múltiple (tema + cuántas +
+ * dificultad) y las crea todas de una vez bajo la tarea, listas para usar
+ * en un quiz — en vez de crear cada pregunta a mano una por una. Reutiliza
+ * `createExercise` para cada una, así que queda igual de blindado por RLS.
+ * Devuelve cuántas preguntas se crearon de verdad.
+ */
+export async function generateQuizExercises(
+  input: GenerateQuizInput,
+): Promise<number> {
+  const { data, error } = await supabase.functions.invoke("ai-generate-quiz", {
+    body: {
+      topic: input.topic,
+      count: input.count,
+      difficulty: input.difficulty,
+      subjectHint: input.subjectHint || undefined,
+    },
+  });
+  if (error) throw new Error(error.message);
+  if (!data?.ok) throw new Error(data?.error ?? "La IA no pudo generar las preguntas");
+
+  const questions = (data.questions ?? []) as {
+    title: string;
+    prompt: string;
+    options: string[];
+    correct: number;
+  }[];
+  if (questions.length === 0) throw new Error("La IA no devolvió preguntas.");
+
+  const existing = await fetchExercisesByAssignment(input.assignmentId);
+  let nextIndex = existing.length + 1;
+
+  for (const q of questions) {
+    await createExercise({
+      assignment_id: input.assignmentId,
+      title: q.title,
+      prompt: q.prompt,
+      language: input.language,
+      difficulty: input.difficulty,
+      points: 100,
+      order_index: nextIndex++,
+      type: "multiple_choice",
+      options: q.options,
+      answer_key: { correct: String(q.correct) },
+    });
+  }
+  return questions.length;
+}
+
 export interface GradeResult {
   score: number;
   correct: boolean;

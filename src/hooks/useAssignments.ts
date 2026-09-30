@@ -8,8 +8,10 @@ import {
   fetchExercisesByAssignment,
   fetchExercise,
   createExercise,
+  generateQuizExercises,
   type CreateAssignmentInput,
   type CreateExerciseInput,
+  type GenerateQuizInput,
 } from "@/services/assignments";
 import type { AssignmentStatus } from "@/types/database";
 
@@ -86,6 +88,17 @@ export function useCreateExercise(assignmentId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateExerciseInput) => createExercise(input),
+    onSuccess: () =>
+      qc.invalidateQueries({
+        queryKey: assignmentKeys.exercises(assignmentId),
+      }),
+  });
+}
+
+export function useGenerateQuiz(assignmentId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: GenerateQuizInput) => generateQuizExercises(input),
     onSuccess: () =>
       qc.invalidateQueries({
         queryKey: assignmentKeys.exercises(assignmentId),
