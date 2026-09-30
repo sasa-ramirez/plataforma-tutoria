@@ -1,85 +1,104 @@
 # 🚀 Despliegue (GitHub + Vercel + Supabase)
 
-Objetivo: que la app viva en la nube y **no dependa de tu PC**.
-Orden recomendado: **1) GitHub → 2) Supabase → 3) Vercel**.
+El proyecto ya está en producción. Esto es para cuando haya que volver a
+configurarlo desde cero (otro proyecto de Supabase, otra cuenta de Vercel)
+o para entender qué toca dónde.
 
-El repo ya está commiteado localmente. Solo faltan los clics que requieren tus cuentas.
-
----
-
-## 1️⃣ Subir a GitHub
-
-### Opción A — Web + git (la más simple, sin instalar nada)
-1. Ve a [github.com/new](https://github.com/new).
-2. Nombre: `plataforma-tutoria`. **NO** marques "Add README/.gitignore" (ya los tenemos). Crea el repo **vacío**.
-3. GitHub te mostrará la URL. Copia los comandos de "…or push an existing repository". Serán estos (cambia TU-USUARIO):
-   ```bash
-   git remote add origin https://github.com/TU-USUARIO/plataforma-tutoria.git
-   git branch -M main
-   git push -u origin main
-   ```
-4. Al hacer `git push`, **Git para Windows abrirá una ventana del navegador** para que inicies sesión en GitHub (Git Credential Manager). Acepta y listo. ✅
-
-> Si prefieres el CLI: instala GitHub CLI con `winget install GitHub.cli`, reinicia la terminal, `gh auth login`, y luego `gh repo create plataforma-tutoria --public --source=. --push`.
+Orden: **1) GitHub → 2) Supabase → 3) Vercel → 4) GitHub Actions**.
 
 ---
 
-## 2️⃣ Crear Supabase
+## 1️⃣ GitHub
 
-Sigue [SETUP_SUPABASE.md](./SETUP_SUPABASE.md). Resumen:
-1. [supabase.com](https://supabase.com) → **New project** (guarda la contraseña de BD).
-2. **SQL Editor** → pega `supabase/migrations/0001_init.sql` → **Run**.
-3. (Opcional) pega `supabase/seed.sql` → **Run** (ejercicios de práctica).
-4. **Settings → API** → copia **Project URL** y **anon public key**.
-5. **Authentication → Providers → Email** → desactiva *Confirm email* (dev).
+Repo: `sasa-ramirez/plataforma-tutoria`, rama `main`. Cada `git push` a
+`main` dispara automáticamente:
+- **Redeploy en Vercel** (webhook de Git integrado).
+- **`ci.yml`**: lint + pruebas (`npm test`) + build. Si algo falla, sale ❌
+  en el commit y llega un correo de GitHub — pero **no bloquea** el deploy
+  de Vercel, que corre en paralelo. Sirve para enterarse rápido, no para
+  frenar nada (a menos que se configure protección de rama con este check
+  obligatorio).
 
-### IA (opcional, para que funcione el feedback)
-Necesitas el CLI de Supabase y una API key de OpenRouter:
+## 2️⃣ Supabase
+
+Ver [`SETUP_SUPABASE.md`](./SETUP_SUPABASE.md) para el paso a paso de un
+proyecto nuevo. En resumen:
+1. Crear proyecto en [supabase.com](https://supabase.com).
+2. Aplicar **todas** las migraciones de `supabase/migrations/`, en orden
+   (del `0001` al más reciente) — no solo la primera.
+3. **Settings → API** → copiar `Project URL` y `anon public key`.
+4. Desplegar las Edge Functions (`ai-review`, `ai-generate`, `send-push`) y
+   configurar sus secretos — ver la tabla de abajo.
+
+### Edge Functions y sus secretos
+
+| Función | Qué hace | Secretos que necesita |
+|---|---|---|
+| `ai-review` | Califica una entrega con IA | `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` |
+| `ai-generate` | Genera un ejercicio de práctica con IA | mismos de arriba |
+| `send-push` | Manda las notificaciones push pendientes (modo sondeo) | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `PUSH_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY` (esta última ya viene sola en el entorno de la función) |
+
+Desplegar una función:
 ```bash
-npm i -g supabase
-supabase login
-supabase link --project-ref TU-REF        # TU-REF está en la URL del proyecto
-supabase functions deploy ai-review
+npm i -g supabase          # una sola vez
+supabase login              # o: export SUPABASE_ACCESS_TOKEN=... (ver nota abajo)
+supabase link --project-ref TU-REF
+supabase functions deploy ai-review --no-verify-jwt   # y ai-generate, send-push
 supabase secrets set OPENROUTER_API_KEY=sk-or-...
-supabase secrets set OPENROUTER_MODEL=anthropic/claude-3.5-sonnet
 ```
-> Sin esto, la app funciona completa; solo el botón "Enviar" mostrará un aviso de que la IA no está disponible.
+
+> ⚠️ **El token de acceso del CLI necesita el preset "Acceso completo"** al
+> crearlo en Account → Access Tokens. El preset por defecto es "Sin
+> acceso" y el deploy falla con un 403, incluso siendo el dueño de la
+> cuenta. Y las variables de entorno de la terminal (`export
+> SUPABASE_ACCESS_TOKEN=...`) **no persisten entre sesiones** — hay que
+> volver a ponerlas cada vez que se abre una terminal nueva.
+
+## 3️⃣ Vercel
+
+1. [vercel.com/new](https://vercel.com/new) → importar el repo.
+2. Vercel detecta **Vite** solo. No cambiar nada del build.
+3. **Environment Variables**:
+
+| Nombre | Para qué |
+|---|---|
+| `VITE_SUPABASE_URL` | conexión a Supabase |
+| `VITE_SUPABASE_ANON_KEY` | conexión a Supabase |
+| `VITE_VAPID_PUBLIC_KEY` | notificaciones push (la pública, va en el cliente) |
+| `VITE_SENTRY_DSN` | opcional — monitoreo de errores; si no está, Sentry no se incluye ni cuesta nada |
+
+4. **Deploy**. En Supabase, **Authentication → URL Configuration** → poner
+   el dominio de Vercel en *Site URL* y *Redirect URLs*, o el login en
+   producción no funciona.
+
+## 4️⃣ GitHub Actions (secretos del repo)
+
+En Settings → Secrets and variables → Actions del repositorio:
+
+| Secreto | Para qué workflow |
+|---|---|
+| `PUSH_WEBHOOK_SECRET` | `push-poller.yml` — el mismo valor que se configuró como secreto de la función `send-push` |
+| `SUPABASE_DB_URL` | `backup.yml` — cadena de conexión completa (usar el **Session pooler**, no la conexión directa) con la contraseña de la base de datos ya puesta |
+| `BACKUP_PASSPHRASE` | `backup.yml` — frase para cifrar el respaldo (generar con `openssl rand -base64 32` y guardarla en un lugar seguro **fuera** de GitHub) |
+
+Los tres workflows:
+- **`ci.yml`**: en cada push a `main` y cada Pull Request.
+- **`push-poller.yml`**: cada 5 minutos, llama a `send-push`.
+- **`backup.yml`**: cada día a las 3 a.m. (hora Colombia), copia cifrada de
+  la base de datos, se guarda 60 días como artefacto descargable desde la
+  pestaña Actions de esa corrida.
+
+> Nota: GitHub puede desactivar los workflows programados (`schedule`) si
+> el repositorio pasa unos ~60 días sin actividad (sin commits). Si el
+> repo queda quieto mucho tiempo, revisar que sigan activos en Actions.
 
 ---
 
-## 3️⃣ Desplegar en Vercel
-
-1. [vercel.com/new](https://vercel.com/new) → **Import Git Repository** → elige `plataforma-tutoria`.
-2. Vercel detecta **Vite** solo (gracias a `vercel.json`). No cambies nada del build.
-3. **Environment Variables** → añade:
-   | Name | Value |
-   |------|-------|
-   | `VITE_SUPABASE_URL` | tu Project URL |
-   | `VITE_SUPABASE_ANON_KEY` | tu anon key |
-4. **Deploy**. En ~1 min tendrás una URL pública tipo `https://plataforma-tutoria.vercel.app`. 🎉
-
-### Importante tras el deploy
-- En Supabase → **Authentication → URL Configuration** → pon tu dominio de Vercel en **Site URL** y **Redirect URLs** (ej. `https://plataforma-tutoria.vercel.app`). Así el login funciona en producción.
-
----
-
-## 🔄 Flujo de trabajo a partir de ahora
-Cada `git push` a `main` redepliega Vercel automáticamente. Ya no dependes de tu PC: editas, haces push, y la nube reconstruye.
-
----
-
-## ¿Netlify en vez de Vercel?
-También está soportado (incluí `public/_redirects`).
-1. [app.netlify.com](https://app.netlify.com) → **Add new site → Import from Git**.
-2. Build command: `npm run build` · Publish directory: `dist`.
-3. Site settings → **Environment variables** → las mismas `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`.
-
----
-
-## ✅ Checklist
-- [ ] Repo en GitHub (`git push` hecho)
-- [ ] Proyecto Supabase creado + SQL aplicado
-- [ ] `.env` local con URL + anon key (para desarrollo)
-- [ ] Vercel importó el repo + variables de entorno
+## ✅ Checklist para un proyecto nuevo desde cero
+- [ ] Repo en GitHub
+- [ ] Proyecto Supabase creado + **todas** las migraciones aplicadas en orden
+- [ ] Las 3 Edge Functions desplegadas + sus secretos
+- [ ] Vercel importó el repo + las 4 variables de entorno
 - [ ] Site URL/Redirect en Supabase apuntando al dominio de Vercel
-- [ ] (Opcional) Edge Function `ai-review` desplegada + secrets
+- [ ] Secretos de GitHub Actions puestos (`PUSH_WEBHOOK_SECRET`, `SUPABASE_DB_URL`, `BACKUP_PASSPHRASE`)
+- [ ] SMTP propio conectado para que los correos de confirmación lleguen de verdad — ver [`EMAIL_CONFIRMATION.md`](./EMAIL_CONFIRMATION.md)

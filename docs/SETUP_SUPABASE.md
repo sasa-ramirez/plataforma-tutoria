@@ -12,7 +12,7 @@ Solo **tú** puedes crear el proyecto (vive en tu cuenta). Aquí están las dos 
 
 ### 2. Aplica el esquema
 1. En el panel: **SQL Editor** → **New query**.
-2. Pega TODO el contenido de [`supabase/migrations/0001_init.sql`](../supabase/migrations/0001_init.sql) y pulsa **Run**.
+2. Pega y ejecuta **cada archivo de [`supabase/migrations/`](../supabase/migrations/), en orden** (del `0001` al número más alto que haya). Son 35 archivos al momento de escribir esto — todos idempotentes, así que si algo se corre dos veces no pasa nada. No basta con el `0001`: ahí falta todo lo de Coordinación, IA, notificaciones, quiz en vivo, etc.
 3. (Opcional) Repite con [`supabase/seed.sql`](../supabase/seed.sql) para tener ejercicios de práctica.
 
 ### 3. Copia tus claves
@@ -24,8 +24,13 @@ Solo **tú** puedes crear el proyecto (vive en tu cuenta). Aquí están las dos 
    VITE_SUPABASE_ANON_KEY=eyJhbGci...
    ```
 
-### 4. Confirmación de correo (dev)
-**Authentication → Providers → Email** → desactiva *"Confirm email"* mientras desarrollas (así el registro entra directo).
+### 4. Confirmación de correo
+Mientras pruebas en tu máquina, puedes desactivar *"Confirm email"* en
+**Authentication → Providers → Email** para que el registro entre directo.
+Para producción, **no la apagues** (cualquiera podría registrarse con un
+correo inventado) — conecta un SMTP propio en su lugar. Todo el detalle
+(por qué a veces no llega, cómo mitigarlo, cómo confirmar a alguien a
+mano) está en [`EMAIL_CONFIRMATION.md`](./EMAIL_CONFIRMATION.md).
 
 ### 5. ¡Listo!
 ```bash
@@ -33,15 +38,20 @@ npm run dev
 ```
 Regístrate como **Profesor**, crea un curso, copia el código, regístrate como **Estudiante** en otro navegador y únete. 🎉
 
-### 6. IA (cuando hagas la Fase 5)
+### 6. Edge Functions (IA y notificaciones push)
 ```bash
 npm i -g supabase           # instala el CLI
-supabase login
+supabase login               # el token necesita el preset "Acceso completo"
 supabase link --project-ref TU-REF
-supabase functions deploy ai-review
+supabase functions deploy ai-review --no-verify-jwt
+supabase functions deploy ai-generate --no-verify-jwt
+supabase functions deploy send-push --no-verify-jwt
 supabase secrets set OPENROUTER_API_KEY=sk-or-...
 supabase secrets set OPENROUTER_MODEL=anthropic/claude-3.5-sonnet
+supabase secrets set VAPID_PUBLIC_KEY=... VAPID_PRIVATE_KEY=... VAPID_SUBJECT=mailto:tucorreo@dominio.com
+supabase secrets set PUSH_WEBHOOK_SECRET=un-secreto-largo-al-azar
 ```
+Detalle completo de cada secreto en [`DEPLOY.md`](./DEPLOY.md).
 
 ---
 
