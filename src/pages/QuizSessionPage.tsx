@@ -18,7 +18,10 @@ export function QuizSessionPage() {
   const { data: exercises, isLoading: exLoading } = useExercises(session?.assignment_id ?? "");
 
   // Mismo orden que usa el servidor para decidir "pregunta N" (order_index,
-  // luego created_at como desempate) — tiene que coincidir exacto.
+  // luego created_at como desempate) — tiene que coincidir exacto. Cuando
+  // la sesión tiene orden al azar por estudiante, cada vista resuelve "su"
+  // pregunta actual por id contra questionsById en vez de por posición fija
+  // en este arreglo canónico.
   const questions = useMemo(
     () =>
       (exercises ?? [])
@@ -28,6 +31,10 @@ export function QuizSessionPage() {
             a.order_index - b.order_index || a.created_at.localeCompare(b.created_at),
         ),
     [exercises],
+  );
+  const questionsById = useMemo(
+    () => Object.fromEntries(questions.map((q) => [q.id, q])),
+    [questions],
   );
 
   if (sessionLoading || (session && exLoading)) return <FullScreenLoader />;
@@ -55,6 +62,11 @@ export function QuizSessionPage() {
     );
   }
   return (
-    <QuizPlayView session={session} questions={questions} title={assignment?.title ?? "Quiz"} />
+    <QuizPlayView
+      session={session}
+      questions={questions}
+      questionsById={questionsById}
+      title={assignment?.title ?? "Quiz"}
+    />
   );
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, BookOpen, CheckCircle2, XCircle, Lock } from "lucide-react";
@@ -9,9 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/common/Spinner";
 import { MathText } from "@/components/common/MathText";
 import { useToast } from "@/components/ui/toast";
+import { useAuth } from "@/context/AuthContext";
 import { submitAnswer, type GradeResult } from "@/services/assignments";
 import { fetchLatestSubmission } from "@/services/submissions";
 import { DIFFICULTY_META } from "@/lib/constants";
+import { seededShuffleIndices } from "@/lib/shuffle";
 import { isAssignmentOpen, cn } from "@/lib/utils";
 import type { Assignment, Exercise } from "@/types/database";
 
@@ -25,6 +27,7 @@ export function AnswerExercise({
 }) {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { profile } = useAuth();
   const [selected, setSelected] = useState<number | null>(null);
   const [value, setValue] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -58,6 +61,17 @@ export function AnswerExercise({
 
   const canSubmit =
     exercise.type === "multiple_choice" ? selected !== null : value.trim() !== "";
+
+  // Opciones mezcladas de forma estable por estudiante+pregunta (anti-copia
+  // silencioso): optionOrder[posiciónMostrada] = índice original; se
+  // califica siempre contra el original, nunca contra la posición mostrada.
+  const optionOrder = useMemo(
+    () =>
+      exercise.type === "multiple_choice"
+        ? seededShuffleIndices(`${profile?.id ?? ""}:${exercise.id}`, exercise.options.length)
+        : [],
+    [profile?.id, exercise.id, exercise.type, exercise.options.length],
+  );
 
   const submit = async () => {
     setSubmitting(true);
@@ -119,15 +133,15 @@ export function AnswerExercise({
         {/* Respuesta */}
         {exercise.type === "multiple_choice" ? (
           <div className="space-y-2">
-            {exercise.options.map((opt, i) => (
+            {optionOrder.map((origIdx, i) => (
               <button
-                key={i}
+                key={origIdx}
                 type="button"
                 disabled={locked || checkingAttempt || !!result}
-                onClick={() => setSelected(i)}
+                onClick={() => setSelected(origIdx)}
                 className={cn(
                   "flex w-full items-center gap-3 rounded-xl border p-4 text-left text-sm transition-colors",
-                  selected === i
+                  selected === origIdx
                     ? "border-primary bg-primary/10 ring-1 ring-primary/30"
                     : "hover:bg-muted/50",
                 )}
@@ -135,12 +149,12 @@ export function AnswerExercise({
                 <span
                   className={cn(
                     "grid size-6 shrink-0 place-items-center rounded-full border text-xs font-bold",
-                    selected === i ? "border-primary text-primary" : "text-muted-foreground",
+                    selected === origIdx ? "border-primary text-primary" : "text-muted-foreground",
                   )}
                 >
                   {String.fromCharCode(65 + i)}
                 </span>
-                {opt}
+                {exercise.options[origIdx]}
               </button>
             ))}
           </div>

@@ -10,6 +10,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Spinner } from "@/components/common/Spinner";
 import { useToast } from "@/components/ui/toast";
 import { useStartQuizSession } from "@/hooks/useQuiz";
@@ -38,11 +39,12 @@ export function StartQuizDialog({ assignmentId }: { assignmentId: string }) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<QuizMode>("pace");
+  const [shuffle, setShuffle] = useState(false);
   const { mutateAsync, isPending } = useStartQuizSession();
 
   const submit = async () => {
     try {
-      const sessionId = await mutateAsync({ assignmentId, mode });
+      const sessionId = await mutateAsync({ assignmentId, mode, shuffle });
       setOpen(false);
       navigate(`/app/quiz/${sessionId}`);
     } catch (e) {
@@ -90,6 +92,20 @@ export function StartQuizDialog({ assignmentId }: { assignmentId: string }) {
               </span>
             </button>
           ))}
+        </div>
+
+        <div className="flex items-start gap-3 rounded-xl border p-3">
+          <Switch id="qz-shuffle" checked={shuffle} onCheckedChange={setShuffle} />
+          <label htmlFor="qz-shuffle" className="cursor-pointer">
+            <span className="block text-sm font-semibold">
+              Barajar el orden de las preguntas
+            </span>
+            <span className="block text-xs text-muted-foreground">
+              Cada estudiante las recibe en un orden distinto, para que sea
+              más difícil copiarse. Las opciones (A/B/C/D) ya se mezclan
+              siempre, con o sin esto activado.
+            </span>
+          </label>
         </div>
 
         <Button variant="brand" className="w-full" onClick={submit} disabled={isPending}>

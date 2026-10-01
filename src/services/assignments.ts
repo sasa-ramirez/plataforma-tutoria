@@ -118,6 +118,9 @@ export interface CreateExerciseInput {
   options?: string[];
   // Clave de respuesta privada (correcta/tolerancia). Va a exercise_answers.
   answer_key?: Record<string, unknown>;
+  // Lote de IA (migración 0036): agrupa visualmente preguntas generadas juntas.
+  quiz_batch_id?: string | null;
+  quiz_batch_topic?: string | null;
 }
 
 export async function createExercise(
@@ -190,6 +193,10 @@ export async function generateQuizExercises(
   const existing = await fetchExercisesByAssignment(input.assignmentId);
   let nextIndex = existing.length + 1;
 
+  // Mismo id para las N preguntas de este lote: así la lista de ejercicios
+  // las puede agrupar visualmente bajo una sola tarjeta plegable.
+  const batchId = crypto.randomUUID();
+
   for (const q of questions) {
     await createExercise({
       assignment_id: input.assignmentId,
@@ -202,6 +209,8 @@ export async function generateQuizExercises(
       type: "multiple_choice",
       options: q.options,
       answer_key: { correct: String(q.correct) },
+      quiz_batch_id: batchId,
+      quiz_batch_topic: input.topic,
     });
   }
   return questions.length;

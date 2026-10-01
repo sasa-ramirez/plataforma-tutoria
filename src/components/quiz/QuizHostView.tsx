@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Copy, Crown, Medal, Play, SkipForward, Square, Users } from "lucide-react";
+import { BarChart3, Copy, Crown, Medal, Play, ShieldAlert, SkipForward, Square, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -131,6 +131,14 @@ export function QuizHostView({
                 <p className="text-xs font-semibold text-muted-foreground">
                   Pregunta {session.current_index + 1} de {questions.length}
                 </p>
+                {session.shuffle && (
+                  <p className="flex items-center gap-1.5 rounded-lg bg-warning/10 px-2.5 py-1.5 text-[11px] font-medium text-warning">
+                    <ShieldAlert className="size-3.5 shrink-0" />
+                    Orden aleatorio activado: esta es tu referencia, cada
+                    estudiante puede estar viendo una pregunta distinta en
+                    este momento.
+                  </p>
+                )}
                 <p className="text-lg font-bold">{currentQuestion.title}</p>
                 <p className="text-sm text-muted-foreground">{currentQuestion.prompt}</p>
                 <div className="grid grid-cols-2 gap-2">
@@ -185,8 +193,13 @@ export function QuizHostView({
 
       {session.status === "ended" && (
         <Card className="border-success/30 bg-success/5">
-          <CardContent className="p-5 text-center text-sm font-semibold text-success">
-            Quiz terminado
+          <CardContent className="space-y-3 p-5 text-center">
+            <p className="text-sm font-semibold text-success">Quiz terminado</p>
+            <Button asChild variant="outline" className="w-full">
+              <Link to={`/app/quiz/${session.id}/results`}>
+                <BarChart3 className="size-4" /> Ver resultados completos
+              </Link>
+            </Button>
           </CardContent>
         </Card>
       )}

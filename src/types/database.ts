@@ -196,6 +196,9 @@ export interface Exercise {
   options: string[]; // opciones (selección múltiple)
   created_by: string | null;
   created_at: string;
+  /** Lote de IA (migración 0036): preguntas generadas juntas comparten id y tema. */
+  quiz_batch_id: string | null;
+  quiz_batch_topic: string | null;
 }
 
 export type QuizMode = "sync" | "pace";
@@ -208,6 +211,8 @@ export interface QuizSession {
   mode: QuizMode;
   status: QuizStatus;
   current_index: number;
+  /** Orden de preguntas al azar por estudiante, elegido al iniciar (migración 0036). */
+  shuffle: boolean;
   started_at: string | null;
   ended_at: string | null;
   created_by: string | null;
@@ -220,6 +225,8 @@ export interface QuizParticipant {
   student_id: string;
   score: number;
   current_index: number;
+  /** Su propio orden de preguntas cuando la sesión es shuffle (migración 0036). */
+  question_order: string[] | null;
   joined_at: string;
   full_name?: string | null;
 }

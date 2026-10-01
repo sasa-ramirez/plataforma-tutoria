@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, Clock, PartyPopper, Trophy, XCircle } from "lucide-react";
@@ -11,7 +11,9 @@ import {
   useQuizParticipants,
   useJoinQuiz,
   useSubmitQuizAnswer,
+  useQuizParticipantDetail,
 } from "@/hooks/useQuiz";
+import { seededShuffleIndices } from "@/lib/shuffle";
 import { cn } from "@/lib/utils";
 import type { Exercise, QuizSession } from "@/types/database";
 
@@ -25,10 +27,12 @@ const OPTION_STYLES = [
 export function QuizPlayView({
   session,
   questions,
+  questionsById,
   title,
 }: {
   session: QuizSession;
   questions: Exercise[];
+  questionsById: Record<string, Exercise>;
   title: string;
 }) {
   const { toast } = useToast();
@@ -60,7 +64,10 @@ export function QuizPlayView({
   const myRank = participants ? participants.findIndex((p) => p.student_id === profile?.id) : -1;
 
   const questionIndex = session.mode === "sync" ? session.current_index : (me?.current_index ?? 0);
-  const question = questions[questionIndex];
+  // Con orden al azar, "mi" pregunta en esta posición se busca en mi propio
+  // orden (guardado al unirme); sin shuffle, es el orden canónico de siempre.
+  const myOrder = session.shuffle ? (me?.question_order ?? null) : questions.map((q) => q.id);
+  const question = myOrder ? questionsById[myOrder[questionIndex]] : undefined;
   const showFeedback = feedback?.forIndex === questionIndex;
   // En sync, ya respondió si su avance pasó la pregunta activa; en pace, es
   // lo mismo por construcción (avanza justo al responder). El feedback local
@@ -69,6 +76,17 @@ export function QuizPlayView({
   // el marcador se actualice).
   const alreadyAnswered = (!!me && me.current_index > questionIndex) || showFeedback;
   const finished = session.mode === "pace" && !!me && me.current_index >= questions.length;
+
+  // Opciones mezcladas de forma estable por estudiante+pregunta (mismo orden
+  // siempre, para no "saltar" al recargar). optionOrder[posiciónMostrada] =
+  // índice original — se manda el original al calificar, nunca el mostrado.
+  const optionOrder = useMemo(
+    () =>
+      question
+        ? seededShuffleIndices(`${profile?.id ?? ""}:${question.id}`, question.options.length)
+        : [],
+    [profile?.id, question],
+  );
 
   const answer = async (selected: number) => {
     if (!question) return;
@@ -96,8 +114,8 @@ export function QuizPlayView({
 
   if (session.status === "ended" || finished) {
     return (
-      <div className="mx-auto flex min-h-screen max-w-sm flex-col items-center justify-center gap-4 p-6 text-center">
-        <PartyPopper className="size-12 text-primary" />
+      <div className="mx-auto flex min-h-screen max-w-sm flex-col items-center gap-4 p-6 pb-10 text-center">
+        <PartyPopper className="mt-6 size-12 text-primary" />
         <p className="text-xl font-extrabold">
           {session.status === "ended" ? "¡Quiz terminado!" : "¡Ya respondiste todo!"}
         </p>
@@ -117,6 +135,7 @@ export function QuizPlayView({
             Esperando a que tu tutor cierre el quiz…
           </p>
         )}
+        <MyAnswersReview participantId={me?.id} />
         <Link to="/app" className="text-sm font-semibold text-primary">
           Volver al inicio
         </Link>
@@ -185,12 +204,12 @@ export function QuizPlayView({
             animate={{ opacity: 1 }}
             className="grid flex-1 grid-cols-1 gap-2.5 content-start"
           >
-            {question.options.map((opt, i) => (
+            {optionOrder.map((origIdx, i) => (
               <button
-                key={i}
+                key={origIdx}
                 type="button"
                 disabled={submitting}
-                onClick={() => answer(i)}
+                onClick={() => answer(origIdx)}
                 className={cn(
                   "flex items-center gap-3 rounded-2xl px-4 py-4 text-left text-base font-semibold text-white shadow-sm transition-transform active:scale-[0.98] disabled:opacity-60",
                   OPTION_STYLES[i % OPTION_STYLES.length],
@@ -199,12 +218,62 @@ export function QuizPlayView({
                 <span className="grid size-7 shrink-0 place-items-center rounded-full bg-white/25 text-sm">
                   {String.fromCharCode(65 + i)}
                 </span>
-                {opt}
+                {question.options[origIdx]}
               </button>
             ))}
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+/** Repaso pregunta por pregunta en la pantalla final: qué respondiste y cuál era la correcta. */
+function MyAnswersReview({ participantId }: { participantId: string | undefined }) {
+  const [open, setOpen] = useState(false);
+  const { data: answers, isLoading } = useQuizParticipantDetail(participantId, open);
+
+  if (!participantId) return null;
+
+  return (
+    <div className="w-full text-left">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full rounded-xl border px-4 py-2.5 text-center text-sm font-semibold text-primary hover:bg-primary/5"
+      >
+        {open ? "Ocultar repaso" : "Ver mis respuestas"}
+      </button>
+      {open && (
+        <div className="mt-3 space-y-2">
+          {isLoading ? (
+            <Skeleton className="h-24 w-full" />
+          ) : (
+            (answers ?? []).map((a) => (
+              <div key={a.exercise_id} className="rounded-xl border bg-card p-3">
+                <p className="text-sm font-semibold">{a.title}</p>
+                <div className="mt-1.5 flex items-start gap-2 text-xs">
+                  {a.is_correct ? (
+                    <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" />
+                  ) : (
+                    <XCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
+                  )}
+                  <div className="space-y-0.5">
+                    <p className={a.is_correct ? "text-success" : "text-destructive"}>
+                      Tu respuesta: {a.options[a.selected] ?? "—"}
+                    </p>
+                    {!a.is_correct && (
+                      <p className="text-muted-foreground">
+                        Correcta: {a.options[a.correct_index] ?? "—"}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }

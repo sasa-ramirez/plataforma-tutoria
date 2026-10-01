@@ -15,6 +15,7 @@ import { BoardPage } from "@/pages/BoardPage";
 import { JoinClassPage } from "@/pages/JoinClassPage";
 import { SolvePage } from "@/pages/SolvePage";
 import { QuizSessionPage } from "@/pages/QuizSessionPage";
+import { QuizResultsPage } from "@/pages/QuizResultsPage";
 import { PracticePage } from "@/pages/PracticePage";
 import { SandboxPage } from "@/pages/SandboxPage";
 import { FreePracticePage } from "@/pages/FreePracticePage";
@@ -87,6 +88,16 @@ export default function App() {
         element={
           <ProtectedRoute>
             <QuizSessionPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Resultados de un quiz (pasado o en curso), fullscreen */}
+      <Route
+        path="/app/quiz/:sessionId/results"
+        element={
+          <ProtectedRoute>
+            <QuizResultsPage />
           </ProtectedRoute>
         }
       />

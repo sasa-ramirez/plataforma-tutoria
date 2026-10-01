@@ -10,6 +10,9 @@ import {
   endQuiz,
   fetchQuizSession,
   fetchQuizParticipants,
+  fetchQuizSessionsByAssignment,
+  fetchQuizSessionStats,
+  fetchQuizParticipantDetail,
 } from "@/services/quiz";
 import type { QuizMode } from "@/types/database";
 
@@ -75,8 +78,39 @@ export function useQuizParticipants(sessionId: string) {
 
 export function useStartQuizSession() {
   return useMutation({
-    mutationFn: ({ assignmentId, mode }: { assignmentId: string; mode: QuizMode }) =>
-      startQuizSession(assignmentId, mode),
+    mutationFn: ({
+      assignmentId,
+      mode,
+      shuffle,
+    }: {
+      assignmentId: string;
+      mode: QuizMode;
+      shuffle?: boolean;
+    }) => startQuizSession(assignmentId, mode, shuffle),
+  });
+}
+
+export function useQuizSessionsByAssignment(assignmentId: string) {
+  return useQuery({
+    queryKey: ["quiz", "sessions", assignmentId],
+    queryFn: () => fetchQuizSessionsByAssignment(assignmentId),
+    enabled: !!assignmentId,
+  });
+}
+
+export function useQuizSessionStats(sessionId: string) {
+  return useQuery({
+    queryKey: ["quiz", "stats", sessionId],
+    queryFn: () => fetchQuizSessionStats(sessionId),
+    enabled: !!sessionId,
+  });
+}
+
+export function useQuizParticipantDetail(participantId: string | null | undefined, enabled = true) {
+  return useQuery({
+    queryKey: ["quiz", "participant-detail", participantId],
+    queryFn: () => fetchQuizParticipantDetail(participantId as string),
+    enabled: !!participantId && enabled,
   });
 }
 
