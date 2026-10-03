@@ -1,13 +1,35 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { BarChart3, Copy, Crown, Medal, Play, ShieldAlert, SkipForward, Square, Users } from "lucide-react";
+import {
+  BarChart3,
+  Copy,
+  Crown,
+  FileText,
+  Medal,
+  Play,
+  RotateCcw,
+  ShieldAlert,
+  SkipForward,
+  Square,
+  Users,
+  WifiOff,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/common/Spinner";
 import { useToast } from "@/components/ui/toast";
-import { useQuizParticipants, useStartQuiz, useNextQuizQuestion, useEndQuiz } from "@/hooks/useQuiz";
+import {
+  useQuizParticipants,
+  useQuizPresence,
+  useStartQuiz,
+  useNextQuizQuestion,
+  useEndQuiz,
+  useReopenQuiz,
+} from "@/hooks/useQuiz";
+import { useCourseMembers } from "@/hooks/useCourses";
 import { makeQrDataUrl } from "@/lib/qr";
 import { cn } from "@/lib/utils";
 import type { Exercise, QuizSession } from "@/types/database";
@@ -28,7 +50,21 @@ export function QuizHostView({
   const { mutateAsync: start, isPending: starting } = useStartQuiz();
   const { mutateAsync: next, isPending: advancing } = useNextQuizQuestion();
   const { mutateAsync: end, isPending: ending } = useEndQuiz();
+  const { mutateAsync: reopen, isPending: reopening } = useReopenQuiz();
+  const { data: members } = useCourseMembers(session.course_id);
+  const { data: presence } = useQuizPresence(session.id, session.status !== "ended");
   const [qr, setQr] = useState<string | null>(null);
+
+  // Inscritos que todavía no han entrado: para no arrancar dejando a gente
+  // afuera (el problema de tener que sacar un QR nuevo para los que llegan tarde).
+  const joinedIds = new Set((participants ?? []).map((p) => p.student_id));
+  const missing = (members ?? []).filter((m) => !joinedIds.has(m.id));
+  // Sin señal: más de 60 s sin latido mientras el quiz sigue abierto.
+  const noSignal = (participantId: string) => {
+    if (session.status === "ended" || !presence) return false;
+    const seen = presence[participantId];
+    return !!seen && Date.now() - new Date(seen).getTime() > 60_000;
+  };
 
   const joinUrl = `${window.location.origin}/app/quiz/${session.id}`;
 
@@ -102,8 +138,23 @@ export function QuizHostView({
               {joinUrl.replace(/^https?:\/\//, "")} <Copy className="size-3.5" />
             </button>
             <div className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground">
-              <Users className="size-4" /> {participants?.length ?? 0} en la sala
+              <Users className="size-4" /> {participants?.length ?? 0}
+              {members ? ` de ${members.length} inscritos` : ""} en la sala
             </div>
+            {missing.length > 0 && members && members.length > 0 && (
+              <div className="w-full rounded-lg bg-warning/10 px-3 py-2 text-left text-xs text-warning">
+                <p className="font-semibold">
+                  Faltan {missing.length} por entrar:
+                </p>
+                <p className="mt-0.5 text-muted-foreground">
+                  {missing.map((m) => m.full_name ?? m.email ?? "Estudiante").join(", ")}
+                </p>
+                <p className="mt-1 text-muted-foreground">
+                  Este mismo código sigue sirviendo: si empiezas ya, los que
+                  lleguen después se unen igual (no hace falta otro QR).
+                </p>
+              </div>
+            )}
             <Button
               variant="brand"
               size="lg"
@@ -200,6 +251,26 @@ export function QuizHostView({
                 <BarChart3 className="size-4" /> Ver resultados completos
               </Link>
             </Button>
+            <Button asChild variant="outline" className="w-full">
+              <Link to={`/app/assignments/${session.assignment_id}/quiz-report`}>
+                <FileText className="size-4" /> Informe de la tarea
+              </Link>
+            </Button>
+            <Button
+              variant="ghost"
+              className="w-full"
+              disabled={reopening}
+              onClick={async () => {
+                try {
+                  await reopen(session.id);
+                } catch (e) {
+                  toast(e instanceof Error ? e.message : "No se pudo reabrir", "error");
+                }
+              }}
+            >
+              {reopening ? <Spinner className="size-4" /> : <RotateCcw className="size-4" />}
+              Reabrir (si alguien se quedó afuera)
+            </Button>
           </CardContent>
         </Card>
       )}
@@ -236,6 +307,11 @@ export function QuizHostView({
                   <span className="min-w-0 flex-1 truncate text-sm font-semibold">
                     {p.full_name ?? "Estudiante"}
                   </span>
+                  {noSignal(p.id) && (
+                    <Badge variant="warning" className="shrink-0 gap-1">
+                      <WifiOff className="size-3" /> sin señal
+                    </Badge>
+                  )}
                   <span className="shrink-0 text-sm font-bold text-primary">{p.score}</span>
                 </motion.div>
               ))}

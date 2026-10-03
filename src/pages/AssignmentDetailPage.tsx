@@ -13,6 +13,8 @@ import {
   Sparkles,
   Users,
   Trash2,
+  Radio,
+  FileText,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -26,6 +28,7 @@ import { CreateExerciseDialog } from "@/components/assignments/CreateExerciseDia
 import { StartQuizDialog } from "@/components/assignments/StartQuizDialog";
 import { GenerateQuizDialog } from "@/components/assignments/GenerateQuizDialog";
 import { QuizHistoryList } from "@/components/assignments/QuizHistoryList";
+import { useOpenQuiz } from "@/hooks/useQuiz";
 import { SubmissionsPanel } from "@/components/assignments/SubmissionsPanel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -64,11 +67,27 @@ function groupExercises(exercises: Exercise[]): ExerciseGroup[] {
   return groups;
 }
 
+/** Botón de un estudiante hacia el quiz en vivo (o aviso de que aún no hay). */
+function QuizEntryButton({ openQuizId }: { openQuizId: string | null }) {
+  return openQuizId ? (
+    <Button asChild variant="brand" size="sm">
+      <Link to={`/app/quiz/${openQuizId}`}>
+        <Radio className="size-4" /> Entrar al quiz
+      </Link>
+    </Button>
+  ) : (
+    <Button variant="outline" size="sm" disabled>
+      Quiz aún no iniciado
+    </Button>
+  );
+}
+
 function ExerciseRow({
   ex,
   number,
   isTeacher,
   locked,
+  openQuizId,
   openEntregas,
   setOpenEntregas,
 }: {
@@ -76,9 +95,13 @@ function ExerciseRow({
   number: number;
   isTeacher: boolean;
   locked: boolean;
+  openQuizId: string | null;
   openEntregas: string | null;
   setOpenEntregas: (id: string | null) => void;
 }) {
+  // Las preguntas de opción múltiple son del quiz en vivo: el estudiante no
+  // las resuelve ni las lee por separado (se las vería de antemano).
+  const quizOnly = !isTeacher && ex.type === "multiple_choice";
   return (
     <Card className="p-4">
       <div className="flex items-center gap-3">
@@ -86,8 +109,10 @@ function ExerciseRow({
           {number}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold">{ex.title}</p>
-          <p className="line-clamp-1 text-sm text-muted-foreground">{ex.prompt}</p>
+          <p className="truncate font-semibold">{quizOnly ? `Pregunta ${number} del quiz` : ex.title}</p>
+          <p className="line-clamp-1 text-sm text-muted-foreground">
+            {quizOnly ? "Se responde en el quiz en vivo" : ex.prompt}
+          </p>
         </div>
         {isTeacher ? (
           <Button
@@ -97,6 +122,8 @@ function ExerciseRow({
           >
             <Users className="size-4" /> Entregas
           </Button>
+        ) : quizOnly ? (
+          <QuizEntryButton openQuizId={openQuizId} />
         ) : (
           !locked && (
             <Button asChild variant="brand" size="sm">
@@ -139,6 +166,9 @@ export function AssignmentDetailPage() {
   const { mutateAsync: deleteAssignment, isPending: deleting } =
     useDeleteAssignment(a?.course_id ?? "");
   const { data: programInfo } = useCourseProgramInfo(a?.course_id ?? "");
+  // La única sesión de quiz abierta de esta tarea (todos entran a la misma).
+  const { data: openQuiz } = useOpenQuiz(id);
+  const openQuizId = openQuiz?.id ?? null;
   const [openEntregas, setOpenEntregas] = useState<string | null>(null);
   const [openBatches, setOpenBatches] = useState<Set<string>>(new Set());
   const toggleBatch = (batchId: string) =>
@@ -266,13 +296,51 @@ export function AssignmentDetailPage() {
         </Card>
       )}
 
+      {/* Aviso al estudiante: hay un quiz abierto en esta tarea */}
+      {!isTeacher && openQuizId && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="flex flex-wrap items-center gap-3 p-4">
+            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary">
+              <Radio className="size-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold">
+                {openQuiz?.status === "lobby" ? "Quiz en vivo: sala abierta" : "Quiz en vivo en curso"}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Entra con este botón, no hace falta ningún código.
+              </p>
+            </div>
+            <Button asChild variant="brand" size="sm">
+              <Link to={`/app/quiz/${openQuizId}`}>Entrar al quiz</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Ejercicios */}
       <div>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-bold">Ejercicios</h2>
           <div className="flex flex-wrap items-center gap-2">
+            {isTeacher && hasMultipleChoice && (
+              <Button asChild size="sm" variant="ghost">
+                <Link to={`/app/assignments/${a.id}/quiz-report`}>
+                  <FileText className="size-4" /> Informe
+                </Link>
+              </Button>
+            )}
             {isTeacher && hasMultipleChoice && <QuizHistoryList assignmentId={a.id} />}
-            {isTeacher && hasMultipleChoice && <StartQuizDialog assignmentId={a.id} />}
+            {isTeacher && hasMultipleChoice &&
+              (openQuizId ? (
+                <Button asChild size="sm" variant="brand">
+                  <Link to={`/app/quiz/${openQuizId}`}>
+                    <Radio className="size-4" /> Volver al quiz en curso
+                  </Link>
+                </Button>
+              ) : (
+                <StartQuizDialog assignmentId={a.id} />
+              ))}
             {isTeacher && (
               <GenerateQuizDialog assignment={a} subjectName={programInfo?.subjectName} />
             )}
@@ -310,6 +378,7 @@ export function AssignmentDetailPage() {
                         number={counter}
                         isTeacher={isTeacher}
                         locked={locked}
+                        openQuizId={openQuizId}
                         openEntregas={openEntregas}
                         setOpenEntregas={setOpenEntregas}
                       />
@@ -320,6 +389,35 @@ export function AssignmentDetailPage() {
                 const startNumber = counter + 1;
                 counter += g.exercises.length;
                 const expanded = openBatches.has(g.batchId);
+
+                // Estudiante: el lote es "el quiz", sin lista de preguntas
+                // (verlas de antemano arruinaría el quiz).
+                if (!isTeacher) {
+                  return (
+                    <motion.div
+                      key={g.batchId}
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: gi * 0.05 }}
+                    >
+                      <Card className="flex items-center gap-3 p-4">
+                        <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                          <Sparkles className="size-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-semibold">
+                            Quiz{g.topic ? `: ${g.topic}` : ""}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {g.exercises.length} pregunta{g.exercises.length === 1 ? "" : "s"} · se
+                            responde en el quiz en vivo
+                          </p>
+                        </div>
+                        <QuizEntryButton openQuizId={openQuizId} />
+                      </Card>
+                    </motion.div>
+                  );
+                }
                 return (
                   <motion.div
                     key={g.batchId}
@@ -368,6 +466,7 @@ export function AssignmentDetailPage() {
                                   number={startNumber + j}
                                   isTeacher={isTeacher}
                                   locked={locked}
+                                  openQuizId={openQuizId}
                                   openEntregas={openEntregas}
                                   setOpenEntregas={setOpenEntregas}
                                 />

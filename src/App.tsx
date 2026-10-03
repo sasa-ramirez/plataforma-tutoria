@@ -16,6 +16,7 @@ import { JoinClassPage } from "@/pages/JoinClassPage";
 import { SolvePage } from "@/pages/SolvePage";
 import { QuizSessionPage } from "@/pages/QuizSessionPage";
 import { QuizResultsPage } from "@/pages/QuizResultsPage";
+import { QuizReportPage } from "@/pages/QuizReportPage";
 import { PracticePage } from "@/pages/PracticePage";
 import { SandboxPage } from "@/pages/SandboxPage";
 import { FreePracticePage } from "@/pages/FreePracticePage";
@@ -88,6 +89,16 @@ export default function App() {
         element={
           <ProtectedRoute>
             <QuizSessionPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Informe imprimible de todos los quizzes de una tarea, fullscreen */}
+      <Route
+        path="/app/assignments/:assignmentId/quiz-report"
+        element={
+          <ProtectedRoute>
+            <QuizReportPage />
           </ProtectedRoute>
         }
       />

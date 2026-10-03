@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Navigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { useOpenQuiz } from "@/hooks/useQuiz";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, BookOpen, Eye, Send, Timer, Lock } from "lucide-react";
 import { useExercise, useAssignment } from "@/hooks/useAssignments";
@@ -26,10 +28,19 @@ import {
 } from "@/services/submissions";
 import type { AIFeedback, Submission } from "@/types/database";
 
+function QuizOnlyRedirect({ assignmentId }: { assignmentId: string }) {
+  const { data: open, isLoading } = useOpenQuiz(assignmentId);
+  if (isLoading) return <FullScreenLoader />;
+  return (
+    <Navigate to={open ? `/app/quiz/${open.id}` : `/app/assignments/${assignmentId}`} replace />
+  );
+}
+
 export function SolvePage() {
   const { exerciseId = "" } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isTeacher } = useAuth();
 
   const { data: exercise, isLoading } = useExercise(exerciseId);
   const { data: assignment } = useAssignment(exercise?.assignment_id ?? "");
@@ -174,6 +185,12 @@ export function SolvePage() {
         Ejercicio no encontrado.
       </div>
     );
+
+  // Las preguntas de opción múltiple son del quiz en vivo: un estudiante que
+  // llegue aquí (enlace viejo, historial, etc.) va al quiz abierto, o a la
+  // tarea si todavía no hay uno. Así nadie ve las preguntas por separado.
+  if (exercise.type === "multiple_choice" && !isTeacher)
+    return <QuizOnlyRedirect assignmentId={exercise.assignment_id ?? ""} />;
 
   // Ejercicios NO-código (opción múltiple / numérica) usan otra pantalla.
   if (exercise.type === "multiple_choice" || exercise.type === "numeric")

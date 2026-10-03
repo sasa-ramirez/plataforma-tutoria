@@ -6,6 +6,7 @@ import { useQuizSession } from "@/hooks/useQuiz";
 import { useAssignment, useExercises } from "@/hooks/useAssignments";
 import { QuizHostView } from "@/components/quiz/QuizHostView";
 import { QuizPlayView } from "@/components/quiz/QuizPlayView";
+import { QuizErrorBoundary } from "@/components/quiz/QuizErrorBoundary";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Button } from "@/components/ui/button";
 import { FullScreenLoader } from "@/components/common/Spinner";
@@ -13,7 +14,12 @@ import { FullScreenLoader } from "@/components/common/Spinner";
 export function QuizSessionPage() {
   const { sessionId = "" } = useParams();
   const { isTeacher } = useAuth();
-  const { data: session, isLoading: sessionLoading } = useQuizSession(sessionId);
+  const {
+    data: session,
+    isLoading: sessionLoading,
+    isError: sessionError,
+    refetch: refetchSession,
+  } = useQuizSession(sessionId);
   const { data: assignment } = useAssignment(session?.assignment_id ?? "");
   const { data: exercises, isLoading: exLoading } = useExercises(session?.assignment_id ?? "");
 
@@ -39,6 +45,25 @@ export function QuizSessionPage() {
 
   if (sessionLoading || (session && exLoading)) return <FullScreenLoader />;
 
+  // Falla de red (no es lo mismo que "no existe"): se ofrece reintentar en
+  // vez de decirle al estudiante que el quiz no existe.
+  if (!session && sessionError) {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-6">
+        <EmptyState
+          icon={Radio}
+          title="No pudimos cargar el quiz"
+          description="Parece un problema de conexión. Tu avance no se pierde."
+          action={
+            <Button variant="brand" onClick={() => refetchSession()}>
+              Reintentar
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+
   if (!session) {
     return (
       <div className="flex min-h-screen items-center justify-center p-6">
@@ -62,11 +87,13 @@ export function QuizSessionPage() {
     );
   }
   return (
-    <QuizPlayView
-      session={session}
-      questions={questions}
-      questionsById={questionsById}
-      title={assignment?.title ?? "Quiz"}
-    />
+    <QuizErrorBoundary>
+      <QuizPlayView
+        session={session}
+        questions={questions}
+        questionsById={questionsById}
+        title={assignment?.title ?? "Quiz"}
+      />
+    </QuizErrorBoundary>
   );
 }

@@ -213,6 +213,8 @@ export interface QuizSession {
   current_index: number;
   /** Orden de preguntas al azar por estudiante, elegido al iniciar (migración 0036). */
   shuffle: boolean;
+  /** Incidencias que anota el profesor (migración 0037). */
+  notes?: string | null;
   started_at: string | null;
   ended_at: string | null;
   created_by: string | null;
