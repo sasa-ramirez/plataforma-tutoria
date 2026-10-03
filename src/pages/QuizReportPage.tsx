@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Download, FileText, Lock, Printer } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useQuizReport, useSetQuizNotes } from "@/hooks/useQuiz";
+import { useAssignment } from "@/hooks/useAssignments";
 import { useToast } from "@/components/ui/toast";
 import { EmptyState } from "@/components/common/EmptyState";
 import { FullScreenLoader } from "@/components/common/Spinner";
@@ -40,6 +41,7 @@ export function QuizReportPage() {
   const { isTeacher } = useAuth();
   const { toast } = useToast();
   const { data: report, isLoading, isError, error } = useQuizReport(assignmentId);
+  const { data: assignment } = useAssignment(assignmentId);
   const built = useMemo(() => (report ? buildReport(report) : null), [report]);
 
   if (!isTeacher) {
@@ -97,6 +99,13 @@ export function QuizReportPage() {
           <ArrowLeft className="size-4" /> Volver a la tarea
         </Link>
         <div className="flex gap-2">
+          {assignment?.course_id && (
+            <Button asChild size="sm" variant="outline">
+              <Link to={`/app/courses/${assignment.course_id}/quiz-consolidado`}>
+                <FileText className="size-4" /> Consolidado del curso
+              </Link>
+            </Button>
+          )}
           <Button size="sm" variant="outline" onClick={downloadCsv}>
             <Download className="size-4" /> CSV (Excel)
           </Button>

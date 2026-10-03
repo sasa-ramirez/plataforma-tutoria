@@ -1,4 +1,6 @@
 import { supabase } from "@/lib/supabase";
+import { fetchCourseMembers } from "@/services/courses";
+import type { ConsolidatedData } from "@/lib/quizConsolidated";
 import type { QuizMode, QuizSession, QuizParticipant } from "@/types/database";
 
 export async function startQuizSession(
@@ -237,4 +239,67 @@ export async function fetchQuizParticipantDetail(
   });
   if (error) throw new Error(error.message);
   return (data ?? []) as QuizParticipantAnswer[];
+}
+
+/** Trae todas las filas de una consulta paginando (Supabase corta en 1000). */
+async function fetchAll<T>(
+  build: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+): Promise<T[]> {
+  const out: T[] = [];
+  const size = 1000;
+  for (let from = 0; ; from += size) {
+    const { data, error } = await build(from, from + size - 1);
+    if (error) throw new Error(error.message);
+    out.push(...(data ?? []));
+    if (!data || data.length < size) break;
+  }
+  return out;
+}
+
+/** Todo lo necesario para el consolidado de un curso: sesiones, participantes,
+ * respuestas, preguntas y lista de inscritos (solo el profesor dueño puede leerlo). */
+export async function fetchCourseQuizData(courseId: string): Promise<ConsolidatedData> {
+  const { data: sessions, error } = await supabase
+    .from("quiz_sessions")
+    .select("id, assignment_id")
+    .eq("course_id", courseId);
+  if (error) throw new Error(error.message);
+  const sessionIds = (sessions ?? []).map((s) => s.id as string);
+  const assignmentIds = [...new Set((sessions ?? []).map((s) => s.assignment_id as string))];
+  if (sessionIds.length === 0) {
+    return { sessions: [], assignments: [], participants: [], answers: [], exercises: [], roster: [] };
+  }
+
+  const [assignments, participants, answers, exercises, roster] = await Promise.all([
+    supabase.from("assignments").select("id, title").in("id", assignmentIds),
+    fetchAll<ConsolidatedData["participants"][number]>((f, t) =>
+      supabase.from("quiz_participants").select("id, session_id, student_id").in("session_id", sessionIds).range(f, t),
+    ),
+    fetchAll<ConsolidatedData["answers"][number]>((f, t) =>
+      supabase.from("quiz_answers").select("participant_id, exercise_id, correct").in("session_id", sessionIds).range(f, t),
+    ),
+    supabase
+      .from("exercises")
+      .select("id, assignment_id, title, quiz_batch_topic, deleted_at")
+      .in("assignment_id", assignmentIds)
+      .eq("type", "multiple_choice"),
+    fetchCourseMembers(courseId),
+  ]);
+  if (assignments.error) throw new Error(assignments.error.message);
+  if (exercises.error) throw new Error(exercises.error.message);
+
+  return {
+    sessions: (sessions ?? []) as ConsolidatedData["sessions"],
+    assignments: (assignments.data ?? []) as ConsolidatedData["assignments"],
+    participants,
+    answers,
+    exercises: (exercises.data ?? []).map((e) => ({
+      id: e.id as string,
+      assignment_id: e.assignment_id as string,
+      title: e.title as string,
+      topic: (e.quiz_batch_topic as string | null) ?? null,
+      deleted_at: (e.deleted_at as string | null) ?? null,
+    })),
+    roster,
+  };
 }

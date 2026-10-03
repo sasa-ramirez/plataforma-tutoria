@@ -17,6 +17,7 @@ import { SolvePage } from "@/pages/SolvePage";
 import { QuizSessionPage } from "@/pages/QuizSessionPage";
 import { QuizResultsPage } from "@/pages/QuizResultsPage";
 import { QuizReportPage } from "@/pages/QuizReportPage";
+import { QuizConsolidatedPage } from "@/pages/QuizConsolidatedPage";
 import { PracticePage } from "@/pages/PracticePage";
 import { SandboxPage } from "@/pages/SandboxPage";
 import { FreePracticePage } from "@/pages/FreePracticePage";
@@ -89,6 +90,16 @@ export default function App() {
         element={
           <ProtectedRoute>
             <QuizSessionPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Consolidado de todos los quizzes de un curso, fullscreen */}
+      <Route
+        path="/app/courses/:courseId/quiz-consolidado"
+        element={
+          <ProtectedRoute>
+            <QuizConsolidatedPage />
           </ProtectedRoute>
         }
       />

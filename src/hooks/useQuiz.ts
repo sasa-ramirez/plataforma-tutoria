@@ -16,6 +16,7 @@ import {
   fetchOpenQuizSession,
   fetchQuizPresence,
   fetchQuizReport,
+  fetchCourseQuizData,
   setQuizNotes,
   reopenQuiz,
 } from "@/services/quiz";
@@ -248,4 +249,12 @@ export function useNextQuizQuestion() {
 
 export function useEndQuiz() {
   return useMutation({ mutationFn: (sessionId: string) => endQuiz(sessionId) });
+}
+
+export function useCourseQuizData(courseId: string) {
+  return useQuery({
+    queryKey: ["quiz", "course-data", courseId],
+    queryFn: () => fetchCourseQuizData(courseId),
+    enabled: !!courseId,
+  });
 }
