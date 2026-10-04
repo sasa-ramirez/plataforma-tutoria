@@ -19,6 +19,8 @@ import {
   fetchUnconfirmed,
   confirmAccounts,
   deleteUnconfirmed,
+  fetchQuizOverview,
+  fetchGroupQuizData,
 } from "@/services/coordinator";
 
 export function useCoordOverview() {
@@ -132,5 +134,17 @@ export function useDeleteUnconfirmed() {
   return useMutation({
     mutationFn: (id: string) => deleteUnconfirmed(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["coord", "unconfirmed"] }),
+  });
+}
+
+export function useCoordQuizOverview() {
+  return useQuery({ queryKey: ["coord", "quiz-overview"], queryFn: fetchQuizOverview });
+}
+
+export function useCoordGroupQuizData(courseId: string | null) {
+  return useQuery({
+    queryKey: ["coord", "group-quiz-data", courseId],
+    queryFn: () => fetchGroupQuizData(courseId as string),
+    enabled: !!courseId,
   });
 }

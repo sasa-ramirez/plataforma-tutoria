@@ -63,6 +63,16 @@ describe("buildConsolidated", () => {
     expect(c.absent.map((a) => a.name)).toEqual(["Eva"]);
   });
 
+  it("calcula la participación por quiz", () => {
+    const a = c.quizzes.find((q) => q.assignmentId === "A")!;
+    expect(a.attended).toBe(2); // Ana y Luis
+    expect(a.completed).toBe(1); // solo Ana respondió las 2
+    expect(a.sessionCount).toBe(2);
+    const b = c.quizzes.find((q) => q.assignmentId === "B")!;
+    expect(b.attended).toBe(1);
+    expect(b.accuracy).toBe(0);
+  });
+
   it("ignora participantes que no están inscritos", () => {
     expect(c.students.map((s) => s.id)).not.toContain("profe");
   });

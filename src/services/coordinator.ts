@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import type { ConsolidatedData } from "@/lib/quizConsolidated";
 
 export interface CoordOverview {
   students: number;
@@ -273,4 +274,30 @@ export async function deleteUnconfirmed(userId: string): Promise<void> {
     p_user: userId,
   });
   if (error) throw new Error(error.message);
+}
+
+// ---------- Quizzes en vivo por grupo ----------
+
+export interface CoordQuizOverview {
+  course_id: string;
+  quiz_count: number;
+  session_count: number;
+  student_count: number;
+  answer_count: number;
+  correct_count: number;
+  last_quiz_at: string | null;
+}
+
+/** Uso del quiz en vivo por grupo (solo grupos que ya tienen respuestas). */
+export async function fetchQuizOverview(): Promise<CoordQuizOverview[]> {
+  const { data, error } = await supabase.rpc("coord_quiz_overview");
+  if (error) throw new Error(error.message);
+  return (data ?? []) as CoordQuizOverview[];
+}
+
+/** Datos crudos de los quizzes de un grupo, para armar su consolidado. */
+export async function fetchGroupQuizData(courseId: string): Promise<ConsolidatedData> {
+  const { data, error } = await supabase.rpc("coord_group_quiz_data", { p_course: courseId });
+  if (error) throw new Error(error.message);
+  return data as ConsolidatedData;
 }

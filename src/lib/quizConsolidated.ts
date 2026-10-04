@@ -16,6 +16,8 @@ export interface ConsolidatedData {
     deleted_at: string | null;
   }[];
   roster: { id: string; full_name: string | null; email: string | null }[];
+  /** Solo lo manda el informe de coordinación. */
+  course_title?: string | null;
 }
 
 export type Level = "Alto" | "Medio" | "Bajo";
@@ -38,6 +40,12 @@ export interface QuizInfo {
   title: string;
   questionCount: number;
   sessionCount: number;
+  /** Estudiantes que entraron a este quiz (en cualquiera de sus sesiones). */
+  attended: number;
+  /** De ellos, los que respondieron todas las preguntas. */
+  completed: number;
+  /** % de aciertos del mejor intento de cada uno, sobre lo respondido. */
+  accuracy: number | null;
 }
 
 export interface StudentConsolidated {
@@ -110,6 +118,9 @@ export function buildConsolidated(d: ConsolidatedData): Consolidated {
     title: titleOf.get(qid) ?? "Quiz",
     questionCount: questionsOf(qid).length,
     sessionCount: d.sessions.filter((s) => s.assignment_id === qid).length,
+    attended: 0,
+    completed: 0,
+    accuracy: null,
   }));
 
   const students: StudentConsolidated[] = [];
@@ -232,6 +243,20 @@ export function buildConsolidated(d: ConsolidatedData): Consolidated {
   }
 
   students.sort((a, b) => b.accuracy - a.accuracy || b.answered - a.answered);
+
+  for (const q of quizzes) {
+    let ans = 0;
+    let cor = 0;
+    for (const s of students) {
+      const r = s.perQuiz[q.assignmentId];
+      if (!r) continue;
+      q.attended++;
+      if (r.total > 0 && r.answered >= r.total) q.completed++;
+      ans += r.answered;
+      cor += r.correct;
+    }
+    q.accuracy = ans > 0 ? pct(cor, ans) : null;
+  }
 
   // Temas del grupo (mejor intento de cada estudiante).
   const groupTopicMap = new Map<string, { answered: number; correct: number; students: Set<string> }>();

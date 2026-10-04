@@ -18,6 +18,7 @@ import { QuizSessionPage } from "@/pages/QuizSessionPage";
 import { QuizResultsPage } from "@/pages/QuizResultsPage";
 import { QuizReportPage } from "@/pages/QuizReportPage";
 import { QuizConsolidatedPage } from "@/pages/QuizConsolidatedPage";
+import { CoordGroupQuizPage } from "@/pages/CoordGroupQuizPage";
 import { PracticePage } from "@/pages/PracticePage";
 import { SandboxPage } from "@/pages/SandboxPage";
 import { FreePracticePage } from "@/pages/FreePracticePage";
@@ -90,6 +91,16 @@ export default function App() {
         element={
           <ProtectedRoute>
             <QuizSessionPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Informe de quizzes de un grupo para el coordinador, fullscreen */}
+      <Route
+        path="/app/coordinacion/grupos/:courseId/quizzes"
+        element={
+          <ProtectedRoute coordinatorOnly>
+            <CoordGroupQuizPage />
           </ProtectedRoute>
         }
       />

@@ -23,7 +23,9 @@ import {
   MailWarning,
   CheckCircle2,
   Trash2,
+  Radio,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +40,7 @@ import { CreateGroupDialog } from "@/components/coordinator/CreateGroupDialog";
 import {
   useCoordOverview,
   useCoordGroups,
+  useCoordQuizOverview,
   useCoordGroupAssignments,
   useCoordStudents,
   useCoordStudentSubmissions,
@@ -58,7 +61,12 @@ import {
   TEACHERS_PAGE_SIZE,
 } from "@/services/coordinator";
 import { cn } from "@/lib/utils";
-import type { CoordGroup, CoordStudent, CoordTeacher } from "@/services/coordinator";
+import type {
+  CoordGroup,
+  CoordQuizOverview,
+  CoordStudent,
+  CoordTeacher,
+} from "@/services/coordinator";
 import {
   fetchTemplateInfo,
   uploadTemplate,
@@ -394,6 +402,8 @@ function Resumen() {
 
 function Grupos() {
   const { data, isLoading } = useCoordGroups();
+  const { data: quizOverview } = useCoordQuizOverview();
+  const quizByGroup = new Map((quizOverview ?? []).map((q) => [q.course_id, q]));
   const [open, setOpen] = useState<string | null>(null);
 
   return (
@@ -446,7 +456,9 @@ function Grupos() {
                   />
                 </div>
               </button>
-              {open === g.course_id && <GroupDetail group={g} />}
+              {open === g.course_id && (
+                <GroupDetail group={g} quiz={quizByGroup.get(g.course_id) ?? null} />
+              )}
             </Card>
           ))}
         </div>
@@ -455,7 +467,7 @@ function Grupos() {
   );
 }
 
-function GroupDetail({ group }: { group: CoordGroup }) {
+function GroupDetail({ group, quiz }: { group: CoordGroup; quiz: CoordQuizOverview | null }) {
   const { toast } = useToast();
   return (
     <div className="space-y-4 border-t p-4">
@@ -476,6 +488,29 @@ function GroupDetail({ group }: { group: CoordGroup }) {
           >
             {group.join_code} <Copy className="size-3" />
           </button>
+        )}
+      </div>
+
+      {/* Quizzes en vivo del grupo */}
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3">
+        <div className="min-w-0 text-xs">
+          <p className="flex items-center gap-1.5 font-semibold">
+            <Radio className="size-3.5 text-primary" /> Quizzes en vivo
+          </p>
+          <p className="text-muted-foreground">
+            {quiz
+              ? `${quiz.quiz_count} quiz${quiz.quiz_count === 1 ? "" : "zes"} · ${quiz.session_count} sesión(es) · ${quiz.student_count} de ${group.students} estudiantes participaron · acierto ${
+                  quiz.answer_count > 0 ? Math.round((quiz.correct_count / quiz.answer_count) * 100) : 0
+                }%`
+              : "Este grupo todavía no ha usado quizzes en vivo."}
+          </p>
+        </div>
+        {quiz && (
+          <Button asChild size="sm" variant="outline">
+            <Link to={`/app/coordinacion/grupos/${group.course_id}/quizzes`}>
+              <FileText className="size-4" /> Ver informe
+            </Link>
+          </Button>
         )}
       </div>
 
