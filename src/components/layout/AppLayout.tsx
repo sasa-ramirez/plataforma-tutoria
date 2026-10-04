@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   BookOpen,
   Dumbbell,
+  BookOpenCheck,
   User,
   LogOut,
   Laptop,
@@ -20,6 +21,7 @@ const NAV = [
   { to: "/app", label: "Inicio", icon: LayoutDashboard, end: true },
   { to: "/app/courses", label: "Cursos", icon: BookOpen, end: false },
   { to: "/app/practice", label: "Practicar", icon: Dumbbell, end: false },
+  { to: "/app/study", label: "Estudiar", icon: BookOpenCheck, end: false },
   { to: "/app/profile", label: "Perfil", icon: User, end: false },
 ];
 

@@ -19,6 +19,8 @@ import { QuizResultsPage } from "@/pages/QuizResultsPage";
 import { QuizReportPage } from "@/pages/QuizReportPage";
 import { QuizConsolidatedPage } from "@/pages/QuizConsolidatedPage";
 import { CoordGroupQuizPage } from "@/pages/CoordGroupQuizPage";
+import { StudyPage } from "@/pages/StudyPage";
+import { StudySpacePage } from "@/pages/StudySpacePage";
 import { PracticePage } from "@/pages/PracticePage";
 import { SandboxPage } from "@/pages/SandboxPage";
 import { FreePracticePage } from "@/pages/FreePracticePage";
@@ -55,6 +57,8 @@ export default function App() {
         <Route path="assignments/:id" element={<AssignmentDetailPage />} />
         <Route path="practice" element={<PracticePage />} />
         <Route path="practice/free" element={<FreePracticePage />} />
+        <Route path="study" element={<StudyPage />} />
+        <Route path="study/:spaceId" element={<StudySpacePage />} />
         <Route path="sandbox" element={<SandboxPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route

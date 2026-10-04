@@ -36,6 +36,7 @@
     "framer-motion": "^11.11.1",
     "katex": "^0.16.47",
     "lucide-react": "^0.451.0",
+    "pdfjs-dist": "^4.10.38",
     "pizzip": "^3.2.0",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",
