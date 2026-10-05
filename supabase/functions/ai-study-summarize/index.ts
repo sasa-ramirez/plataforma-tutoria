@@ -13,6 +13,7 @@
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { parseJsonArrayLenient } from "../_shared/studyExam.ts";
+import { chatJson, modelChain } from "../_shared/llm.ts";
 
 const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY")!;
 const OPENROUTER_MODEL =
@@ -28,8 +29,8 @@ const corsHeaders = {
 
 const MAX_CHUNK_CHARS = 30_000; // tope por llamada (~8k tokens)
 // Supabase corta la función a los ~150 s: se responde un error claro antes.
-const CALL_TIMEOUT_MS = 50_000;
-const RETRY_ONLY_BEFORE_MS = 60_000;
+const CALL_TIMEOUT_MS = 45_000;
+const TOTAL_BUDGET_MS = 110_000;
 const DAILY_CHAR_BUDGET = 600_000; // por estudiante, últimas 24 h
 // El navegador manda varios fragmentos en paralelo (4 a la vez).
 const MAX_CALLS_PER_MIN = 24;
@@ -149,60 +150,33 @@ TEXTO DEL FRAGMENTO:
 ${text}
 """`;
 
-    async function callModel(): Promise<Note[]> {
-      const aiRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        signal: AbortSignal.timeout(CALL_TIMEOUT_MS),
-        headers: {
-          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "https://plataforma-tutoria.vercel.app",
-          "X-Title": "Kodea",
-        },
-        body: JSON.stringify({
-          model: OPENROUTER_MODEL,
-          temperature: 0.2,
-          max_tokens: 3000, // margen para modelos que gastan tokens "pensando"; igual acota el tiempo
-          // Si el modelo "razona", que lo haga poco: aquí solo importa la velocidad.
-          reasoning: { effort: "low" },
-          messages: [{ role: "user", content: prompt }],
-        }),
+    // Escalera de intentos pensada para modelos gratuitos "de razonamiento"
+    // (ver _shared/llm.ts): sin razonar → razonamiento mínimo → modelo de respaldo.
+    let notes: Note[] = [];
+    try {
+      const { content, model } = await chatJson({
+        apiKey: OPENROUTER_API_KEY,
+        models: modelChain(OPENROUTER_MODEL, Deno.env.get("OPENROUTER_FALLBACK_MODELS")),
+        prompt,
+        temperature: 0.2,
+        maxTokens: 1500,
+        callTimeoutMs: CALL_TIMEOUT_MS,
+        deadline: t0 + TOTAL_BUDGET_MS,
       });
-      if (!aiRes.ok) {
-        throw new Error(`OpenRouter ${aiRes.status}: ${(await aiRes.text()).slice(0, 300)}`);
-      }
-      const completion = await aiRes.json();
-      const content: string = completion.choices?.[0]?.message?.content ?? "";
-      if (!content.trim()) throw new Error("respuesta vacía del modelo");
       const parsed = parseJsonArrayLenient(content);
       if (!parsed) {
         // Sin lista: casi siempre es que el fragmento no tiene contenido de
         // estudio (portada, plantilla) y el modelo lo explicó en prosa. No es
         // un fallo: ese fragmento simplemente no aporta notas.
-        console.log(`[ai-study-summarize] sin lista, se toma como vacío: ${content.slice(0, 160).replace(/\s+/g, " ")}`);
-        return [];
+        console.log(`[ai-study-summarize] (${model}) sin lista, se toma como vacío: ${content.slice(0, 160).replace(/\s+/g, " ")}`);
+      } else {
+        if (parsed.truncated) console.log(`[ai-study-summarize] (${model}) respuesta cortada: se rescataron los temas completos`);
+        notes = sanitizeNotes(parsed.items);
       }
-      if (parsed.truncated) console.log("[ai-study-summarize] respuesta cortada: se rescataron los temas completos");
-      return sanitizeNotes(parsed.items);
-    }
-
-    let notes: Note[] = [];
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      try {
-        notes = await callModel();
-        break;
-      } catch (e) {
-        const detail = e instanceof Error ? e.message : String(e);
-        console.error(`[ai-study-summarize] intento ${attempt} falló tras ${Date.now() - t0} ms: ${detail}`);
-        if (attempt === 2 || Date.now() - t0 > RETRY_ONLY_BEFORE_MS) {
-          const slow = /timeout|aborted/i.test(detail);
-          throw new Error(
-            slow
-              ? "La IA tardó demasiado en responder este fragmento. Reintenta en un momento."
-              : `La IA no pudo resumir este fragmento (reintenta en unos segundos). Detalle: ${detail}`,
-          );
-        }
-      }
+    } catch (e) {
+      const detail = e instanceof Error ? e.message : String(e);
+      console.error(`[ai-study-summarize] falló tras ${Date.now() - t0} ms: ${detail}`);
+      throw new Error(detail);
     }
 
     return new Response(JSON.stringify({ ok: true, notes }), {

@@ -30,6 +30,9 @@ export interface TextChunk {
   /** "Páginas 1–8" / "Diapositivas 9–14": ayuda a la IA a ubicarse. */
   label: string;
   text: string;
+  /** Rango de páginas/diapositivas (1-based, inclusivo): permite armar notas de respaldo sin IA. */
+  from: number;
+  to: number;
 }
 
 export const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20 MB
@@ -200,6 +203,9 @@ export function stripRepeatedLines(pages: string[]): string[] {
 
 export interface PreparedDoc {
   chunks: TextChunk[];
+  /** Texto ya limpio de cada página/diapositiva (para las notas de respaldo). */
+  pages: string[];
+  unit: "Página" | "Diapositiva";
   pageCount: number;
   charCount: number;
   /** El documento superó MAX_DOC_CHARS y se recortó al final. */
@@ -233,6 +239,8 @@ export function prepareChunks(doc: ExtractedDoc, maxChars = CHUNK_CHARS): Prepar
     chunks.push({
       label: first === lastPage ? `${noun} ${first}` : `${plural} ${first}–${lastPage}`,
       text: buf.join("\n\n"),
+      from: first,
+      to: Math.max(first, lastPage),
     });
     buf = [];
     bufLen = 0;
@@ -263,5 +271,5 @@ export function prepareChunks(doc: ExtractedDoc, maxChars = CHUNK_CHARS): Prepar
   }
   flush(cleaned.length);
 
-  return { chunks, pageCount: doc.pages.length, charCount: used, truncated };
+  return { chunks, pages: cleaned, unit: noun, pageCount: doc.pages.length, charCount: used, truncated };
 }

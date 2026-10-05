@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { extractDocument, prepareChunks, detectKind } from "@/lib/studyText";
+import { extractiveNotes, type NoteDraft } from "@/lib/studyExtractive";
 
 export interface StudySpace {
   id: string;
@@ -128,40 +129,71 @@ export interface ProcessProgress {
   total: number;
 }
 
-/** Límites diarios o texto inservible: reintentar no ayuda. */
-const NO_RETRY = /(límite|casi no tiene texto|No autenticado)/i;
 /** Límite por minuto: se espera un poco y se vuelve a intentar. */
 const RATE_LIMITED = /vas muy rápido/i;
+/** Límite diario: la IA no sirve más por hoy, no tiene sentido seguir llamándola. */
+const DAILY_LIMIT = /límite diario/i;
 /** Fragmentos que se resumen a la vez. Más de 4 choca con el límite por minuto. */
 const CONCURRENCY = 4;
+/** Tiempo máximo que se espera a la IA por fragmento (la función se corta sola a ~110 s). */
+const CHUNK_TIMEOUT_MS = 75_000;
+
+// Corta-circuito: si la IA falló en un documento completo, los siguientes se
+// arman directo del texto (al instante) durante unos minutos en vez de hacer
+// esperar al estudiante otra vez por algo que probablemente sigue caído.
+const AI_DOWN_KEY = "kodea.study.aiDownUntil";
+const AI_DOWN_MS = 10 * 60_000;
+function aiIsDown(): boolean {
+  try {
+    return Number(sessionStorage.getItem(AI_DOWN_KEY)) > Date.now();
+  } catch {
+    return false;
+  }
+}
+function setAiDown(down: boolean) {
+  try {
+    if (down) sessionStorage.setItem(AI_DOWN_KEY, String(Date.now() + AI_DOWN_MS));
+    else sessionStorage.removeItem(AI_DOWN_KEY);
+  } catch {
+    /* sin sessionStorage: solo se pierde el corta-circuito */
+  }
+}
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const withTimeout = <T>(p: Promise<T>, ms: number) =>
+  Promise.race([p, new Promise<never>((_, rej) => setTimeout(() => rej(new Error("tiempo agotado")), ms))]);
 
-type NoteDraft = { topic: string; summary: string; key_points: string[] };
-
-/** Resume un fragmento, con un reintento ante fallos y espera ante el límite por minuto. */
+/** Resume un fragmento con la IA. Si falla, devuelve el motivo (el llamador usa el respaldo). */
 async function summarizeChunk(
   body: Record<string, unknown>,
-): Promise<{ notes: NoteDraft[] } | { error: string; fatal: boolean }> {
+): Promise<{ notes: NoteDraft[] } | { error: string; daily: boolean }> {
   let lastError = "";
   for (let attempt = 1; attempt <= 3; attempt++) {
-    const { data, error } = await supabase.functions.invoke("ai-study-summarize", { body });
-    if (!error && data?.ok) return { notes: (data.notes ?? []) as NoteDraft[] };
-    lastError = error ? await functionError(error) : String(data?.error ?? "La IA no respondió");
-    if (NO_RETRY.test(lastError)) return { error: lastError, fatal: true };
-    if (RATE_LIMITED.test(lastError)) {
+    try {
+      const { data, error } = await withTimeout(
+        supabase.functions.invoke("ai-study-summarize", { body }),
+        CHUNK_TIMEOUT_MS,
+      );
+      if (!error && data?.ok) return { notes: (data.notes ?? []) as NoteDraft[] };
+      lastError = error ? await functionError(error) : String(data?.error ?? "La IA no respondió");
+    } catch (e) {
+      lastError = e instanceof Error ? e.message : "La IA no respondió";
+    }
+    if (DAILY_LIMIT.test(lastError)) return { error: lastError, daily: true };
+    if (RATE_LIMITED.test(lastError) && attempt < 3) {
       await sleep(8000);
       continue;
     }
-    if (attempt === 2) break; // un reintento normal basta
+    break; // la función ya probó varios modos y modelos por dentro: reintentar igual no ayuda
   }
-  return { error: lastError, fatal: false };
+  return { error: lastError, daily: false };
 }
 
 /**
- * Sube un documento: extrae el texto en el navegador, lo manda a la IA por
- * fragmentos EN PARALELO (4 a la vez) y guarda las notas por tema.
- * El archivo original NO se guarda.
+ * Sube un documento: extrae el texto en el navegador y arma las notas por tema.
+ * Cada fragmento intenta primero la IA (4 a la vez); si la IA falla, se tarda
+ * o no devuelve nada útil, esa parte se arma directamente del texto, sin IA.
+ * Así un documento con texto SIEMPRE queda listo. El archivo original NO se guarda.
  */
 export async function processStudyDocument(input: {
   space: StudySpace;
@@ -205,69 +237,91 @@ export async function processStudyDocument(input: {
   if (docErr) throw new Error(docErr.message);
   const document = doc as StudyDocument;
 
-  // Resumen en paralelo. Cada fragmento guarda sus notas apenas termina y
-  // les da un `position` fijo (índice*100 + n) para que el orden del
-  // documento se conserve aunque terminen desordenados.
   const total = prepared.chunks.length;
-  let okChunks = 0;
+  // Tamaño de los temas de respaldo: crece con el documento para no pasar del tope de notas.
+  const groupChars = Math.max(1100, Math.ceil(prepared.charCount / 55));
+  let aiDisabled = aiIsDown();
+  let aiOk = 0;
+  let aiFailed = 0;
+  let fallbackChunks = 0;
   let noteCount = 0;
   let finished = 0;
-  let lastError = "";
-  let stop = false; // un límite diario detiene los fragmentos que faltan
   let next = 0;
+  let saveError = "";
   onProgress?.({ phase: "summarizing", done: 0, total });
 
+  const saveNotes = async (chunkIndex: number, notes: NoteDraft[]) => {
+    if (notes.length === 0) return;
+    noteCount += notes.length;
+    // position fijo (índice*100 + n): el orden del documento se conserva aunque terminen desordenados.
+    const { error } = await supabase.from("study_notes").insert(
+      notes.map((n, k) => ({
+        document_id: document.id,
+        space_id: space.id,
+        student_id: uid,
+        topic: n.topic,
+        summary: n.summary,
+        key_points: n.key_points,
+        position: chunkIndex * 100 + k,
+      })),
+    );
+    if (error) saveError = error.message;
+  };
+
   const worker = async () => {
-    while (!stop) {
+    for (;;) {
       const i = next++;
       if (i >= total) return;
       const chunk = prepared.chunks[i];
-      const res = await summarizeChunk({
-        fileName: file.name,
-        spaceTitle: space.title,
-        label: chunk.label,
-        text: chunk.text,
-        index: i,
-        total,
-      });
-      if ("notes" in res) {
-        okChunks++;
-        noteCount += res.notes.length;
-        if (res.notes.length > 0) {
-          const { error } = await supabase.from("study_notes").insert(
-            res.notes.map((n, k) => ({
-              document_id: document.id,
-              space_id: space.id,
-              student_id: uid,
-              topic: n.topic,
-              summary: n.summary,
-              key_points: n.key_points,
-              position: i * 100 + k,
-            })),
-          );
-          if (error) lastError = error.message;
+
+      let notes: NoteDraft[] | null = null;
+      if (!aiDisabled) {
+        const res = await summarizeChunk({
+          fileName: file.name,
+          spaceTitle: space.title,
+          label: chunk.label,
+          text: chunk.text,
+          index: i,
+          total,
+        });
+        if ("notes" in res) {
+          notes = res.notes;
+          aiOk++;
+        } else {
+          aiFailed++;
+          // Un límite diario, o dos fallos sin ningún éxito: la IA no está sirviendo.
+          if (res.daily || (aiOk === 0 && aiFailed >= 2)) aiDisabled = true;
         }
-      } else {
-        lastError = res.error;
-        if (res.fatal) stop = true;
       }
+      if (notes === null) {
+        fallbackChunks++;
+        notes = extractiveNotes(prepared.pages.slice(chunk.from - 1, chunk.to), chunk.from, prepared.unit, groupChars);
+      }
+      await saveNotes(i, notes);
       finished++;
       onProgress?.({ phase: "summarizing", done: finished, total });
     }
   };
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, total) }, worker));
 
-  // Estado final
-  const empty = okChunks > 0 && noteCount === 0;
-  const status = okChunks === 0 || empty ? "error" : "ready";
-  const error =
-    okChunks === 0
-      ? lastError || "No se pudo resumir el documento."
-      : empty
-        ? "No encontré contenido de estudio en este archivo (¿es una plantilla, una portada o solo imágenes?). Prueba con tus diapositivas o apuntes reales."
-        : okChunks < total
-        ? `Solo se resumieron ${okChunks} de ${total} partes. ${lastError}`.trim()
-        : null;
+  // Se recuerda si la IA está sirviendo (para no hacer esperar de nuevo si está caída).
+  if (aiOk > 0) setAiDown(false);
+  else if (aiFailed > 0) setAiDown(true);
+
+  // Estado final: solo es error si de verdad no hay nada que estudiar.
+  let status: StudyDocument["status"] = "ready";
+  let error: string | null = null;
+  if (noteCount === 0) {
+    status = "error";
+    error =
+      saveError ||
+      "No encontré contenido de estudio en este archivo (¿es una plantilla, una portada o solo imágenes?). Prueba con tus diapositivas o apuntes reales.";
+  } else if (fallbackChunks === total) {
+    error =
+      "Las notas se armaron directamente del texto del archivo porque la IA no respondió. Sirven igual para tus parciales.";
+  } else if (fallbackChunks > 0) {
+    error = `${fallbackChunks} de ${total} partes se armaron directamente del texto porque la IA no respondió. Sirven igual para tus parciales.`;
+  }
   const { data: done, error: updErr } = await supabase
     .from("study_documents")
     .update({ status, error })

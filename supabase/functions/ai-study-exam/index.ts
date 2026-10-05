@@ -14,6 +14,7 @@
 //   OPENROUTER_STUDY_MODEL → un modelo rápido y barato (sin "razonamiento").
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { chatJson, modelChain } from "../_shared/llm.ts";
 import {
   allocate,
   norm,
@@ -57,8 +58,8 @@ const DAILY_CHAR_BUDGET = 600_000;
 const MAX_CALLS_PER_MIN = 20;
 // Supabase corta la función a los ~150 s: se responde un error claro ANTES
 // de eso en vez de dejar al estudiante con un "non-2xx" sin explicación.
-const CALL_TIMEOUT_MS = 55_000;
-const RETRY_ONLY_BEFORE_MS = 65_000;
+const CALL_TIMEOUT_MS = 50_000;
+const TOTAL_BUDGET_MS = 125_000;
 
 interface NoteRow {
   topic: string;
@@ -239,60 +240,40 @@ ${material}`;
     const topicByNorm = new Map(chosen.map((t) => [norm(t.name), t.name]));
     const minOk = Math.max(MIN_COUNT, Math.ceil(total * 0.7));
 
-    async function callModel(): Promise<Question[]> {
-      const aiRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        signal: AbortSignal.timeout(CALL_TIMEOUT_MS),
-        headers: {
-          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "https://plataforma-tutoria.vercel.app",
-          "X-Title": "Kodea",
-        },
-        body: JSON.stringify({
-          model: OPENROUTER_MODEL,
-          temperature: 0.6,
-          // Tope de salida proporcional al parcial: evita respuestas larguísimas.
-          max_tokens: Math.min(8000, total * 260 + 600),
-          // Si el modelo "razona", que lo haga poco: aquí solo importa la velocidad.
-          reasoning: { effort: "low" },
-          messages: [{ role: "user", content: prompt }],
-        }),
-      });
-      if (!aiRes.ok) {
-        throw new Error(`OpenRouter ${aiRes.status}: ${(await aiRes.text()).slice(0, 300)}`);
-      }
-      const completion = await aiRes.json();
-      const content: string = completion.choices?.[0]?.message?.content ?? "";
-      if (!content.trim()) throw new Error("respuesta vacía del modelo");
-      const parsed = parseJsonArrayLenient(content);
-      if (!parsed) throw new Error(`la IA no devolvió una lista (empezó con: ${content.slice(0, 80).replace(/\s+/g, " ")})`);
-      const qs = sanitize(parsed.items, topicByNorm, topicById);
-      if (qs.length < minOk) {
-        throw new Error(`solo salieron ${qs.length} preguntas válidas de ${total}`);
-      }
-      return qs.slice(0, total);
-    }
-
+    // Escalera de intentos pensada para modelos gratuitos "de razonamiento"
+    // (ver _shared/llm.ts). Si la respuesta llega pero no sirve (JSON roto,
+    // pocas preguntas válidas), se repite UNA vez mientras alcance el tiempo.
+    const deadline = t0 + TOTAL_BUDGET_MS;
+    const models = modelChain(OPENROUTER_MODEL, Deno.env.get("OPENROUTER_FALLBACK_MODELS"));
     let questions: Question[] = [];
     let lastErr = "";
-    for (let attempt = 1; attempt <= 2; attempt++) {
+    for (let attempt = 1; attempt <= 2 && questions.length === 0; attempt++) {
       try {
-        questions = await callModel();
-        break;
+        const { content, model } = await chatJson({
+          apiKey: OPENROUTER_API_KEY,
+          models,
+          prompt,
+          temperature: 0.6,
+          // Tope de salida proporcional al parcial: evita respuestas larguísimas.
+          maxTokens: Math.min(4000, total * 260 + 600),
+          callTimeoutMs: CALL_TIMEOUT_MS,
+          deadline,
+        });
+        const parsed = parseJsonArrayLenient(content);
+        if (!parsed) {
+          throw new Error(`la IA no devolvió una lista (${model} empezó con: ${content.slice(0, 80).replace(/\s+/g, " ")})`);
+        }
+        const qs = sanitize(parsed.items, topicByNorm, topicById);
+        if (qs.length < minOk) throw new Error(`solo salieron ${qs.length} preguntas válidas de ${total}`);
+        questions = qs.slice(0, total);
       } catch (e) {
         lastErr = e instanceof Error ? e.message : String(e);
         console.error(`[ai-study-exam] intento ${attempt} falló tras ${Date.now() - t0} ms: ${lastErr}`);
-        // Un segundo intento solo si todavía alcanza el tiempo.
-        if (attempt === 2 || Date.now() - t0 > RETRY_ONLY_BEFORE_MS) {
-          const slow = /timeout|aborted/i.test(lastErr);
-          throw new Error(
-            slow
-              ? "La IA tardó demasiado en responder. Prueba con menos preguntas o intenta de nuevo en un momento."
-              : `La IA no pudo armar el parcial (intenta de nuevo). Detalle: ${lastErr}`,
-          );
-        }
+        if (deadline - Date.now() < 30_000) break;
       }
+    }
+    if (questions.length === 0) {
+      throw new Error(`No se pudo armar el parcial. ${lastErr} Prueba con menos preguntas o más tarde.`);
     }
 
     // Se intercalan los temas para que no salgan todos seguidos.
