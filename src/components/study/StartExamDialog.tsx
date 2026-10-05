@@ -29,22 +29,29 @@ export function StartExamDialog({
   spaceId,
   topicCount,
   disabled,
+  focus,
+  label,
+  defaultCount = 20,
 }: {
   spaceId: string;
   /** Temas disponibles en las notas (para avisar cuánto cubrirá el parcial). */
   topicCount: number;
   disabled?: boolean;
+  /** Parcial de refuerzo: solo se evalúan estos temas. */
+  focus?: string[];
+  label?: string;
+  defaultCount?: number;
 }) {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const [count, setCount] = useState(20);
+  const [count, setCount] = useState(defaultCount);
   const [difficulty, setDifficulty] = useState<ExamDifficulty>("mixed");
   const { mutateAsync, isPending } = useCreateStudyExam(spaceId);
 
   const submit = async () => {
     try {
-      const examId = await mutateAsync({ count, difficulty });
+      const examId = await mutateAsync({ count, difficulty, focus });
       setOpen(false);
       navigate(`/app/study/${spaceId}/exam/${examId}`);
     } catch (e) {
@@ -56,15 +63,16 @@ export function StartExamDialog({
     <Dialog open={open} onOpenChange={(v) => !isPending && setOpen(v)}>
       <DialogTrigger asChild>
         <Button variant="brand" disabled={disabled}>
-          <ClipboardCheck className="size-4" /> Parcial simulado
+          <ClipboardCheck className="size-4" /> {label ?? "Parcial simulado"}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Armar un parcial simulado</DialogTitle>
+          <DialogTitle>{focus ? "Parcial de refuerzo" : "Armar un parcial simulado"}</DialogTitle>
           <DialogDescription>
-            Kodea reparte las preguntas entre los {topicCount} tema{topicCount === 1 ? "" : "s"} de tus notas
-            para evaluar casi todo lo que has subido.
+            {focus
+              ? `Kodea hará preguntas solo de tus ${focus.length} tema${focus.length === 1 ? "" : "s"} más flojo${focus.length === 1 ? "" : "s"}.`
+              : `Kodea reparte las preguntas entre los ${topicCount} tema${topicCount === 1 ? "" : "s"} de tus notas para evaluar casi todo lo que has subido.`}
           </DialogDescription>
         </DialogHeader>
 

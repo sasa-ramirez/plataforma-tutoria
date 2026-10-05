@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, CheckCircle2, ClipboardCheck, Flag, Trophy, XCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, BarChart3, CheckCircle2, ClipboardCheck, Flag, Trophy, XCircle } from "lucide-react";
 import { EmptyState } from "@/components/common/EmptyState";
 import { FullScreenLoader, Spinner } from "@/components/common/Spinner";
 import { Badge } from "@/components/ui/badge";
@@ -249,6 +249,12 @@ function ExamResult({
           </p>
         </CardContent>
       </Card>
+
+      <Button asChild variant="brand" className="w-full">
+        <Link to={`/app/study/${spaceId}/report`}>
+          <BarChart3 className="size-4" /> Ver mi informe de falencias
+        </Link>
+      </Button>
 
       <div className="flex items-center justify-between gap-2">
         <h2 className="font-bold">Repaso</h2>

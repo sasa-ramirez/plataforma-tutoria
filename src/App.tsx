@@ -22,6 +22,7 @@ import { CoordGroupQuizPage } from "@/pages/CoordGroupQuizPage";
 import { StudyPage } from "@/pages/StudyPage";
 import { StudySpacePage } from "@/pages/StudySpacePage";
 import { StudyExamPage } from "@/pages/StudyExamPage";
+import { StudyReportPage } from "@/pages/StudyReportPage";
 import { PracticePage } from "@/pages/PracticePage";
 import { SandboxPage } from "@/pages/SandboxPage";
 import { FreePracticePage } from "@/pages/FreePracticePage";
@@ -61,6 +62,7 @@ export default function App() {
         <Route path="study" element={<StudyPage />} />
         <Route path="study/:spaceId" element={<StudySpacePage />} />
         <Route path="study/:spaceId/exam/:examId" element={<StudyExamPage />} />
+        <Route path="study/:spaceId/report" element={<StudyReportPage />} />
         <Route path="sandbox" element={<SandboxPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route

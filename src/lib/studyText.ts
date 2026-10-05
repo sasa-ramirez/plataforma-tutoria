@@ -34,7 +34,9 @@ export interface TextChunk {
 
 export const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20 MB
 export const MAX_DOC_CHARS = 150_000; // ~40k tokens: tope por documento
-export const CHUNK_CHARS = 24_000; // por llamada a la IA (< 30k que acepta la función)
+// Fragmentos chicos + varios a la vez = mucho más rápido que pocos fragmentos grandes
+// (el tiempo de la IA depende de cuánto escribe, y cada fragmento escribe sus notas).
+export const CHUNK_CHARS = 12_000;
 const MIN_USEFUL_CHARS = 200;
 
 export function detectKind(file: File): "pdf" | "pptx" | null {

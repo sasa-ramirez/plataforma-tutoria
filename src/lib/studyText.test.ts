@@ -72,7 +72,7 @@ describe("prepareChunks", () => {
   });
 
   it("reparte en fragmentos que respetan el tope y etiqueta las páginas", () => {
-    const page = "palabra ".repeat(900); // ~7k chars
+    const page = "palabra ".repeat(400); // ~3k chars: caben ~3 páginas por fragmento
     const out = prepareChunks(doc(Array.from({ length: 10 }, () => page)));
     expect(out.chunks.length).toBeGreaterThan(1);
     for (const c of out.chunks) expect(c.text.length).toBeLessThanOrEqual(CHUNK_CHARS + 50);

@@ -77,14 +77,47 @@ export function extractJsonArray(text: string): unknown {
   return JSON.parse(raw.slice(start, end + 1));
 }
 
+/** Minúsculas, sin tildes y con espacios simples: "Límites  de Funciones" == "limites de funciones". */
+export function norm(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 /** Descarta preguntas mal formadas y mezcla las opciones (la IA tiende a
- * poner la correcta siempre en B o C). */
-export function sanitize(raw: unknown, topicByLower: Map<string, string>): Question[] {
+ * poner la correcta siempre en B o C).
+ *
+ * El tema se resuelve primero por número ("tema": 3, lo más fiable: no
+ * depende de que la IA copie el nombre exacto) y, si no, por nombre
+ * normalizado (sin tildes/mayúsculas) o por coincidencia parcial. */
+export function sanitize(
+  raw: unknown,
+  topicByNorm: Map<string, string>,
+  topicById?: Map<number, string>,
+): Question[] {
   if (!Array.isArray(raw)) return [];
   const out: Question[] = [];
   for (const item of raw as Record<string, unknown>[]) {
-    const topicRaw = typeof item.topic === "string" ? item.topic.trim().toLowerCase() : "";
-    const topic = topicByLower.get(topicRaw);
+    let topic: string | undefined;
+    const id = typeof item.tema === "number" ? item.tema : Number(item.tema);
+    if (topicById && Number.isInteger(id)) topic = topicById.get(id);
+    if (!topic) {
+      const name = norm(typeof item.topic === "string" ? item.topic : typeof item.tema === "string" ? item.tema : "");
+      if (name) {
+        topic = topicByNorm.get(name);
+        if (!topic && name.length >= 4) {
+          for (const [k, v] of topicByNorm) {
+            if (k.includes(name) || name.includes(k)) {
+              topic = v;
+              break;
+            }
+          }
+        }
+      }
+    }
     const question = typeof item.question === "string" ? item.question.trim() : "";
     const options = Array.isArray(item.options)
       ? item.options.filter((o): o is string => typeof o === "string" && o.trim() !== "").map((o) => o.trim())
@@ -105,4 +138,3 @@ export function sanitize(raw: unknown, topicByLower: Map<string, string>): Quest
   }
   return out;
 }
-

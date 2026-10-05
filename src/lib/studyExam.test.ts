@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { allocate, sanitize, extractJsonArray } from "../../supabase/functions/_shared/studyExam";
+import { allocate, sanitize, extractJsonArray, norm } from "../../supabase/functions/_shared/studyExam";
 
 const topics = (n: number) => Array.from({ length: n }, (_, i) => ({ name: `Tema ${i + 1}`, weight: 1 + (i % 3) }));
 const sum = (m: Map<string, number>) => [...m.values()].reduce((a, b) => a + b, 0);
@@ -56,6 +56,38 @@ describe("sanitize", () => {
     expect(sanitize([q({ correct: 4 })], map)).toHaveLength(0);
     expect(sanitize([q({ question: "" })], map)).toHaveLength(0);
     expect(sanitize("no es lista", map)).toHaveLength(0);
+  });
+});
+
+describe("sanitize: resolución del tema", () => {
+  const byNorm = new Map([
+    ["limites y continuidad", "Límites y Continuidad"],
+    ["derivadas", "Derivadas"],
+  ]);
+  const byId = new Map([[1, "Límites y Continuidad"], [2, "Derivadas"]]);
+  const base = { question: "¿?", options: ["a", "b", "c", "d"], correct: 0, explanation: "x" };
+
+  it("prefiere el número de tema", () => {
+    const out = sanitize([{ ...base, tema: 2 }], byNorm, byId);
+    expect(out[0].topic).toBe("Derivadas");
+  });
+
+  it("acepta el número como texto", () => {
+    expect(sanitize([{ ...base, tema: "1" }], byNorm, byId)[0].topic).toBe("Límites y Continuidad");
+  });
+
+  it("tolera tildes, mayúsculas y nombres parciales cuando no hay número", () => {
+    expect(sanitize([{ ...base, topic: "LIMITES Y CONTINUIDAD" }], byNorm)[0].topic).toBe("Límites y Continuidad");
+    expect(sanitize([{ ...base, topic: "Derivadas (regla de la cadena)" }], byNorm)[0].topic).toBe("Derivadas");
+  });
+
+  it("descarta si no hay forma de ubicar el tema", () => {
+    expect(sanitize([{ ...base, tema: 9 }], byNorm, byId)).toHaveLength(0);
+    expect(sanitize([{ ...base, topic: "Química" }], byNorm)).toHaveLength(0);
+  });
+
+  it("norm quita tildes y espacios dobles", () => {
+    expect(norm("  Límites   de  Funciones ")).toBe("limites de funciones");
   });
 });
 

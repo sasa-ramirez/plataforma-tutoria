@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   AlertTriangle,
   ArrowLeft,
+  BarChart3,
   BookOpenCheck,
   ChevronDown,
   ClipboardCheck,
@@ -287,7 +288,16 @@ function ExamsSection({
                 : "Sube y procesa al menos un documento para poder armar un parcial."}
             </p>
           </div>
-          <StartExamDialog spaceId={spaceId} topicCount={topicCount} disabled={!hasNotes} />
+          <div className="flex flex-wrap items-center gap-2">
+            {(exams ?? []).some((e) => e.status === "finished") && (
+              <Button asChild variant="outline">
+                <Link to={`/app/study/${spaceId}/report`}>
+                  <BarChart3 className="size-4" /> Mi informe
+                </Link>
+              </Button>
+            )}
+            <StartExamDialog spaceId={spaceId} topicCount={topicCount} disabled={!hasNotes} />
+          </div>
         </div>
 
         {exams && exams.length > 0 && (

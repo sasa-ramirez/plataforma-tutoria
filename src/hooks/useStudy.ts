@@ -14,6 +14,7 @@ import {
   answerExamQuestion,
   finishStudyExam,
   deleteStudyExam,
+  fetchStudyReportData,
   type ExamDifficulty,
   type ProcessProgress,
   type StudySpace,
@@ -111,7 +112,7 @@ export function useStudyExam(examId: string) {
 export function useCreateStudyExam(spaceId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: { count: number; difficulty: ExamDifficulty }) =>
+    mutationFn: (input: { count: number; difficulty: ExamDifficulty; focus?: string[] }) =>
       createStudyExam({ spaceId, ...input }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["study", "exams", spaceId] }),
   });
@@ -131,6 +132,7 @@ export function useFinishStudyExam(spaceId: string, examId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["study", "exam", examId] });
       qc.invalidateQueries({ queryKey: ["study", "exams", spaceId] });
+      qc.invalidateQueries({ queryKey: ["study", "report", spaceId] });
     },
   });
 }
@@ -139,6 +141,17 @@ export function useDeleteStudyExam(spaceId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (examId: string) => deleteStudyExam(examId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["study", "exams", spaceId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["study", "exams", spaceId] });
+      qc.invalidateQueries({ queryKey: ["study", "report", spaceId] });
+    },
+  });
+}
+
+export function useStudyReportData(spaceId: string) {
+  return useQuery({
+    queryKey: ["study", "report", spaceId],
+    queryFn: () => fetchStudyReportData(spaceId),
+    enabled: !!spaceId,
   });
 }
