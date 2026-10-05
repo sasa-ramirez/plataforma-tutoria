@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   BookOpenCheck,
   ChevronDown,
+  ClipboardCheck,
   FileText,
   Presentation,
   Trash2,
@@ -24,9 +25,12 @@ import {
   useProcessStudyDocument,
   useDeleteStudyDocument,
   useDeleteStudySpace,
+  useStudyExams,
+  useDeleteStudyExam,
 } from "@/hooks/useStudy";
+import { StartExamDialog } from "@/components/study/StartExamDialog";
 import { MAX_DOC_CHARS } from "@/lib/studyText";
-import type { ProcessProgress, StudyDocument, StudyNote } from "@/services/study";
+import type { ProcessProgress, StudyDocument, StudyExam, StudyNote } from "@/services/study";
 import { cn } from "@/lib/utils";
 
 const PHASE_TEXT: Record<ProcessProgress["phase"], string> = {
@@ -58,6 +62,11 @@ export function StudySpacePage() {
     for (const n of notes ?? []) m.set(n.document_id, [...(m.get(n.document_id) ?? []), n]);
     return m;
   }, [notes]);
+
+  const topicCount = useMemo(
+    () => new Set((notes ?? []).map((n) => n.topic.trim().toLowerCase())).size,
+    [notes],
+  );
 
   const onFiles = async (list: FileList | File[]) => {
     const files = Array.from(list);
@@ -203,6 +212,9 @@ export function StudySpacePage() {
         </CardContent>
       </Card>
 
+      {/* Parcial simulado */}
+      <ExamsSection spaceId={spaceId} topicCount={topicCount} hasNotes={(notes?.length ?? 0) > 0} />
+
       {/* Documentos y sus notas */}
       {docsLoading ? (
         <Skeleton className="h-24 w-full" />
@@ -228,6 +240,98 @@ export function StudySpacePage() {
         </div>
       )}
     </div>
+  );
+}
+
+const DIFF_LABEL: Record<string, string> = {
+  mixed: "variado",
+  easy: "fácil",
+  medium: "medio",
+  hard: "difícil",
+};
+
+/** Crear un parcial simulado y ver los anteriores. */
+function ExamsSection({
+  spaceId,
+  topicCount,
+  hasNotes,
+}: {
+  spaceId: string;
+  topicCount: number;
+  hasNotes: boolean;
+}) {
+  const { toast } = useToast();
+  const { data: exams } = useStudyExams(spaceId);
+  const { mutateAsync: removeExam } = useDeleteStudyExam(spaceId);
+
+  const handleDelete = async (e: StudyExam) => {
+    if (!window.confirm(`¿Borrar "${e.title}"?`)) return;
+    try {
+      await removeExam(e.id);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "No se pudo borrar", "error");
+    }
+  };
+
+  return (
+    <Card>
+      <CardContent className="space-y-3 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="flex items-center gap-1.5 font-bold">
+              <ClipboardCheck className="size-4 text-primary" /> Parcial simulado
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              {hasNotes
+                ? "Preguntas de todos tus temas, con repaso y explicación al final."
+                : "Sube y procesa al menos un documento para poder armar un parcial."}
+            </p>
+          </div>
+          <StartExamDialog spaceId={spaceId} topicCount={topicCount} disabled={!hasNotes} />
+        </div>
+
+        {exams && exams.length > 0 && (
+          <div className="space-y-2 border-t pt-3">
+            {exams.map((e) => {
+              const pct =
+                e.status === "finished" && e.correct_count !== null
+                  ? Math.round((e.correct_count / e.question_count) * 100)
+                  : null;
+              return (
+                <div key={e.id} className="flex items-center gap-2">
+                  <Link
+                    to={`/app/study/${spaceId}/exam/${e.id}`}
+                    className="flex min-w-0 flex-1 items-center gap-3 rounded-xl border p-2.5 hover:bg-muted/50"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold">{e.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {e.question_count} preguntas · {DIFF_LABEL[e.difficulty]} ·{" "}
+                        {new Date(e.created_at).toLocaleDateString("es-CO", { day: "2-digit", month: "short" })}
+                      </p>
+                    </div>
+                    {pct !== null ? (
+                      <Badge variant={pct >= 70 ? "success" : pct >= 50 ? "warning" : "destructive"}>{pct}%</Badge>
+                    ) : (
+                      <Badge variant="warning">Continuar</Badge>
+                    )}
+                  </Link>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 shrink-0"
+                    onClick={() => handleDelete(e)}
+                    aria-label="Borrar parcial"
+                  >
+                    <Trash2 className="size-4 text-muted-foreground" />
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

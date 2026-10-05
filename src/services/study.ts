@@ -239,3 +239,85 @@ export async function processStudyDocument(input: {
   if (updErr) throw new Error(updErr.message);
   return done as StudyDocument;
 }
+
+// ---------- Parcial simulado ----------
+
+export type ExamDifficulty = "mixed" | "easy" | "medium" | "hard";
+
+export interface StudyExam {
+  id: string;
+  space_id: string;
+  title: string;
+  difficulty: ExamDifficulty;
+  question_count: number;
+  status: "in_progress" | "finished";
+  correct_count: number | null;
+  created_at: string;
+  finished_at: string | null;
+}
+
+export interface StudyExamQuestion {
+  id: string;
+  exam_id: string;
+  position: number;
+  topic: string;
+  question: string;
+  options: string[];
+  correct: number;
+  explanation: string | null;
+  selected: number | null;
+}
+
+export async function fetchStudyExams(spaceId: string): Promise<StudyExam[]> {
+  const { data, error } = await supabase
+    .from("study_exams")
+    .select("*")
+    .eq("space_id", spaceId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as StudyExam[];
+}
+
+export async function fetchStudyExam(
+  examId: string,
+): Promise<{ exam: StudyExam; questions: StudyExamQuestion[] } | null> {
+  const { data: exam, error } = await supabase.from("study_exams").select("*").eq("id", examId).maybeSingle();
+  if (error) throw error;
+  if (!exam) return null;
+  const { data: questions, error: qErr } = await supabase
+    .from("study_exam_questions")
+    .select("*")
+    .eq("exam_id", examId)
+    .order("position", { ascending: true });
+  if (qErr) throw qErr;
+  return { exam: exam as StudyExam, questions: (questions ?? []) as StudyExamQuestion[] };
+}
+
+/** Pide a la IA un parcial con las notas de la materia. Devuelve el id del parcial. */
+export async function createStudyExam(input: {
+  spaceId: string;
+  count: number;
+  difficulty: ExamDifficulty;
+}): Promise<string> {
+  const { data, error } = await supabase.functions.invoke("ai-study-exam", { body: input });
+  if (error) throw new Error(await functionError(error));
+  if (!data?.ok) throw new Error(data?.error ?? "La IA no pudo armar el parcial");
+  return data.examId as string;
+}
+
+export async function answerExamQuestion(questionId: string, selected: number): Promise<void> {
+  const { error } = await supabase.from("study_exam_questions").update({ selected }).eq("id", questionId);
+  if (error) throw new Error(error.message);
+}
+
+/** Finaliza el parcial; el servidor calcula el puntaje. Devuelve las acertadas. */
+export async function finishStudyExam(examId: string): Promise<number> {
+  const { data, error } = await supabase.rpc("study_exam_finish", { p_exam: examId });
+  if (error) throw new Error(error.message);
+  return (data as number) ?? 0;
+}
+
+export async function deleteStudyExam(examId: string): Promise<void> {
+  const { error } = await supabase.from("study_exams").delete().eq("id", examId);
+  if (error) throw new Error(error.message);
+}

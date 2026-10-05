@@ -8,6 +8,13 @@ import {
   deleteStudyDocument,
   fetchStudyNotes,
   processStudyDocument,
+  fetchStudyExams,
+  fetchStudyExam,
+  createStudyExam,
+  answerExamQuestion,
+  finishStudyExam,
+  deleteStudyExam,
+  type ExamDifficulty,
   type ProcessProgress,
   type StudySpace,
 } from "@/services/study";
@@ -82,5 +89,56 @@ export function useProcessStudyDocument(space: StudySpace | null | undefined) {
       qc.invalidateQueries({ queryKey: ["study", "notes", space.id] });
       qc.invalidateQueries({ queryKey: ["study", "spaces"] });
     },
+  });
+}
+
+export function useStudyExams(spaceId: string) {
+  return useQuery({
+    queryKey: ["study", "exams", spaceId],
+    queryFn: () => fetchStudyExams(spaceId),
+    enabled: !!spaceId,
+  });
+}
+
+export function useStudyExam(examId: string) {
+  return useQuery({
+    queryKey: ["study", "exam", examId],
+    queryFn: () => fetchStudyExam(examId),
+    enabled: !!examId,
+  });
+}
+
+export function useCreateStudyExam(spaceId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { count: number; difficulty: ExamDifficulty }) =>
+      createStudyExam({ spaceId, ...input }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["study", "exams", spaceId] }),
+  });
+}
+
+export function useAnswerExamQuestion() {
+  return useMutation({
+    mutationFn: ({ questionId, selected }: { questionId: string; selected: number }) =>
+      answerExamQuestion(questionId, selected),
+  });
+}
+
+export function useFinishStudyExam(spaceId: string, examId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => finishStudyExam(examId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["study", "exam", examId] });
+      qc.invalidateQueries({ queryKey: ["study", "exams", spaceId] });
+    },
+  });
+}
+
+export function useDeleteStudyExam(spaceId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (examId: string) => deleteStudyExam(examId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["study", "exams", spaceId] }),
   });
 }
