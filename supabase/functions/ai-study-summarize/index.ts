@@ -12,6 +12,7 @@
 //   OPENROUTER_STUDY_MODEL → un modelo más barato solo para resumir.
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { parseJsonArrayLenient } from "../_shared/studyExam.ts";
 
 const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY")!;
 const OPENROUTER_MODEL =
@@ -38,15 +39,6 @@ interface Note {
   topic: string;
   summary: string;
   key_points: string[];
-}
-
-function extractJsonArray(text: string): unknown {
-  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const raw = fenced ? fenced[1] : text;
-  const start = raw.indexOf("[");
-  const end = raw.lastIndexOf("]");
-  if (start === -1 || end === -1) throw new Error("la IA no devolvió una lista");
-  return JSON.parse(raw.slice(start, end + 1));
 }
 
 /** Descarta notas mal formadas en vez de fallar todo el fragmento por una. */
@@ -170,7 +162,7 @@ ${text}
         body: JSON.stringify({
           model: OPENROUTER_MODEL,
           temperature: 0.2,
-          max_tokens: 1800, // un fragmento no necesita más: acota el tiempo de respuesta
+          max_tokens: 3000, // margen para modelos que gastan tokens "pensando"; igual acota el tiempo
           // Si el modelo "razona", que lo haga poco: aquí solo importa la velocidad.
           reasoning: { effort: "low" },
           messages: [{ role: "user", content: prompt }],
@@ -182,7 +174,16 @@ ${text}
       const completion = await aiRes.json();
       const content: string = completion.choices?.[0]?.message?.content ?? "";
       if (!content.trim()) throw new Error("respuesta vacía del modelo");
-      return sanitizeNotes(extractJsonArray(content));
+      const parsed = parseJsonArrayLenient(content);
+      if (!parsed) {
+        // Sin lista: casi siempre es que el fragmento no tiene contenido de
+        // estudio (portada, plantilla) y el modelo lo explicó en prosa. No es
+        // un fallo: ese fragmento simplemente no aporta notas.
+        console.log(`[ai-study-summarize] sin lista, se toma como vacío: ${content.slice(0, 160).replace(/\s+/g, " ")}`);
+        return [];
+      }
+      if (parsed.truncated) console.log("[ai-study-summarize] respuesta cortada: se rescataron los temas completos");
+      return sanitizeNotes(parsed.items);
     }
 
     let notes: Note[] = [];

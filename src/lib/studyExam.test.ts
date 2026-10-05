@@ -98,3 +98,28 @@ describe("extractJsonArray", () => {
     expect(() => extractJsonArray("nada")).toThrow();
   });
 });
+
+import { parseJsonArrayLenient } from "../../supabase/functions/_shared/studyExam";
+
+describe("parseJsonArrayLenient", () => {
+  it("lee una lista normal o envuelta en markdown", () => {
+    expect(parseJsonArrayLenient('```json\n[{"a":1}]\n```')?.items).toEqual([{ a: 1 }]);
+    expect(parseJsonArrayLenient('Claro: [{"a":1},{"a":2}] listo')?.truncated).toBe(false);
+  });
+
+  it("rescata los objetos completos de una respuesta cortada", () => {
+    const cut = '[{"topic":"A","summary":"x"},{"topic":"B","summary":"y"},{"topic":"C","summ';
+    const r = parseJsonArrayLenient(cut);
+    expect(r?.truncated).toBe(true);
+    expect(r?.items).toHaveLength(2);
+  });
+
+  it("devuelve null si el modelo contestó en prosa", () => {
+    expect(parseJsonArrayLenient("Este fragmento es una portada y no tiene contenido.")).toBeNull();
+    expect(parseJsonArrayLenient("[")).toBeNull();
+  });
+
+  it("una lista vacía es válida (no hay nada que resumir)", () => {
+    expect(parseJsonArrayLenient("[]")?.items).toEqual([]);
+  });
+});

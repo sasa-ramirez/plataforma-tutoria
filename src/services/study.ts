@@ -210,6 +210,7 @@ export async function processStudyDocument(input: {
   // documento se conserve aunque terminen desordenados.
   const total = prepared.chunks.length;
   let okChunks = 0;
+  let noteCount = 0;
   let finished = 0;
   let lastError = "";
   let stop = false; // un límite diario detiene los fragmentos que faltan
@@ -231,6 +232,7 @@ export async function processStudyDocument(input: {
       });
       if ("notes" in res) {
         okChunks++;
+        noteCount += res.notes.length;
         if (res.notes.length > 0) {
           const { error } = await supabase.from("study_notes").insert(
             res.notes.map((n, k) => ({
@@ -256,11 +258,14 @@ export async function processStudyDocument(input: {
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, total) }, worker));
 
   // Estado final
-  const status = okChunks === 0 ? "error" : "ready";
+  const empty = okChunks > 0 && noteCount === 0;
+  const status = okChunks === 0 || empty ? "error" : "ready";
   const error =
     okChunks === 0
       ? lastError || "No se pudo resumir el documento."
-      : okChunks < total
+      : empty
+        ? "No encontré contenido de estudio en este archivo (¿es una plantilla, una portada o solo imágenes?). Prueba con tus diapositivas o apuntes reales."
+        : okChunks < total
         ? `Solo se resumieron ${okChunks} de ${total} partes. ${lastError}`.trim()
         : null;
   const { data: done, error: updErr } = await supabase

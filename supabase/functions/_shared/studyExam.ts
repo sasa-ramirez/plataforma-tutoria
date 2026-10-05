@@ -77,6 +77,36 @@ export function extractJsonArray(text: string): unknown {
   return JSON.parse(raw.slice(start, end + 1));
 }
 
+/** Saca la lista JSON de la respuesta de la IA, tolerando lo típico de los
+ * modelos pequeños o gratuitos: envoltura en markdown, texto antes/después, y
+ * respuestas CORTADAS por el tope de tokens (se rescatan los objetos completos).
+ * Devuelve null si no hay ninguna lista (p. ej. la IA contestó en prosa). */
+export function parseJsonArrayLenient(text: string): { items: unknown[]; truncated: boolean } | null {
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)(?:```|$)/);
+  const raw = fenced ? fenced[1] : text;
+  const start = raw.indexOf("[");
+  if (start === -1) return null;
+  const end = raw.lastIndexOf("]");
+  if (end > start) {
+    try {
+      const v = JSON.parse(raw.slice(start, end + 1));
+      if (Array.isArray(v)) return { items: v, truncated: false };
+    } catch {
+      /* se intenta rescatar abajo */
+    }
+  }
+  // Cortada a medias: se cierra la lista en el último objeto completo.
+  for (let cut = raw.lastIndexOf("}"); cut > start; cut = raw.lastIndexOf("}", cut - 1)) {
+    try {
+      const v = JSON.parse(raw.slice(start, cut + 1) + "]");
+      if (Array.isArray(v)) return { items: v, truncated: true };
+    } catch {
+      /* probar con el "}" anterior */
+    }
+  }
+  return null;
+}
+
 /** Minúsculas, sin tildes y con espacios simples: "Límites  de Funciones" == "limites de funciones". */
 export function norm(s: string): string {
   return s

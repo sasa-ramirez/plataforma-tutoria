@@ -16,8 +16,8 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import {
   allocate,
-  extractJsonArray,
   norm,
+  parseJsonArrayLenient,
   sanitize,
   shuffle,
   type Question,
@@ -265,7 +265,9 @@ ${material}`;
       const completion = await aiRes.json();
       const content: string = completion.choices?.[0]?.message?.content ?? "";
       if (!content.trim()) throw new Error("respuesta vacía del modelo");
-      const qs = sanitize(extractJsonArray(content), topicByNorm, topicById);
+      const parsed = parseJsonArrayLenient(content);
+      if (!parsed) throw new Error(`la IA no devolvió una lista (empezó con: ${content.slice(0, 80).replace(/\s+/g, " ")})`);
+      const qs = sanitize(parsed.items, topicByNorm, topicById);
       if (qs.length < minOk) {
         throw new Error(`solo salieron ${qs.length} preguntas válidas de ${total}`);
       }
