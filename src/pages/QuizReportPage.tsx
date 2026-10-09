@@ -12,6 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import {
   buildReport,
+  fmtDateTime,
   reportToCsv,
   sessionLabel,
   studentName,
@@ -163,7 +164,7 @@ export function QuizReportPage() {
                       <tr key={s.session.id} className="border-b last:border-0">
                         <td className="py-1.5 pr-2 font-semibold">{sessionLabel(s)}</td>
                         <td className="px-2">
-                          {s.session.mode === "sync" ? "Mismo tiempo" : "A su ritmo"}
+                          {s.session.is_open ? "Tarea abierta" : s.session.mode === "sync" ? "Mismo tiempo" : "A su ritmo"}
                           {s.session.shuffle ? " · barajado" : ""}
                         </td>
                         <td className="px-2">
@@ -190,6 +191,9 @@ export function QuizReportPage() {
 
           {/* Matriz estudiante × quiz */}
           <ParticipationMatrix report={report} summaries={built.summaries} total={built.questionCount} />
+
+          {/* Quién entró, cuándo y cuánto tardó */}
+          <EntryLog report={report} summaries={built.summaries} total={built.questionCount} />
 
           {/* Incidencias por quiz + notas del profe */}
           <Incidents report={report} summaries={built.summaries} total={built.questionCount} />
@@ -250,6 +254,96 @@ function ParticipationMatrix({
         <p className="text-[11px] text-muted-foreground">
           ✓ completó el quiz · ◐ entró pero no terminó (respondidas/total) · ✗ nunca logró entrar.
         </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Registro de entradas: por cada quiz, a qué hora entró cada estudiante, cuándo
+ * terminó, cuánto tardó y cuántas veces entró. */
+function EntryLog({
+  report,
+  summaries,
+  total,
+}: {
+  report: QuizReport;
+  summaries: SessionSummary[];
+  total: number;
+}) {
+  return (
+    <Card>
+      <CardContent className="space-y-4 p-4">
+        <div>
+          <h2 className="font-bold">Registro de entradas</h2>
+          <p className="text-xs text-muted-foreground">
+            «Tardó» mide desde su primera hasta su última respuesta. «Entradas» cuenta la primera vez y cada regreso
+            después de más de un minuto fuera.
+          </p>
+        </div>
+        {summaries.map((s) => {
+          const entered = report.roster
+            .filter((r) => s.perStudent[r.id].joinedAt)
+            .sort((a, b) => (s.perStudent[a.id].joinedAt ?? "").localeCompare(s.perStudent[b.id].joinedAt ?? ""));
+          return (
+            <div key={s.session.id} className="space-y-1.5 border-t pt-3 first:border-t-0 first:pt-0 print:break-inside-avoid">
+              <p className="text-sm font-semibold">
+                {sessionLabel(s)}
+                {s.session.is_open && (
+                  <span className="ml-2 text-xs font-normal text-muted-foreground">
+                    {s.session.closes_at ? `cierre: ${fmtDateTime(s.session.closes_at)}` : "sin hora de cierre"}
+                  </span>
+                )}
+              </p>
+              {entered.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Nadie entró.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="text-muted-foreground">
+                      <tr className="border-b">
+                        <th className="py-1 pr-2 font-semibold">Estudiante</th>
+                        <th className="px-2 font-semibold">Entró</th>
+                        <th className="px-2 font-semibold">Terminó</th>
+                        <th className="px-2 font-semibold">Tardó</th>
+                        <th className="px-2 font-semibold">Entradas</th>
+                        <th className="px-2 font-semibold">Respondió</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {entered.map((r) => {
+                        const x = s.perStudent[r.id];
+                        return (
+                          <tr key={r.id} className="border-b last:border-0">
+                            <td className="py-1 pr-2 font-medium">{studentName(report.roster, r.id)}</td>
+                            <td className="px-2">{fmtDateTime(x.joinedAt)}</td>
+                            <td className="px-2">
+                              {x.status === "complete" ? fmtDateTime(x.lastAnswerAt) : <span className="text-muted-foreground">—</span>}
+                            </td>
+                            <td className="px-2">{x.activeMinutes ? `${x.activeMinutes} min` : "—"}</td>
+                            <td className="px-2">{x.entries}</td>
+                            <td className={cn("px-2 font-semibold", STATUS_COLOR[x.status])}>
+                              {x.answered}/{total}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              {report.roster.length > entered.length && (
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-semibold">No han entrado:</span>{" "}
+                  {report.roster
+                    .filter((r) => !s.perStudent[r.id].joinedAt)
+                    .map((r) => studentName(report.roster, r.id))
+                    .join(", ")}
+                  .
+                </p>
+              )}
+            </div>
+          );
+        })}
       </CardContent>
     </Card>
   );

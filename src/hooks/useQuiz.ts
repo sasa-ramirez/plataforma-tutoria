@@ -189,11 +189,15 @@ export function useStartQuizSession() {
       assignmentId,
       mode,
       shuffle,
+      open,
+      closesAt,
     }: {
       assignmentId: string;
       mode: QuizMode;
       shuffle?: boolean;
-    }) => startQuizSession(assignmentId, mode, shuffle),
+      open?: boolean;
+      closesAt?: string | null;
+    }) => startQuizSession(assignmentId, mode, shuffle, { open, closesAt }),
   });
 }
 

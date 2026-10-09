@@ -30,6 +30,7 @@ import { GenerateQuizDialog } from "@/components/assignments/GenerateQuizDialog"
 import { ManualQuizDialog } from "@/components/assignments/ManualQuizDialog";
 import { QuizHistoryList } from "@/components/assignments/QuizHistoryList";
 import { useOpenQuiz } from "@/hooks/useQuiz";
+import { fmtDeadline } from "@/lib/quizSession";
 import { SubmissionsPanel } from "@/components/assignments/SubmissionsPanel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -306,10 +307,16 @@ export function AssignmentDetailPage() {
             </span>
             <div className="min-w-0 flex-1">
               <p className="font-semibold">
-                {openQuiz?.status === "lobby" ? "Quiz en vivo: sala abierta" : "Quiz en vivo en curso"}
+                {openQuiz?.is_open
+                  ? "Quiz abierto: hazlo cuando quieras"
+                  : openQuiz?.status === "lobby"
+                    ? "Quiz en vivo: sala abierta"
+                    : "Quiz en vivo en curso"}
               </p>
               <p className="text-sm text-muted-foreground">
-                Entra con este botón, no hace falta ningún código.
+                {openQuiz?.is_open
+                  ? `${openQuiz.closes_at ? `Cierra el ${fmtDeadline(openQuiz.closes_at)}. ` : ""}Un solo intento, a tu ritmo. Si sales, sigues donde ibas.`
+                  : "Entra con este botón, no hace falta ningún código."}
               </p>
             </div>
             <Button asChild variant="brand" size="sm">

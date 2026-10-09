@@ -26,6 +26,7 @@ import {
 import { logQuizEvent, quizHeartbeat } from "@/services/quiz";
 import { seededShuffleIndices } from "@/lib/shuffle";
 import { splitQuestion } from "@/lib/quizText";
+import { fmtDeadline, isExpired } from "@/lib/quizSession";
 import { cn } from "@/lib/utils";
 import type { Exercise, QuizSession } from "@/types/database";
 
@@ -40,7 +41,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** Errores "de reglas" del servidor: reintentar no los arregla. Todo lo
  * demás (red caída, timeout) sí merece reintento automático. */
-const RULE_ERROR = /(no autorizado|ya termin|no encontrada|no está activo|no es la pregunta|ya respondiste|en orden|no válida)/i;
+const RULE_ERROR = /(no autorizado|ya termin|ya cerr|no encontrada|no está activo|no es la pregunta|ya respondiste|en orden|no válida)/i;
 
 /** true/false según el celular tenga o no conexión (con su aviso en vivo). */
 function useOnline() {
@@ -85,6 +86,15 @@ export function QuizPlayView({
   const [joinTry, setJoinTry] = useState(0);
   const joined = joinState === "joined";
   const online = useOnline();
+  // Tarea abierta con hora de cierre: se revisa cada 20 s para pasar a la pantalla final
+  // sin que el estudiante tenga que recargar (el servidor ya impide responder).
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!session.closes_at) return;
+    const t = setInterval(() => setNow(Date.now()), 20_000);
+    return () => clearInterval(t);
+  }, [session.closes_at]);
+  const expired = isExpired(session, now);
   const offlineSince = useRef<number | null>(null);
 
   // Unirse con reintentos automáticos (1, 2, 4, 8 s). Antes un solo fallo
@@ -121,7 +131,7 @@ export function QuizPlayView({
   // a la pantalla / recuperar internet se re-une (es idempotente) y se
   // refresca el estado: así nadie se queda "congelado" tras una desconexión.
   useEffect(() => {
-    if (!joined || session.status === "ended") return;
+    if (!joined || session.status === "ended" || expired) return;
     const beat = () => {
       if (document.visibilityState === "visible" && navigator.onLine) {
         quizHeartbeat(session.id).catch(() => {});
@@ -226,7 +236,7 @@ export function QuizPlayView({
   };
 
   if (joinState === "error") {
-    const ended = /ya termin/i.test(joinError);
+    const ended = /ya (termin|cerr)/i.test(joinError);
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
         <TriangleAlert className="size-10 text-warning" />
@@ -234,7 +244,9 @@ export function QuizPlayView({
           <p className="text-lg font-bold">{title}</p>
           <p className="mt-1 text-sm text-muted-foreground">
             {ended
-              ? "Este quiz ya terminó."
+              ? /cerr/i.test(joinError)
+                ? "El plazo de este quiz ya cerró."
+                : "Este quiz ya terminó."
               : `No pudimos meterte al quiz. ${joinError}`}
           </p>
         </div>
@@ -277,12 +289,12 @@ export function QuizPlayView({
     );
   }
 
-  if (session.status === "ended" || finished) {
+  if (session.status === "ended" || expired || finished) {
     return (
       <div className="mx-auto flex min-h-screen max-w-sm flex-col items-center gap-4 p-6 pb-10 text-center">
         <PartyPopper className="mt-6 size-12 text-primary" />
         <p className="text-xl font-extrabold">
-          {session.status === "ended" ? "¡Quiz terminado!" : "¡Ya respondiste todo!"}
+          {session.status === "ended" || expired ? "¡Quiz terminado!" : "¡Ya respondiste todo!"}
         </p>
         {me && (
           <div className="w-full space-y-1 rounded-2xl border bg-card p-5">
@@ -322,6 +334,7 @@ export function QuizPlayView({
       <div className="mb-3 flex items-center justify-between text-xs font-semibold text-muted-foreground">
         <span>
           Pregunta {questionIndex + 1} de {questions.length}
+          {session.closes_at && <span className="ml-2 font-normal">· cierra {fmtDeadline(session.closes_at)}</span>}
         </span>
         {me && <span>{me.score} pts</span>}
       </div>

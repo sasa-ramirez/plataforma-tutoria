@@ -7,11 +7,15 @@ export async function startQuizSession(
   assignmentId: string,
   mode: QuizMode,
   shuffle = false,
+  opts: { open?: boolean; closesAt?: string | null } = {},
 ): Promise<string> {
   const { data, error } = await supabase.rpc("quiz_start_session", {
     p_assignment: assignmentId,
     p_mode: mode,
     p_shuffle: shuffle,
+    // Los parámetros nuevos solo se mandan para "tarea abierta": así los modos de
+    // siempre siguen funcionando aunque la migración 0041 aún no esté aplicada.
+    ...(opts.open ? { p_open: true, p_closes_at: opts.closesAt ?? null } : {}),
   });
   if (error) throw new Error(error.message);
   return data as string;
@@ -109,7 +113,10 @@ export async function fetchOpenQuizSession(assignmentId: string): Promise<QuizSe
     .limit(1)
     .maybeSingle();
   if (error) throw error;
-  return (data as QuizSession) ?? null;
+  const s = (data as QuizSession) ?? null;
+  // Una tarea abierta que ya pasó su hora de cierre no cuenta como abierta.
+  if (s?.closes_at && new Date(s.closes_at).getTime() <= Date.now()) return null;
+  return s;
 }
 
 /** "Sigo aquí": el celular lo manda cada ~20 s para que el profe vea quién perdió señal. */
@@ -164,6 +171,8 @@ export interface QuizReportSession {
   mode: QuizMode;
   shuffle: boolean;
   status: "lobby" | "active" | "ended";
+  is_open?: boolean;
+  closes_at?: string | null;
   created_at: string;
   started_at: string | null;
   ended_at: string | null;
@@ -175,6 +184,7 @@ export interface QuizReportSession {
     correct: number;
     joined_at: string;
     last_seen_at: string | null;
+    first_answer_at?: string | null;
     last_answer_at: string | null;
   }[];
   per_question: { exercise_id: string; total: number; correct: number }[];

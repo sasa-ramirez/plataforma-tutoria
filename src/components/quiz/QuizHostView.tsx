@@ -32,6 +32,7 @@ import {
 import { useCourseMembers } from "@/hooks/useCourses";
 import { makeQrDataUrl } from "@/lib/qr";
 import { splitQuestion } from "@/lib/quizText";
+import { fmtDeadline, isExpired } from "@/lib/quizSession";
 import { cn } from "@/lib/utils";
 import type { Exercise, QuizSession } from "@/types/database";
 
@@ -68,15 +69,19 @@ export function QuizHostView({
   };
 
   const joinUrl = `${window.location.origin}/app/quiz/${session.id}`;
+  // El QR y el enlace se muestran en la sala de espera y, en una tarea abierta, todo el tiempo
+  // que esté abierta (los estudiantes pueden llegar a cualquier hora).
+  const showShare = session.status === "lobby" || (!!session.is_open && session.status === "active");
+  const expired = isExpired(session);
 
   useEffect(() => {
-    if (session.status !== "lobby") return;
+    if (!showShare) return;
     let active = true;
     makeQrDataUrl(joinUrl).then((url) => active && setQr(url));
     return () => {
       active = false;
     };
-  }, [session.status, joinUrl]);
+  }, [showShare, joinUrl]);
 
   const copyLink = async () => {
     try {
@@ -116,17 +121,28 @@ export function QuizHostView({
     <div className="mx-auto max-w-xl space-y-4 p-4">
       <div className="text-center">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Quiz en vivo · {session.mode === "sync" ? "al mismo tiempo" : "a su ritmo"}
+          {session.is_open
+            ? "Tarea abierta · a su ritmo, cuando quieran"
+            : `Quiz en vivo · ${session.mode === "sync" ? "al mismo tiempo" : "a su ritmo"}`}
         </p>
         <h1 className="text-xl font-extrabold">{title}</h1>
       </div>
 
-      {session.status === "lobby" && (
+      {showShare && (
         <Card>
           <CardContent className="flex flex-col items-center gap-4 p-6 text-center">
             <p className="text-sm text-muted-foreground">
-              Tus estudiantes escanean este código (o entran con el enlace) para unirse.
+              {session.is_open
+                ? "Comparte este código o enlace; también les aparece el botón «Entrar al quiz» dentro de la tarea."
+                : "Tus estudiantes escanean este código (o entran con el enlace) para unirse."}
             </p>
+            {session.is_open && (
+              <p className="rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary">
+                {session.closes_at
+                  ? `${expired ? "Cerró" : "Cierra"} el ${fmtDeadline(session.closes_at)}`
+                  : "Sin hora de cierre: queda abierto hasta que lo termines"}
+              </p>
+            )}
             {qr ? (
               <img src={qr} alt="Código QR para unirse" className="size-56 rounded-xl border" />
             ) : (
@@ -140,7 +156,7 @@ export function QuizHostView({
             </button>
             <div className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground">
               <Users className="size-4" /> {participants?.length ?? 0}
-              {members ? ` de ${members.length} inscritos` : ""} en la sala
+              {members ? ` de ${members.length} inscritos` : ""} {session.is_open ? "ya entraron" : "en la sala"}
             </div>
             {missing.length > 0 && members && members.length > 0 && (
               <div className="w-full rounded-lg bg-warning/10 px-3 py-2 text-left text-xs text-warning">
@@ -151,11 +167,14 @@ export function QuizHostView({
                   {missing.map((m) => m.full_name ?? m.email ?? "Estudiante").join(", ")}
                 </p>
                 <p className="mt-1 text-muted-foreground">
-                  Este mismo código sigue sirviendo: si empiezas ya, los que
-                  lleguen después se unen igual (no hace falta otro QR).
+                  {session.is_open
+                    ? "Pueden entrar cuando quieran; tú no tienes que hacer nada."
+                    : "Este mismo código sigue sirviendo: si empiezas ya, los que lleguen después se unen igual (no hace falta otro QR)."}
                 </p>
               </div>
             )}
+            {session.status === "lobby" && (
+              <>
             <Button
               variant="brand"
               size="lg"
@@ -170,6 +189,8 @@ export function QuizHostView({
               <p className="text-xs text-muted-foreground">
                 Espera a que se una al menos un estudiante.
               </p>
+            )}
+              </>
             )}
           </CardContent>
         </Card>
@@ -234,8 +255,11 @@ export function QuizHostView({
             <Card>
               <CardContent className="space-y-3 p-5 text-center">
                 <p className="text-sm text-muted-foreground">
-                  Cada estudiante va a su ritmo — no hace falta que avances nada.
-                  Termínalo cuando quieras.
+                  {session.is_open
+                    ? expired
+                      ? "El plazo ya cerró: nadie más puede entrar ni responder. Termínalo para dejarlo guardado."
+                      : "Cada estudiante lo hace cuando quiera, a su ritmo y con un solo intento. Termínalo cuando todos hayan entrado."
+                    : "Cada estudiante va a su ritmo — no hace falta que avances nada. Termínalo cuando quieras."}
                 </p>
                 <Button
                   variant="outline"
@@ -321,6 +345,11 @@ export function QuizHostView({
                     <Badge variant="warning" className="shrink-0 gap-1">
                       <WifiOff className="size-3" /> sin señal
                     </Badge>
+                  )}
+                  {session.mode === "pace" && questions.length > 0 && (
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {Math.min(p.current_index, questions.length)}/{questions.length}
+                    </span>
                   )}
                   <span className="shrink-0 text-sm font-bold text-primary">{p.score}</span>
                 </motion.div>

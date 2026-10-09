@@ -215,6 +215,10 @@ export interface QuizSession {
   shuffle: boolean;
   /** Incidencias que anota el profesor (migración 0037). */
   notes?: string | null;
+  /** "Tarea abierta": arranca sola y cada estudiante la hace cuando quiera (migración 0041). */
+  is_open?: boolean;
+  /** Hora de cierre automática de una tarea abierta (null = la cierra el tutor). */
+  closes_at?: string | null;
   started_at: string | null;
   ended_at: string | null;
   created_by: string | null;

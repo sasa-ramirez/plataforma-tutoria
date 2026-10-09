@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuizSessionsByAssignment } from "@/hooks/useQuiz";
+import { isExpired } from "@/lib/quizSession";
 
 const STATUS_LABEL: Record<string, string> = {
   lobby: "En sala de espera",
@@ -60,7 +61,7 @@ export function QuizHistoryList({ assignmentId }: { assignmentId: string }) {
                 <Radio className="size-4 shrink-0 text-primary" />
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold">
-                    {s.mode === "sync" ? "Al mismo tiempo" : "A su ritmo"}
+                    {s.is_open ? "Tarea abierta" : s.mode === "sync" ? "Al mismo tiempo" : "A su ritmo"}
                     {s.shuffle && " · orden aleatorio"}
                   </p>
                   <p className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -73,8 +74,8 @@ export function QuizHistoryList({ assignmentId }: { assignmentId: string }) {
                     })}
                   </p>
                 </div>
-                <Badge variant={s.status === "ended" ? "secondary" : "success"}>
-                  {STATUS_LABEL[s.status] ?? s.status}
+                <Badge variant={s.status === "ended" || isExpired(s) ? "secondary" : "success"}>
+                  {isExpired(s) && s.status !== "ended" ? "Plazo cerrado" : (STATUS_LABEL[s.status] ?? s.status)}
                 </Badge>
               </Link>
             ))

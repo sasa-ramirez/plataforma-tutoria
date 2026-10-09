@@ -12,6 +12,14 @@ export interface StudentSessionResult {
   correct: number;
   score: number;
   lastSeenAt: string | null;
+  /** Primera vez que entró al quiz (null = nunca entró). */
+  joinedAt: string | null;
+  firstAnswerAt: string | null;
+  lastAnswerAt: string | null;
+  /** Veces que entró: la primera + cada regreso tras más de un minuto fuera. */
+  entries: number;
+  /** Minutos entre su primera y su última respuesta. */
+  activeMinutes: number | null;
   reconnects: number;
   offlineSeconds: number;
   errors: string[];
@@ -94,6 +102,17 @@ function summarize(
       correct: p?.correct ?? 0,
       score: p?.score ?? 0,
       lastSeenAt: p?.last_seen_at ?? p?.last_answer_at ?? p?.joined_at ?? null,
+      joinedAt: p?.joined_at ?? null,
+      firstAnswerAt: p?.first_answer_at ?? null,
+      lastAnswerAt: p?.last_answer_at ?? null,
+      entries: p ? 1 + reconnects : 0,
+      activeMinutes:
+        p?.first_answer_at && p?.last_answer_at
+          ? Math.max(
+              1,
+              Math.round((new Date(p.last_answer_at).getTime() - new Date(p.first_answer_at).getTime()) / 60000),
+            )
+          : null,
       reconnects,
       offlineSeconds,
       errors,
@@ -198,12 +217,26 @@ export function buildReport(report: QuizReport): BuiltReport {
 }
 
 /** CSV (con BOM, para que Excel respete las tildes) de la matriz estudiante × quiz. */
+/** "9/10/2026, 10:42 p. m." (vacío si no hay fecha). */
+export const fmtDateTime = (iso: string | null) =>
+  iso
+    ? new Date(iso).toLocaleString("es-CO", { day: "numeric", month: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })
+    : "";
+
 export function reportToCsv(report: QuizReport, built: BuiltReport): string {
   const esc = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
   const header = ["Estudiante", "Correo"];
   for (const s of built.summaries) {
     const base = `Quiz ${s.number}`;
-    header.push(`${base} estado`, `${base} respondidas`, `${base} puntaje`, `${base} reconexiones`);
+    header.push(
+      `${base} estado`,
+      `${base} respondidas`,
+      `${base} puntaje`,
+      `${base} entró`,
+      `${base} terminó`,
+      `${base} minutos`,
+      `${base} entradas`,
+    );
   }
   const STATUS: Record<ParticipationStatus, string> = {
     complete: "Completo",
@@ -215,7 +248,15 @@ export function reportToCsv(report: QuizReport, built: BuiltReport): string {
     const row: (string | number)[] = [r.full_name ?? "", r.email ?? ""];
     for (const s of built.summaries) {
       const x = s.perStudent[r.id];
-      row.push(STATUS[x.status], x.answered, x.score, x.reconnects);
+      row.push(
+        STATUS[x.status],
+        x.answered,
+        x.score,
+        fmtDateTime(x.joinedAt),
+        x.status === "complete" ? fmtDateTime(x.lastAnswerAt) : "",
+        x.activeMinutes ?? "",
+        x.entries,
+      );
     }
     return row;
   });
