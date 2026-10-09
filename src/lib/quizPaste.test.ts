@@ -84,3 +84,67 @@ b) dos *`);
     expect(parseQuizText("hola\n\nsolo texto").questions).toEqual([]);
   });
 });
+
+describe("texto pegado desde Word", () => {
+  it("lee una pregunta con código y líneas en blanco entre cada opción", () => {
+    const r = parseQuizText(`1. ¿Qué imprime el siguiente código?
+int contador = 0;
+for (int i = 0; i < 2; i++) {
+    contador++;
+}
+System.out.println(contador);
+
+A. 2*
+
+B. 3
+
+C. 4
+
+D. 5`);
+    expect(r.questions).toHaveLength(1);
+    const q = r.questions[0];
+    expect(q.options).toEqual(["2", "3", "4", "5"]);
+    expect(q.correct).toBe(0);
+    // el código conserva sus saltos de línea y la sangría
+    expect(q.question).toContain(
+      ["int contador = 0;", "for (int i = 0; i < 2; i++) {", "    contador++;", "}", "System.out.println(contador);"].join("\n"),
+    );
+    expect(r.warnings).toEqual([]);
+  });
+
+  it("varias preguntas con espacios de Word entre todo", () => {
+    const r = parseQuizText(`1. Primera pregunta
+
+A. uno
+
+B. dos *
+
+
+2. Segunda pregunta
+
+A. tres *
+
+B. cuatro
+
+Respuesta: A`);
+    expect(r.questions).toHaveLength(2);
+    expect(r.questions[0]).toMatchObject({ options: ["uno", "dos"], correct: 1 });
+    expect(r.questions[1]).toMatchObject({ options: ["tres", "cuatro"], correct: 0 });
+  });
+
+  it("pregunta sin numerar tras opciones separadas por blancos abre una nueva", () => {
+    const r = parseQuizText(`¿Primera?
+
+a) x *
+
+b) y
+
+¿Segunda?
+
+a) z
+
+b) w *`);
+    expect(r.questions.map((q) => q.question)).toEqual(["¿Primera?", "¿Segunda?"]);
+    expect(r.questions[1].correct).toBe(1);
+  });
+});

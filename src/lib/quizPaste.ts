@@ -1,8 +1,13 @@
 /** Lee preguntas de opción múltiple pegadas como texto (de un Word, un PDF,
  * un chat…) para no tener que crearlas una por una. Es tolerante con el
- * formato: acepta preguntas numeradas o separadas por línea en blanco,
- * opciones "a) b) c)" o con viñetas, y la correcta marcada con "*", "✓",
- * "(correcta)" o con una línea "Respuesta: B". */
+ * formato: acepta preguntas numeradas o no, opciones "a) b) c)" o con
+ * viñetas, y la correcta marcada con "*", "✓", "(correcta)" o con una línea
+ * "Respuesta: B".
+ *
+ * Detalles pensados para texto pegado de Word:
+ *  - Las líneas en blanco entre opciones NO cortan la pregunta.
+ *  - Una pregunta puede tener varias líneas, incluido código (se conservan
+ *    los saltos de línea y la sangría del código). */
 
 export interface ParsedQuestion {
   question: string;
@@ -44,6 +49,19 @@ const norm = (s: string) =>
     .replace(/\s+/g, " ")
     .trim();
 
+/** ¿Parece una línea de código? (para conservar sus saltos de línea y no unirla con la anterior). */
+const looksLikeCode = (l: string) => /[;{}=<>]|\w\(.*\)|^\s{2,}\S/.test(l);
+
+/** Une una línea más a la pregunta: con salto si hay código de por medio, con espacio si es prosa. */
+function appendLine(text: string, line: string): string {
+  if (!text) return line.trim();
+  const prevLast = text.split("\n").pop() ?? "";
+  const code = looksLikeCode(prevLast) || looksLikeCode(line);
+  // El código conserva su sangría; la prosa se limpia.
+  const piece = looksLikeCode(line) ? line.replace(/\s+$/, "") : line.trim();
+  return text + (code ? "\n" : " ") + piece;
+}
+
 interface Draft {
   text: string;
   options: string[];
@@ -61,7 +79,7 @@ export function parseQuizText(raw: string): ParseResult {
     if (!cur) return;
     const q = cur;
     cur = null;
-    const text = q.text.replace(/\s+/g, " ").trim();
+    const text = q.text.trim();
     if (!text || q.options.length < 2) {
       discarded++;
       return;
@@ -72,10 +90,8 @@ export function parseQuizText(raw: string): ParseResult {
   const fresh = (text: string): Draft => ({ text, options: [], correct: null, conflict: false });
 
   for (const line of raw.replace(/\r/g, "").split("\n")) {
-    if (!line.trim()) {
-      if (cur && cur.options.length > 0) close(); // línea en blanco = fin de la pregunta
-      continue;
-    }
+    // Las líneas en blanco no cortan nada: Word las mete entre cada opción.
+    if (!line.trim()) continue;
 
     // "Respuesta: B" (o el texto de la respuesta) después de las opciones
     const ans = cur && cur.options.length > 0 ? line.match(ANSWER_LINE) : null;
@@ -113,13 +129,13 @@ export function parseQuizText(raw: string): ParseResult {
     const start = line.match(QUESTION_START);
     if (start) {
       close();
-      cur = fresh(start[2]);
+      cur = fresh(start[2].trim());
       continue;
     }
 
     // Texto suelto: continúa la pregunta actual (si aún no tiene opciones) o abre una nueva.
     if (cur && cur.options.length === 0) {
-      cur.text += ` ${line.trim()}`;
+      cur.text = appendLine(cur.text, line);
     } else {
       close();
       cur = fresh(line.trim());

@@ -171,10 +171,11 @@ export function ManualQuizDialog({ assignment }: { assignment: Assignment }) {
         questions: ready.map((d) => {
           // Se guardan solo las opciones con texto; la correcta se reubica en la lista limpia.
           const kept = d.options.map((o, i) => ({ o: o.trim(), i })).filter((x) => x.o);
-          const question = d.question.replace(/\s+/g, " ").trim();
+          // Se conservan los saltos de línea y la sangría (preguntas con código).
+          const question = d.question.replace(/[ \t]+$/gm, "").trim();
           return {
             title: titleFromQuestion(question),
-            prompt: question.length <= 100 ? "" : question,
+            prompt: question.length <= 100 && !question.includes("\n") ? "" : question,
             options: kept.map((x) => x.o),
             correct: kept.findIndex((x) => x.i === d.correct),
           };
@@ -271,7 +272,7 @@ export function ManualQuizDialog({ assignment }: { assignment: Assignment }) {
                     value={d.question}
                     onChange={(e) => update(d.id, { question: e.target.value })}
                     placeholder="Escribe la pregunta…"
-                    rows={2}
+                    rows={Math.min(10, Math.max(2, d.question.split("\n").length))}
                     className="min-h-[60px]"
                     autoFocus={focusId === d.id}
                   />

@@ -333,10 +333,10 @@ export function QuizPlayView({
             return heading ? (
               <>
                 <p className="text-lg font-bold">{heading}</p>
-                <p className="mt-1 text-sm text-muted-foreground">{body}</p>
+                <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">{body}</p>
               </>
             ) : (
-              <p className="text-lg font-bold">{body}</p>
+              <p className="whitespace-pre-wrap text-lg font-bold">{body}</p>
             );
           })()}
         </CardContent>

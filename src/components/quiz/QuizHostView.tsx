@@ -196,10 +196,10 @@ export function QuizHostView({
                   return heading ? (
                     <>
                       <p className="text-lg font-bold">{heading}</p>
-                      <p className="text-sm text-muted-foreground">{body}</p>
+                      <p className="whitespace-pre-wrap text-sm text-muted-foreground">{body}</p>
                     </>
                   ) : (
-                    <p className="text-lg font-bold">{body}</p>
+                    <p className="whitespace-pre-wrap text-lg font-bold">{body}</p>
                   );
                 })()}
                 <div className="grid grid-cols-2 gap-2">

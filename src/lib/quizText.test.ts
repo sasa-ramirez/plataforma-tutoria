@@ -25,6 +25,15 @@ describe("splitQuestion", () => {
   });
 });
 
+describe("splitQuestion con varias líneas (código)", () => {
+  it("el título en una línea y el enunciado con saltos se muestran una sola vez", () => {
+    const q = "¿Qué imprime?\nint x = 0;\nSystem.out.println(x);";
+    const title = titleFromQuestion(q);
+    expect(title).toBe("¿Qué imprime? int x = 0; System.out.println(x);");
+    expect(splitQuestion({ title, prompt: q })).toEqual({ heading: null, body: q });
+  });
+});
+
 describe("titleFromQuestion", () => {
   it("no recorta lo corto y junta espacios", () => {
     expect(titleFromQuestion("  ¿Hola   mundo? ")).toBe("¿Hola mundo?");
