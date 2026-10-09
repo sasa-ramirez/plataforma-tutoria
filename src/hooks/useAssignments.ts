@@ -9,6 +9,7 @@ import {
   fetchExercise,
   createExercise,
   generateQuizExercises,
+  createQuizBatch,
   type CreateAssignmentInput,
   type CreateExerciseInput,
   type GenerateQuizInput,
@@ -88,6 +89,17 @@ export function useCreateExercise(assignmentId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateExerciseInput) => createExercise(input),
+    onSuccess: () =>
+      qc.invalidateQueries({
+        queryKey: assignmentKeys.exercises(assignmentId),
+      }),
+  });
+}
+
+export function useCreateQuizBatch(assignmentId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: Parameters<typeof createQuizBatch>[0]) => createQuizBatch(input),
     onSuccess: () =>
       qc.invalidateQueries({
         queryKey: assignmentKeys.exercises(assignmentId),

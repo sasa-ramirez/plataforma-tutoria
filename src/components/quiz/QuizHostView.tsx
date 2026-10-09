@@ -31,6 +31,7 @@ import {
 } from "@/hooks/useQuiz";
 import { useCourseMembers } from "@/hooks/useCourses";
 import { makeQrDataUrl } from "@/lib/qr";
+import { splitQuestion } from "@/lib/quizText";
 import { cn } from "@/lib/utils";
 import type { Exercise, QuizSession } from "@/types/database";
 
@@ -190,8 +191,17 @@ export function QuizHostView({
                     este momento.
                   </p>
                 )}
-                <p className="text-lg font-bold">{currentQuestion.title}</p>
-                <p className="text-sm text-muted-foreground">{currentQuestion.prompt}</p>
+                {(() => {
+                  const { heading, body } = splitQuestion(currentQuestion);
+                  return heading ? (
+                    <>
+                      <p className="text-lg font-bold">{heading}</p>
+                      <p className="text-sm text-muted-foreground">{body}</p>
+                    </>
+                  ) : (
+                    <p className="text-lg font-bold">{body}</p>
+                  );
+                })()}
                 <div className="grid grid-cols-2 gap-2">
                   {currentQuestion.options.map((opt, i) => (
                     <div

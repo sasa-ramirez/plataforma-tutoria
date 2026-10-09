@@ -190,30 +190,76 @@ export async function generateQuizExercises(
   }[];
   if (questions.length === 0) throw new Error("La IA no devolvió preguntas.");
 
-  const existing = await fetchExercisesByAssignment(input.assignmentId);
-  let nextIndex = existing.length + 1;
+  return createQuizBatch({
+    assignmentId: input.assignmentId,
+    language: input.language,
+    difficulty: input.difficulty,
+    topic: input.topic,
+    questions: questions.map((q) => ({ title: q.title, prompt: q.prompt, options: q.options, correct: q.correct })),
+  });
+}
 
-  // Mismo id para las N preguntas de este lote: así la lista de ejercicios
-  // las puede agrupar visualmente bajo una sola tarjeta plegable.
+export interface QuizBatchQuestion {
+  title: string;
+  prompt: string;
+  options: string[];
+  /** Índice de la opción correcta. */
+  correct: number;
+}
+
+/**
+ * Crea TODAS las preguntas de un lote de una vez (2 peticiones en total,
+ * sin importar cuántas sean) y las agrupa bajo el mismo quiz_batch_id, para
+ * que se vean como un solo quiz. Lo usan tanto la IA como la creación manual.
+ * Devuelve cuántas se crearon.
+ */
+export async function createQuizBatch(input: {
+  assignmentId: string;
+  language: ProgLanguage;
+  difficulty: Difficulty;
+  topic: string;
+  questions: QuizBatchQuestion[];
+}): Promise<number> {
+  if (input.questions.length === 0) throw new Error("No hay preguntas para guardar.");
+  const { data: userData } = await supabase.auth.getUser();
+
+  const existing = await fetchExercisesByAssignment(input.assignmentId);
+  const startIndex = existing.length + 1;
+  // Mismo id para las N preguntas del lote: la lista de ejercicios las agrupa
+  // visualmente bajo una sola tarjeta plegable.
   const batchId = crypto.randomUUID();
 
-  for (const q of questions) {
-    await createExercise({
-      assignment_id: input.assignmentId,
-      title: q.title,
-      prompt: q.prompt,
-      language: input.language,
-      difficulty: input.difficulty,
-      points: 100,
-      order_index: nextIndex++,
-      type: "multiple_choice",
-      options: q.options,
-      answer_key: { correct: String(q.correct) },
-      quiz_batch_id: batchId,
-      quiz_batch_topic: input.topic,
-    });
+  const rows = input.questions.map((q, i) => ({
+    assignment_id: input.assignmentId,
+    title: q.title,
+    prompt: q.prompt,
+    language: input.language,
+    difficulty: input.difficulty,
+    points: 100,
+    order_index: startIndex + i,
+    type: "multiple_choice",
+    options: q.options,
+    created_by: userData.user?.id,
+    quiz_batch_id: batchId,
+    quiz_batch_topic: input.topic,
+  }));
+
+  const { data: created, error } = await supabase.from("exercises").insert(rows).select("id, order_index");
+  if (error) throw error;
+
+  // Claves de respuesta (privadas) en una sola operación; se emparejan por order_index.
+  const keyByIndex = new Map(input.questions.map((q, i) => [startIndex + i, q.correct]));
+  const keys = (created ?? []).map((e) => ({
+    exercise_id: e.id as string,
+    key: { correct: String(keyByIndex.get(e.order_index as number)) },
+  }));
+  const { error: keyErr } = await supabase.from("exercise_answers").upsert(keys);
+  if (keyErr) {
+    // Sin clave la pregunta no se podría calificar: se deshace el lote entero.
+    await supabase.from("exercises").delete().eq("quiz_batch_id", batchId);
+    throw keyErr;
   }
-  return questions.length;
+  return keys.length;
 }
 
 export interface GradeResult {

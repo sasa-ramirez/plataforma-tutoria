@@ -25,6 +25,7 @@ import {
 } from "@/hooks/useQuiz";
 import { logQuizEvent, quizHeartbeat } from "@/services/quiz";
 import { seededShuffleIndices } from "@/lib/shuffle";
+import { splitQuestion } from "@/lib/quizText";
 import { cn } from "@/lib/utils";
 import type { Exercise, QuizSession } from "@/types/database";
 
@@ -327,8 +328,17 @@ export function QuizPlayView({
 
       <Card className="mb-4">
         <CardContent className="p-5">
-          <p className="text-lg font-bold">{question.title}</p>
-          <p className="mt-1 text-sm text-muted-foreground">{question.prompt}</p>
+          {(() => {
+            const { heading, body } = splitQuestion(question);
+            return heading ? (
+              <>
+                <p className="text-lg font-bold">{heading}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{body}</p>
+              </>
+            ) : (
+              <p className="text-lg font-bold">{body}</p>
+            );
+          })()}
         </CardContent>
       </Card>
 

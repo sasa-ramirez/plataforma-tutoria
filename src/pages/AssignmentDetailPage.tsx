@@ -27,6 +27,7 @@ import { useToast } from "@/components/ui/toast";
 import { CreateExerciseDialog } from "@/components/assignments/CreateExerciseDialog";
 import { StartQuizDialog } from "@/components/assignments/StartQuizDialog";
 import { GenerateQuizDialog } from "@/components/assignments/GenerateQuizDialog";
+import { ManualQuizDialog } from "@/components/assignments/ManualQuizDialog";
 import { QuizHistoryList } from "@/components/assignments/QuizHistoryList";
 import { useOpenQuiz } from "@/hooks/useQuiz";
 import { SubmissionsPanel } from "@/components/assignments/SubmissionsPanel";
@@ -344,6 +345,7 @@ export function AssignmentDetailPage() {
             {isTeacher && (
               <GenerateQuizDialog assignment={a} subjectName={programInfo?.subjectName} />
             )}
+            {isTeacher && <ManualQuizDialog assignment={a} />}
             {isTeacher && (
               <CreateExerciseDialog
                 assignment={a}
@@ -436,7 +438,7 @@ export function AssignmentDetailPage() {
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="truncate font-semibold">
-                            Quiz generado{g.topic ? `: ${g.topic}` : ""}
+                            Quiz{g.topic ? `: ${g.topic}` : ""}
                           </p>
                           <p className="text-sm text-muted-foreground">
                             {g.exercises.length} pregunta{g.exercises.length === 1 ? "" : "s"} de
